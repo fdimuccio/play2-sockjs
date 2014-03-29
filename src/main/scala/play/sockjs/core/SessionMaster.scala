@@ -1,0 +1,384 @@
+package play.sockjs.core
+
+import scala.util.control.Exception._
+import scala.concurrent.duration._
+import scala.concurrent.stm.Ref
+
+import akka.util._
+import akka.actor._
+import akka.pattern.pipe
+import akka.pattern.ask
+
+import play.api.libs.iteratee._
+import play.api.libs.iteratee.Concurrent.Channel
+import play.api.libs.json._
+import play.api.mvc._
+
+import play.sockjs.api._
+import play.sockjs.core.Frame._
+
+private[sockjs] object SessionMaster {
+
+  def props = Props(new SessionMaster)
+
+  case class Get(sessionID: String)
+  case class Send(sessionID: String, payload: Seq[String])
+
+  case object Ack
+  case object Error
+
+  /**
+   * Response to Get(sessionID) request
+   */
+  sealed abstract class SessionResponse(actor: ActorRef) {
+    final def connect(
+      heartbeat: FiniteDuration,
+      sessionTimeout: FiniteDuration,
+      quota: Long)(
+      implicit timeout: Timeout) = actor ? Session.Connect(heartbeat, sessionTimeout, quota)
+  }
+
+  /**
+   * A session that has just been created and opened
+   */
+  final class SessionOpened(actor: ActorRef) extends SessionResponse(actor) {
+
+    private[this] val closed = Ref(false)
+
+    def bind[A](req: RequestHeader, sockjs: SockJS[A]): this.type = {
+      // input enumerator: client messages will be read here and forwarded to the handler
+      val en = Concurrent.unicast[String](
+        onStart = channel => actor ! Session.SessionBound(channel),
+        // EOF could be sent by the session actor if timeout occurs so it's useless
+        // to tell the actor that is closed
+        onComplete = closed.single.getAndTransform { closed =>
+          if (!closed) actor ! Session.CloseSession // sicuro che sia necessario qua?
+          true
+        }
+        //onError = (error, in) => self ! SessionUnbound(Some(error)), //bisogna gestire l'errore, ad esempio chiudendo la sessione
+      ) &> Enumeratee.mapInputFlatten {
+        // This is hackish but this is the only way i found to make it works.
+        // The right way should be mapInput but it looks like that EOF is not
+        // propagated (something is wrong with mapInput and Concurrent.unicast)
+        // To reproduce the bug:
+        // Concurrent.unicast[Unit](_.eofAndEnd()) &> Enumeratee.mapInput {
+        //   case in => println(in); in
+        // } |>> Iteratee.ignore.map(_ => println("DONE!"))
+        case Input.EOF => closed.single.set(true); Enumerator.eof[A]
+        case Input.El(message) => (allCatch opt sockjs.formatter.read(message)).map { msg =>
+          Enumerator.enumInput[A](Input.El(msg))
+        }.getOrElse(Enumerator.enumInput[A](Input.Empty))
+        case Input.Empty => Enumerator.enumInput[A](Input.Empty)
+      }
+      // output iteratee: the handler will push messages here that will be written to the client
+      val it = Enumeratee.breakE[A](_ => closed.single()) &>> Iteratee.foreach[A] { message =>
+        actor ! Session.Write(MessageFrame(sockjs.formatter.write(message)))
+      }.map { _ =>
+        closed.single.getAndTransform { closed =>
+          if (!closed) actor ! Session.CloseSession
+          true
+        }; ()
+      }
+      // bind the session to the handler
+      sockjs.f(req)(en, it)
+      this
+    }
+
+  }
+
+  object SessionOpened {
+
+    def apply(actor: ActorRef) = new SessionOpened(actor)
+
+    def unapply(any: Any): Option[SessionOpened] = any match {
+      case session: SessionOpened => Some(session)
+      case _ => None
+    }
+
+  }
+
+  /**
+   * A session that has been resumed
+   */
+  final class SessionResumed(actor: ActorRef) extends SessionResponse(actor)
+
+  object SessionResumed {
+
+    def apply(actor: ActorRef) = new SessionResumed(actor)
+
+    def unapply(any: Any): Option[SessionResumed] = any match {
+      case session: SessionResumed => Some(session)
+      case _ => None
+    }
+
+  }
+
+}
+
+/**
+ * This actor supervise sockjs sessions
+ */
+private[sockjs] class SessionMaster extends Actor {
+
+  import SessionMaster._
+  import Session._
+
+  import context.dispatcher
+  implicit val defaultTimeout = Timeout(5 seconds)
+
+  def receive = {
+    case Get(sessionID) => context.child(sessionID) match {
+      case Some(actor) => sender ! SessionResumed(actor)
+      case _ => sender ! SessionOpened(context.actorOf(Props(new Session), sessionID))
+    }
+
+    case Send(sessionID, payload) =>
+      context.child(sessionID).map(_ ask Push(payload) pipeTo sender).getOrElse(sender ! Error)
+
+  }
+
+}
+
+private[sockjs] object Session {
+
+  case class Connect(heartbeat: FiniteDuration, sessionTimeout: FiniteDuration, quota: Long)
+  case class Connected(enumerator: Enumerator[Frame], error: Boolean = false)
+
+  case class SessionBound(channel: Concurrent.Channel[String])
+
+  case class Push(json: Seq[String])
+  case class Write(frame: Frame)
+
+  case object ConsumeQueue
+
+  case object SessionTimeout
+  case object CloseSession
+
+}
+
+private[sockjs] class Session extends Actor {
+
+  import SessionMaster._
+  import Session._
+  import Connection._
+
+  import context.dispatcher
+  implicit val defaultTimeout = Timeout(5 seconds)
+
+  private val buffer = new FrameBuffer
+  private var sessionTimeout: FiniteDuration = 5 seconds
+  private var toTimer: Option[Cancellable] = None
+
+  def receive: Receive = opening(None, None)
+
+  def opening(session: Option[Channel[String]], connection: Option[ActorRef]): Receive = {
+
+    case Connect(heartbeat, timeout, quota)  =>
+      val client = sender
+      if (context.child("c").isEmpty) {
+        context.actorOf(Props(new Connection(client, heartbeat, quota)), "c")
+        sessionTimeout = timeout
+      } else client ! Connected(Enumerator(CloseFrame.AnotherConnectionStillOpen), true)
+
+    case SessionBound(channel) =>
+      connection.foreach(conn => self ! ConnectionBound(conn))
+      context.become(opening(Some(channel), connection))
+
+    case ConnectionBound(conn) => session match {
+      case Some(channel) =>
+        conn ! WriteFrame(OpenFrame)
+        context.become(opening(Some(channel), Some(conn)))
+
+      case _ =>
+        context.become(opening(None, Some(conn)))
+    }
+
+    case ConnectionCont =>
+      self ! ConsumeQueue
+      // this should be safe since ConnectionCont will be sent by connection actor when
+      // session and connection have been bounded
+      context.become(connected(session.get, connection.get))
+
+    case ConnectionDone =>
+      scheduleTimeout()
+      // this should be safe since ConnectionDone will be sent by connection actor when
+      // the session has been bounded
+      context.become(disconnected(session.get))
+
+    case ConnectionAborted =>
+      session.foreach(_.eofAndEnd())
+      scheduleTimeout()
+      context.become(closed)
+
+    case Write(frame) =>
+      buffer.enqueue(frame)
+
+    case CloseSession =>
+      self ! Write(CloseFrame.GoAway)
+
+    case Push(msg) =>
+      session.fold(sender ! Error) { channel =>
+        msg.foreach(channel.push)
+        sender ! Ack
+      }
+
+  }
+
+  def connected(session: Channel[String], connection: ActorRef): Receive = {
+
+    case ConsumeQueue if !buffer.isEmpty =>
+      connection ! WriteFrame(buffer.dequeue())
+
+    case ConnectionCont =>
+      self ! ConsumeQueue
+
+    case ConnectionDone =>
+      scheduleTimeout()
+      context.become(disconnected(session))
+
+    case Push(jsons) =>
+      jsons.foreach(session.push)
+      sender ! Ack
+
+    case Write(frame) =>
+      if (buffer.isEmpty) connection ! WriteFrame(frame)
+      else {buffer.enqueue(frame); self ! ConsumeQueue}
+
+    case ConnectionAborted =>
+      session.eofAndEnd()
+      scheduleTimeout()
+      context.become(closed)
+
+    case CloseSession =>
+      self ! Write(CloseFrame.GoAway)
+
+    case Connect(_, _, _) =>
+      sender ! Connected(Enumerator(CloseFrame.AnotherConnectionStillOpen), true)
+
+  }
+
+  def disconnected(session: Channel[String]): Receive = {
+
+    case Connect(heartbeat, timeout, quota) =>
+      val client = sender
+      if (context.child("c").isEmpty) {
+        context.actorOf(Props(new Connection(client, heartbeat, quota)), "c")
+        sessionTimeout = timeout
+      } else client ! Connected(Enumerator(CloseFrame.AnotherConnectionStillOpen), true)
+
+    case ConnectionBound(conn) =>
+      self ! ConsumeQueue
+      clearTimeout()
+      context.become(connected(session, conn))
+
+    case Push(jsons) =>
+      jsons.foreach(session.push)
+      sender ! Ack
+
+    case Write(frame) =>
+      buffer.enqueue(frame)
+
+    case SessionTimeout =>
+      session.eofAndEnd()
+      context.stop(self)
+
+    case CloseSession =>
+      session.eofAndEnd()
+      context.become(closed)
+
+  }
+
+  // dopo un timeout di 5 secondi la sessione deve morire
+  def closed: Receive = {
+    case Connect(_, _, _) => sender ! Connected(Enumerator(CloseFrame.GoAway), true)
+    case Push => sender ! Error
+    case SessionTimeout => context.stop(self)
+  }
+
+  private def clearTimeout() {
+    toTimer.filter(!_.isCancelled).foreach(_.cancel())
+    toTimer = None
+  }
+
+  private def scheduleTimeout() {
+    toTimer.filter(!_.isCancelled).foreach(_.cancel())
+    toTimer = Some(context.system.scheduler.scheduleOnce(sessionTimeout, self, SessionTimeout))
+  }
+
+}
+
+private[sockjs] object Connection {
+
+  case class WriteFrame(frame: Frame)
+
+  case class ConnectionBound(connection: ActorRef)
+  case object ConnectionCont
+  case object ConnectionDone
+  case object ConnectionAborted
+
+  case class ChannelBound(channel: Channel[Frame])
+  case class ChannelUnbound(error: Option[String])
+
+}
+
+private[sockjs] class Connection(client: ActorRef, heartbeat: FiniteDuration, limit: Long) extends Actor {
+
+  import Session._
+  import Connection._
+
+  private[this] val done = Ref(false)
+
+  client ! Connected(Concurrent.unicast[Frame](
+    onStart = channel => self ! ChannelBound(channel),
+    onError = (error, in) => self ! ChannelUnbound(Some(error)),
+    onComplete = if(!done.single()) self ! ChannelUnbound(None)
+  ))
+
+
+  def receive: Receive = awaiting
+
+  def awaiting: Receive = {
+
+    case ChannelBound(channel) =>
+      context.parent ! ConnectionBound(self)
+      context.setReceiveTimeout(heartbeat)
+      context.become(connected(channel, limit))
+
+    case ChannelUnbound(error) =>
+      context.parent ! ConnectionAborted
+      context.stop(self)
+  }
+
+  def connected(channel: Channel[Frame], quota: Long): Receive = {
+
+    case WriteFrame(frame: CloseFrame) =>
+      channel.push(frame)
+      channel.eofAndEnd()
+      done.single.set(true)
+      context.parent ! ConnectionAborted
+      context.stop(self)
+      context.stop(self)
+
+    case WriteFrame(frame) =>
+      channel.push(frame)
+      val r = quota - frame.size
+      if (r > 0) {
+        context.parent ! ConnectionCont
+        context.become(connected(channel, r))
+      } else {
+        channel.eofAndEnd()
+        done.single.set(true)
+        context.parent ! ConnectionDone
+        context.stop(self)
+      }
+
+    case ChannelUnbound(error) =>
+      context.parent ! ConnectionAborted
+      context.stop(self)
+
+    case ReceiveTimeout =>
+      self ! WriteFrame(Frame.HeartbeatFrame)
+  }
+
+}
+

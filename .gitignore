@@ -1,0 +1,9 @@
+.DS_Store
+.idea
+*.iml
+*.lock
+target/
+/out
+/build
+lib_managed/
+/logs
