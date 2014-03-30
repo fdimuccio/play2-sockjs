@@ -288,7 +288,6 @@ private[sockjs] class Session extends Actor {
 
   }
 
-  // dopo un timeout di 5 secondi la sessione deve morire
   def closed: Receive = {
     case Connect(_, _, _) => sender ! Connected(Enumerator(CloseFrame.GoAway), true)
     case Push => sender ! Error
@@ -334,7 +333,6 @@ private[sockjs] class Connection(client: ActorRef, heartbeat: FiniteDuration, li
     onComplete = if(!done.single()) self ! ChannelUnbound(None)
   ))
 
-
   def receive: Receive = awaiting
 
   def awaiting: Receive = {
@@ -356,7 +354,6 @@ private[sockjs] class Connection(client: ActorRef, heartbeat: FiniteDuration, li
       channel.eofAndEnd()
       done.single.set(true)
       context.parent ! ConnectionAborted
-      context.stop(self)
       context.stop(self)
 
     case WriteFrame(frame) =>

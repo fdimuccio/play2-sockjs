@@ -6,33 +6,22 @@ A SockJS server implementation for [Play Framework](http://http://www.playframew
 play2-sockjs api aims to be as similar as possible to the WebSocket one provided by Play Framework:
 
 ```scala
-// With Play standard WebSocket api:
-def websocket = WebSocket.using[String] { request =>
+// Play standard WebSocket api:
+def websocket = WebSocket.using[String](handler)
 
-    // Log events to the console
-    val in = Iteratee.foreach[String](println).map { _ =>
-      println("Disconnected")
-    }
+// play2-sockjs api:
+def sockjs = SockJS.using[String](handler)
 
-    // Send a single 'Hello!' message and close
-    val out = Enumerator("Hello WebSocket!") >>> Enumerator.eof
-
-    (in, out)
+// same request handler
+val handler = { (request: RequestHeaer) =>
+  // Log events to the console
+  val in = Iteratee.foreach[String](println).map { _ =>
+    println("Disconnected")
   }
-
-// With play2-sockjs api:
-def sockjs = SockJS.using[String] { request =>
-
-    // Log events to the console
-    val in = Iteratee.foreach[String](println).map { _ =>
-      println("Disconnected")
-    }
-
-    // Send a single 'Hello!' message and close
-    val out = Enumerator("Hello SockJS!") >>> Enumerator.eof
-
-    (in, out)
-  }
+  // Send a single 'Hello!' message and close
+  val out = Enumerator("Hello!") >>> Enumerator.eof
+  (in, out)
+}
 ```
 
 It is currently in a early release, however all transports offered by SockJS have been
@@ -69,7 +58,7 @@ Add play2-sockjs to your dependencies in your project/Build.scala:
 object MyBuild extends Build {
 
   lazy val root = play.Project("root") dependsOn(playSockJS)
-  lazy val playSockJS = RootProject(uri("git://github.com/fdimuccio/play2-sockjs.git"))
+  lazy val playSockJS = RootProject(uri("git://github.com/fdimuccio/play2-sockjs.git#0.1"))
 
 }
 ```
@@ -112,7 +101,7 @@ object SockJSController extends Controller with SockJSRouter {
 }
 ```
 
-in route.conf define the path to the endpoint:
+in route.conf define the path to the controller:
 
 ```scala
 
@@ -121,7 +110,7 @@ in route.conf define the path to the endpoint:
 
 ```
 
-and finally connect with the javascript client. Here's a simple example:
+and finally connect with the javascript client:
 
 ```javascript
 <script src="http://cdn.sockjs.org/sockjs-0.3.min.js"></script>
