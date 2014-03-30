@@ -3,7 +3,7 @@ import sbt.Keys._
 
 //vedere https://github.com/ReactiveMongo/ReactiveMongo/blob/0.9/project/ReactiveMongo.scala
 object BuildSettings {
-  val buildVersion = "0.1"
+  val buildVersion = "0.1-SNAPSHOT"
 
   val buildSettings = Defaults.defaultSettings ++ Seq(
     organization := "com.github.fdimuccio",
@@ -33,7 +33,7 @@ object Publish {
   }
   lazy val settings = Seq(
     publishMavenStyle := true,
-    publishTo <<= TargetRepository.sonatype,
+    publishTo <<= TargetRepository.local,
     publishArtifact in Test := false,
     pomIncludeRepository := { _ => false },
     licenses := Seq("Apache 2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
