@@ -1,12 +1,13 @@
 package play.sockjs.core
 
-import play.api.libs.json.{JsString, Json, JsArray}
-import play.api.http.{ContentTypes, ContentTypeOf, Writeable}
-import play.api.libs.iteratee.{Enumerator, Enumeratee}
-import play.api.libs.{Comet, Jsonp}
-import play.api.mvc.Codec
+import play.api.libs.json._
+import play.api.libs.iteratee._
+import play.api.libs.Comet
+import play.api.http.{ContentTypeOf, Writeable}
+import play.api.mvc._
 import play.api.templates.Html
-import play.sockjs.api.SockJS.MessageFormatter
+
+import play.core.Execution.Implicits.internalContext
 
 /**
  * Frame accepted by SockJS clients
@@ -71,11 +72,11 @@ private[sockjs] object Frame {
               (ch >= '\u200C' && ch <= '\u200F') ||
               (ch >= '\u2028' && ch <= '\u202F') ||
               (ch >= '\u2060' && ch <= '\u206F') ||
-              (ch >= '\uFFF0' && ch <= '\uFFFF'))
+              (ch >= '\uFFF0' && ch <= '\uFFFF')) {
             buffer.append('\\')
                   .append('u')
                   .append(Integer.toHexString(ch).toLowerCase)
-          else
+          } else
             buffer.append(ch)
         }
         buffer.result()
@@ -109,7 +110,7 @@ private[sockjs] object Frame {
   /**
    * Transform a stream of Frame to a stream of text
    */
-  def toText = Enumeratee.map[Frame](_.text)
+  def toText= Enumeratee.map[Frame](_.text)
 
   /**
    * Transform a stream of Frame to a stream of text, each element terminated with \n

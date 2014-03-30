@@ -30,7 +30,7 @@ object Xhr extends HeaderNames with Results {
    */
   def polling = Transport.Polling { (req, session) =>
     session.bind { (enumerator, _) =>
-      Ok.stream(enumerator &> Frame.toTextN)
+      Ok.chunked(enumerator &> Frame.toTextN)
         .enableCORS(req)
         .notcached
         .as("application/javascript; charset=UTF-8")
@@ -45,7 +45,7 @@ object Xhr extends HeaderNames with Results {
       val preludeE =
         if (error) Enumerator.enumInput[String](Input.Empty)
         else Enumerator(prelude)
-      Ok.stream(preludeE >>> (enumerator &> Frame.toTextN))
+      Ok.chunked(preludeE >>> (enumerator &> Frame.toTextN))
         .enableCORS(req)
         .notcached
         .as("application/javascript; charset=UTF-8")

@@ -12,8 +12,10 @@ import play.api.mvc.BodyParsers._
 import play.api.mvc.Results._
 import play.api.libs.json._
 import play.api.libs.iteratee._
+import play.core.Execution.Implicits.internalContext
 
 import play.sockjs.api._
+import scala.concurrent.Future
 
 /**
  * SockJS transport helper
@@ -28,7 +30,6 @@ case class Transport(f: ActorRef => (String, SockJSSettings) => SockJSHandler) {
 
 object Transport {
 
-  implicit val ec = play.core.Execution.internalContext
   implicit val defaultTimeout = akka.util.Timeout(5 seconds) //TODO: make it configurable?
 
   val P = """/([^/.]+)/([^/.]+)/([^/.]+)""".r
@@ -50,9 +51,9 @@ object Transport {
 
   }
 
-  def Send(ok: RequestHeader => Result, ko: => Result) = Transport { sessionMaster => (sessionID, settings) =>
+  def Send(ok: RequestHeader => SimpleResult, ko: => SimpleResult)= Transport { sessionMaster => (sessionID, settings) =>
     import settings._
-    SockJSAction(Action(parse.tolerantText) { implicit req =>
+    SockJSAction(Action.async(parse.tolerantText) { implicit req =>
       def parsePlainText(txt: String) = {
         (allCatch either Json.parse(txt)).left.map(_ => "Broken JSON encoding.")
       }
@@ -68,27 +69,27 @@ object Transport {
         case (_, txt) if !txt.isEmpty => parsePlainText(txt)
         case _ => Left("Payload expected.")
       }).fold(
-        error => InternalServerError(error),
+        error => Future.successful(InternalServerError(error)),
         json => json.validate[Seq[String]].fold(
-          invalid => InternalServerError("Payload expected."),
-          payload => Async {
+          invalid => Future.successful(InternalServerError("Payload expected.")),
+          payload =>
             (sessionMaster ? SessionMaster.Send(sessionID, payload)).map {
               case SessionMaster.Ack => ok(req).withCookies(cookies.map(f => List(f(req))).getOrElse(Nil):_*)
               case SessionMaster.Error => ko
             }
-          }))
+          ))
     })
   }
 
   /**
    * HTTP polling transport
    */
-  def Polling = Http(Some(1)) _
+  val Polling = Http(Some(1)) _
 
   /**
    * HTTP streaming transport
    */
-  def Streaming = Http(None) _
+  val Streaming = Http(None) _
 
   /**
    * HTTP transport that emulate websockets. Provides method to bind this

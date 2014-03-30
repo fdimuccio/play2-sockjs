@@ -9,12 +9,11 @@ import play.api.mvc._
 import play.api.mvc.{WebSocket => PlayWebSocket}
 import play.api.libs.json._
 import play.api.http._
+import play.core.Execution.Implicits.internalContext
 
 import play.sockjs.api._
 
 object WebSocket extends HeaderNames with Results {
-
-  implicit val ec = play.core.Execution.internalContext
 
   /**
    * websocket sockjs framed transport

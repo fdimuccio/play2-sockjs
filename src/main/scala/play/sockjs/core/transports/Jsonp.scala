@@ -22,7 +22,7 @@ object Jsonp extends HeaderNames with Results {
     req.getQueryString("c").orElse(req.getQueryString("callback")).map { callback =>
       if (callback.matches("[^a-zA-Z0-9-_.]")) InternalServerError("invalid \"callback\" parameter")
       else session.bind((en, _) =>
-        Ok.stream(en &> Frame.toJsonp(callback))
+        Ok.chunked(en &> Frame.toJsonp(callback))
           .notcached)
     }.getOrElse(InternalServerError("\"callback\" parameter required"))
   }

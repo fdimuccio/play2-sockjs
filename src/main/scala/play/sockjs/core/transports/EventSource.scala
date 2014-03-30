@@ -13,7 +13,7 @@ object EventSource extends HeaderNames with Results {
 
   def transport = Transport.Streaming { (req, session) =>
     session.bind { (enumerator, _) =>
-      Ok.stream(Enumerator("\r\n") >>> (enumerator &> PlayEventSource[Frame]()))
+      Ok.chunked(Enumerator("\r\n") >>> (enumerator &> PlayEventSource[Frame]()))
         .notcached
         .as("text/event-stream; charset=UTF-8")
     }

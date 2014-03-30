@@ -26,7 +26,7 @@ object IterateeX {
 
         // Equivalent to map, but allows us to handle failures
         def wrap(delegate: Iteratee[A, B]): Iteratee[A, B] = new Iteratee[A, B] {
-          def fold[C](folder: (Step[A, B]) => Future[C]) = {
+          def fold[C](folder: (Step[A, B]) => Future[C])(implicit ec: ExecutionContext) = {
             val toReturn = delegate.fold {
               case done @ Step.Done(a, in) => {
                 doneIteratee.success(done.it)

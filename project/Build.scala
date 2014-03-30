@@ -1,9 +1,8 @@
 import sbt._
 import sbt.Keys._
 
-//vedere https://github.com/ReactiveMongo/ReactiveMongo/blob/0.9/project/ReactiveMongo.scala
 object BuildSettings {
-  val buildVersion = "0.1"
+  val buildVersion = "0.2-SNAPSHOT"
 
   val buildSettings = Defaults.defaultSettings ++ Seq(
     organization := "com.github.fdimuccio",
@@ -33,7 +32,7 @@ object Publish {
   }
   lazy val settings = Seq(
     publishMavenStyle := true,
-    publishTo <<= TargetRepository.sonatype,
+    publishTo <<= TargetRepository.local,
     publishArtifact in Test := false,
     pomIncludeRepository := { _ => false },
     licenses := Seq("Apache 2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
@@ -67,9 +66,9 @@ object Play2SockJSBuild extends Build {
         Resolver.typesafeRepo("releases")
       ),
       libraryDependencies ++= Seq(
-        "com.typesafe.akka" %% "akka-actor" % "2.1.4",
-        "play" %% "play" % "2.1.5" % "provided",
-        "play" %% "play-test" % "2.1.5" % "test",
+        "com.typesafe.akka" %% "akka-actor" % "2.2.4",
+        "com.typesafe.play" %% "play" % "2.2.2" % "provided",
+        "com.typesafe.play" %% "play-test" % "2.2.2" % "test",
         "org.specs2" %% "specs2" % "2.3.10" % "test",
         "junit" % "junit" % "4.8" % "test" cross CrossVersion.Disabled
       )

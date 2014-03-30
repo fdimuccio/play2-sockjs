@@ -31,7 +31,7 @@ object HtmlFile extends HeaderNames with Results {
           """.stripMargin)
         val prelude = tpl + Array.fill(1024 - tpl.body.length + 14)(' ').mkString + "\r\n\r\n"
         session.bind { (enumerator, _) =>
-          Ok.stream(Enumerator(Html(prelude)) >>> (enumerator &> Frame.toHTMLfile))
+          Ok.chunked(Enumerator(Html(prelude)) >>> (enumerator &> Frame.toHTMLfile))
             .notcached
             .as("text/html; charset=UTF-8")
         }

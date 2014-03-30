@@ -1,6 +1,7 @@
 package play.sockjs.core
 
 import scala.util.control.Exception._
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.concurrent.stm.Ref
 
@@ -11,7 +12,6 @@ import akka.pattern.ask
 
 import play.api.libs.iteratee._
 import play.api.libs.iteratee.Concurrent.Channel
-import play.api.libs.json._
 import play.api.mvc._
 
 import play.sockjs.api._
@@ -45,7 +45,7 @@ private[sockjs] object SessionMaster {
 
     private[this] val closed = Ref(false)
 
-    def bind[A](req: RequestHeader, sockjs: SockJS[A]): this.type = {
+    def bind[A](req: RequestHeader, sockjs: SockJS[A])(implicit ec: ExecutionContext): this.type = {
       // input enumerator: client messages will be read here and forwarded to the handler
       val en = Concurrent.unicast[String](
         onStart = channel => actor ! Session.SessionBound(channel),
@@ -324,6 +324,7 @@ private[sockjs] class Connection(client: ActorRef, heartbeat: FiniteDuration, li
 
   import Session._
   import Connection._
+  import context.dispatcher
 
   private[this] val done = Ref(false)
 

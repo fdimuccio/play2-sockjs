@@ -22,7 +22,7 @@ package object transports {
         ACCESS_CONTROL_MAX_AGE -> s"$ttl")
   }
 
-  implicit class ResultEnricher(val result: PlainResult) extends AnyVal {
+  implicit class ResultEnricher(val result: SimpleResult) extends AnyVal {
 
     def enableCORS(req: RequestHeader) = {
       val origin  = req.headers.get(ORIGIN).filter(_ != "null").getOrElse("*")
