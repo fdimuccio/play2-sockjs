@@ -56,7 +56,9 @@ private[sockjs] object Frame {
        * characters.
        * However, SockJS requires that many unicode chars are escaped. This may
        * be due to browsers barfing over certain unescaped characters
+       *
        * So... when encoding strings we make sure all unicode chars are escaped
+       * according to this regexp rule [\x00-\x1f\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufff0-\uffff]
        *
        * This code adapted from http://wiki.fasterxml.com/JacksonSampleQuoteChars
        *
@@ -73,9 +75,7 @@ private[sockjs] object Frame {
               (ch >= '\u2028' && ch <= '\u202F') ||
               (ch >= '\u2060' && ch <= '\u206F') ||
               (ch >= '\uFFF0' && ch <= '\uFFFF')) {
-            buffer.append('\\')
-                  .append('u')
-                  .append(Integer.toHexString(ch).toLowerCase)
+            buffer.append(f"\\u$ch%04x")
           } else
             buffer.append(ch)
         }

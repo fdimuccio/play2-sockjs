@@ -53,7 +53,7 @@ object Transport {
 
   def Send(ok: RequestHeader => SimpleResult, ko: => SimpleResult)= Transport { sessionMaster => (sessionID, settings) =>
     import settings._
-    SockJSAction(Action.async(parse.tolerantText) { implicit req =>
+    SockJSAction(Action.async(parse.raw(Int.MaxValue)) { implicit req =>
       def parsePlainText(txt: String) = {
         (allCatch either Json.parse(txt)).left.map(_ => "Broken JSON encoding.")
       }
@@ -64,7 +64,9 @@ object Transport {
           json <- parsePlainText(d).right
         } yield json
       }
-      ((req.contentType.getOrElse(""), req.body) match {
+      // Request body should be parsed as raw and forced to be a UTF-8 string, otherwise Play will default to
+      // ISO-8859-1, if no charset header is specified, messing up unicode encoding
+      ((req.contentType.getOrElse(""), new String(req.body.asBytes().getOrElse(Array()), "UTF-8")) match {
         case ("application/x-www-form-urlencoded", data) => parseFormUrlEncoded(data)
         case (_, txt) if !txt.isEmpty => parsePlainText(txt)
         case _ => Left("Payload expected.")
@@ -84,7 +86,7 @@ object Transport {
   /**
    * HTTP polling transport
    */
-  val Polling = Http(Some(1)) _
+  val Polling = Http(Some(1L)) _
 
   /**
    * HTTP streaming transport
