@@ -42,9 +42,7 @@ object Xhr extends HeaderNames with Results {
    */
   def streaming = Transport.Streaming { (req, session) =>
     session.bind { (enumerator, error) =>
-      val preludeE =
-        if (error) Enumerator.enumInput[String](Input.Empty)
-        else Enumerator(prelude)
+      val preludeE = if (error) Enumerator.enumInput[String](Input.Empty) else Enumerator(prelude)
       Ok.chunked(preludeE >>> (enumerator &> Frame.toTextN))
         .enableCORS(req)
         .notcached

@@ -1,6 +1,8 @@
 package play.sockjs.core
 package transports
 
+import scala.concurrent.Future
+
 import play.api.libs.iteratee._
 import play.api.mvc._
 import play.api.http._
@@ -35,8 +37,8 @@ object HtmlFile extends HeaderNames with Results {
             .notcached
             .as("text/html; charset=UTF-8")
         }
-      } else InternalServerError("invalid \"callback\" parameter")
-    }.getOrElse(InternalServerError("\"callback\" parameter required"))
+      } else Future.successful(InternalServerError("invalid \"callback\" parameter"))
+    }.getOrElse(Future.successful(InternalServerError("\"callback\" parameter required")))
   }
 
 }

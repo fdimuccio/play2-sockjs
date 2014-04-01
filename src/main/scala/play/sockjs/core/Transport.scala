@@ -47,7 +47,7 @@ object Transport {
      * Bind this session to the SessionMaster. The enumerator provided must be used
      * to write messages to the client
      */
-    def bind(f: (Enumerator[Frame], Boolean) => Result): Result
+    def bind(f: (Enumerator[Frame], Boolean) => SimpleResult): Future[SimpleResult]
 
   }
 
@@ -64,8 +64,8 @@ object Transport {
           json <- parsePlainText(d).right
         } yield json
       }
-      // Request body should be parsed as raw and forced to be a UTF-8 string, otherwise Play will default to
-      // ISO-8859-1, if no charset header is specified, messing up unicode encoding
+      // Request body should be parsed as raw and forced to be a UTF-8 string, otherwise
+      // if no charset header is specified Play will default to ISO-8859-1, messing up unicode encoding
       ((req.contentType.getOrElse(""), new String(req.body.asBytes().getOrElse(Array()), "UTF-8")) match {
         case ("application/x-www-form-urlencoded", data) => parseFormUrlEncoded(data)
         case (_, txt) if !txt.isEmpty => parsePlainText(txt)
@@ -74,12 +74,10 @@ object Transport {
         error => Future.successful(InternalServerError(error)),
         json => json.validate[Seq[String]].fold(
           invalid => Future.successful(InternalServerError("Payload expected.")),
-          payload =>
-            (sessionMaster ? SessionMaster.Send(sessionID, payload)).map {
-              case SessionMaster.Ack => ok(req).withCookies(cookies.map(f => List(f(req))).getOrElse(Nil):_*)
-              case SessionMaster.Error => ko
-            }
-          ))
+          payload => (sessionMaster ? SessionMaster.Send(sessionID, payload)).map {
+            case SessionMaster.Ack => ok(req).withCookies(cookies.map(f => List(f(req))).getOrElse(Nil):_*)
+            case SessionMaster.Error => ko
+          }))
     })
   }
 
@@ -97,12 +95,12 @@ object Transport {
    * HTTP transport that emulate websockets. Provides method to bind this
    * transport session to the SessionMaster.
    */
-  def Http(quota: Option[Long])(f: (RequestHeader, Session) => Result) = Transport { sessionMaster => (sessionID, settings) =>
+  def Http(quota: Option[Long])(f: (RequestHeader, Session) => Future[SimpleResult]) = Transport { sessionMaster => (sessionID, settings) =>
     import settings._
     SockJSTransport { sockjs =>
-      Action { req =>
+      Action.async { req =>
         f(req, new Session {
-          def bind(f: (Enumerator[Frame], Boolean) => Result): Result = Async {
+          def bind(f: (Enumerator[Frame], Boolean) => SimpleResult): Future[SimpleResult] = {
             (sessionMaster ? SessionMaster.Get(sessionID)).map {
               case SessionMaster.SessionOpened(session) => session.bind(req, sockjs)
               case SessionMaster.SessionResumed(session) => session
