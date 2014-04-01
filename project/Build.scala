@@ -7,27 +7,30 @@ object BuildSettings {
   val buildSettings = Defaults.defaultSettings ++ Seq(
     organization := "com.github.fdimuccio",
     version := buildVersion,
-    scalaVersion := "2.10.3",
-    crossScalaVersions := Seq("2.10.3"),
+    scalaVersion := "2.10.4",
+    crossScalaVersions := Seq("2.10.4"),
     crossVersion := CrossVersion.binary,
-    scalacOptions in Test ++= Seq("-Yrangepos")
+    javaOptions in test ++= Seq("-Xmx512m", "-XX:MaxPermSize=512m"),
+    scalacOptions ++= Seq("-unchecked", "-deprecation"),
+    shellPrompt := ShellPrompt.buildShellPrompt
   ) ++ Publish.settings
 }
 
 object Publish {
   object TargetRepository {
-    def local: Project.Initialize[Option[sbt.Resolver]] = version { (version: String) =>
+    def local: Def.Initialize[Option[sbt.Resolver]] = version { (version: String) =>
       val localPublishRepo = Path.userHome.absolutePath + "/.m2/repository"
       if(version.trim.endsWith("SNAPSHOT"))
         Some(Resolver.file("snapshots", new File(localPublishRepo + "/snapshots")))
-      else Some(Resolver.file("releases", new File(localPublishRepo + "/releases")))
+      else
+        Some(Resolver.file("releases", new File(localPublishRepo + "/releases")))
     }
-    def sonatype: Project.Initialize[Option[sbt.Resolver]] = version { (version: String) =>
+    def sonatype: Def.Initialize[Option[sbt.Resolver]] = version { (version: String) =>
       val nexus = "https://oss.sonatype.org/"
       if (version.trim.endsWith("SNAPSHOT"))
         Some("snapshots" at nexus + "content/repositories/snapshots")
       else
-        Some("releases"  at nexus + "service/local/staging/deploy/maven2")
+        Some("releases" at nexus + "service/local/staging/deploy/maven2")
     }
   }
   lazy val settings = Seq(
@@ -36,7 +39,7 @@ object Publish {
     publishArtifact in Test := false,
     pomIncludeRepository := { _ => false },
     licenses := Seq("Apache 2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
-    homepage := Some(url("https://github.com/fdimuccio")),
+    homepage := Some(url("https://github.com/fdimuccio/play2-sockjs")),
     pomExtra :=
       <scm>
         <url>git@github.com:fdimuccio/play2-sockjs</url>
@@ -50,6 +53,29 @@ object Publish {
         </developer>
       </developers>
   )
+}
+
+object ShellPrompt {
+  object devnull extends ProcessLogger {
+    def info(s: => String) {}
+
+    def error(s: => String) {}
+
+    def buffer[T](f: => T): T = f
+  }
+
+  def currBranch = (
+    ("git status -sb" lines_! devnull headOption)
+      getOrElse "-" stripPrefix "## ")
+
+  val buildShellPrompt = {
+    (state: State) =>
+    {
+      val currProject = Project.extract(state).currentProject.id
+      "%s:%s:%s> ".format(
+        currProject, currBranch, BuildSettings.buildVersion)
+    }
+  }
 }
 
 object Play2SockJSBuild extends Build {

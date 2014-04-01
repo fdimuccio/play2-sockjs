@@ -6,14 +6,14 @@ A SockJS server implementation for [Play Framework](http://http://www.playframew
 play2-sockjs api aims to be as similar as possible to the WebSocket one provided by Play Framework:
 
 ```scala
-// Play standard WebSocket api:
+// Play WebSocket api:
 def websocket = WebSocket.using[String](handler)
 
 // play2-sockjs api:
 def sockjs = SockJS.using[String](handler)
 
 // same request handler
-val handler = { (request: RequestHeaer) =>
+val handler = { (request: RequestHeader) =>
   // Log events to the console
   val in = Iteratee.foreach[String](println).map { _ =>
     println("Disconnected")
@@ -52,18 +52,21 @@ corporate proxies.
 Installation
 ------------
 
-Add play2-sockjs to your dependencies in your project/Build.scala:
+Add play2-sockjs dependency to your build.sbt or project/Build.scala:
 
 ```scala
-object MyBuild extends Build {
-
-  lazy val root = play.Project("root") dependsOn(playSockJS)
-  lazy val playSockJS = RootProject(uri("git://github.com/fdimuccio/play2-sockjs.git#0.2"))
-
-}
+libraryDependencies <++= playVersion { v: String =>
+    if (v.startsWith("2.2")) Seq("com.github.fdimuccio" %% "play2-sockjs" % "0.2")
+    else if (v.startsWith("2.1")) Seq("com.github.fdimuccio" %% "play2-sockjs" % "0.1")
+    else Seq()
+},
 ```
 
-Maven style dependencies are not yet available.
+You may also need to add the Sonatype Repository as a resolver:
+
+```scala
+resolvers += Resolver.sonatypeRepo("releases")
+```
 
 Usage
 -----

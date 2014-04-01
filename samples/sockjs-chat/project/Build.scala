@@ -7,13 +7,11 @@ object ApplicationBuild extends Build {
     val appName         = "sockjs-chat"
     val appVersion      = "1.0"
 
-    val appDependencies = Seq(
-      "com.github.fdimuccio" %% "play-sockjs" % "0.2-SNAPSHOT"
-    )
-
-    val main = play.Project(appName, appVersion, appDependencies).settings(
+    val main = play.Project(appName, appVersion).settings(
+      libraryDependencies += "com.github.fdimuccio" %% "play2-sockjs" % "0.2-SNAPSHOT",
       resolvers := Seq(
-        MavenRepository("Maven2 Local", (new File(Path.userHome, ".m2/repository/snapshots")).toURI.toURL.toExternalForm)
+        "Maven2 Local" at new File(Path.userHome, ".m2/repository/snapshots").toURI.toURL.toExternalForm,
+        Resolver.sonatypeRepo("snapshots")
       )
     )
 
