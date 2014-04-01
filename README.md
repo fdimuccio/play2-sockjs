@@ -31,7 +31,6 @@ only users that uses websocket transport behind HAProxy.
 
     Current versions:
         Play 2.1.x : 0.1
-        Play 2.2.x : coming soon
 
 What is SockJS?
 ---------------
@@ -52,18 +51,19 @@ corporate proxies.
 Installation
 ------------
 
-Add play2-sockjs to your dependencies in your project/Build.scala:
+Add play2-sockjs dependency to your build.sbt or project/Build.scala:
 
 ```scala
-object MyBuild extends Build {
-
-  lazy val root = play.Project("root") dependsOn(playSockJS)
-  lazy val playSockJS = RootProject(uri("git://github.com/fdimuccio/play2-sockjs.git#0.1"))
-
-}
+libraryDependencies ++= Seq(
+  "com.github.fdimuccio" %% "play2-sockjs" % "0.1"
+)
 ```
 
-Maven style dependencies are not yet available.
+You may also need to add the Sonatype Repository as a resolver:
+
+```scala
+resolvers += Resolver.sonatypeRepo("releases")
+```
 
 Usage
 -----

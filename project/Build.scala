@@ -1,9 +1,8 @@
 import sbt._
 import sbt.Keys._
 
-//vedere https://github.com/ReactiveMongo/ReactiveMongo/blob/0.9/project/ReactiveMongo.scala
 object BuildSettings {
-  val buildVersion = "0.1-SNAPSHOT"
+  val buildVersion = "0.1"
 
   val buildSettings = Defaults.defaultSettings ++ Seq(
     organization := "com.github.fdimuccio",
@@ -11,7 +10,8 @@ object BuildSettings {
     scalaVersion := "2.10.3",
     crossScalaVersions := Seq("2.10.3"),
     crossVersion := CrossVersion.binary,
-    scalacOptions in Test ++= Seq("-Yrangepos")
+    scalacOptions in Test ++= Seq("-Yrangepos"),
+    shellPrompt := ShellPrompt.buildShellPrompt
   ) ++ Publish.settings
 }
 
@@ -21,7 +21,8 @@ object Publish {
       val localPublishRepo = Path.userHome.absolutePath + "/.m2/repository"
       if(version.trim.endsWith("SNAPSHOT"))
         Some(Resolver.file("snapshots", new File(localPublishRepo + "/snapshots")))
-      else Some(Resolver.file("releases", new File(localPublishRepo + "/releases")))
+      else
+        Some(Resolver.file("releases", new File(localPublishRepo + "/releases")))
     }
     def sonatype: Project.Initialize[Option[sbt.Resolver]] = version { (version: String) =>
       val nexus = "https://oss.sonatype.org/"
@@ -33,11 +34,11 @@ object Publish {
   }
   lazy val settings = Seq(
     publishMavenStyle := true,
-    publishTo <<= TargetRepository.local,
+    publishTo <<= TargetRepository.sonatype,
     publishArtifact in Test := false,
     pomIncludeRepository := { _ => false },
     licenses := Seq("Apache 2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
-    homepage := Some(url("https://github.com/fdimuccio")),
+    homepage := Some(url("https://github.com/fdimuccio/play2-sockjs")),
     pomExtra :=
       <scm>
         <url>git@github.com:fdimuccio/play2-sockjs</url>
@@ -51,6 +52,29 @@ object Publish {
         </developer>
       </developers>
   )
+}
+
+object ShellPrompt {
+  object devnull extends ProcessLogger {
+    def info(s: => String) {}
+
+    def error(s: => String) {}
+
+    def buffer[T](f: => T): T = f
+  }
+
+  def currBranch = (
+    ("git status -sb" lines_! devnull headOption)
+      getOrElse "-" stripPrefix "## ")
+
+  val buildShellPrompt = {
+    (state: State) =>
+    {
+      val currProject = Project.extract(state).currentProject.id
+      "%s:%s:%s> ".format(
+        currProject, currBranch, BuildSettings.buildVersion)
+    }
+  }
 }
 
 object Play2SockJSBuild extends Build {

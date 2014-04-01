@@ -104,12 +104,10 @@ class ChatRoom extends Actor {
     }
 
     case NotifyJoin(username) => {
-      println("NOTIFY JOIN", username)
       notifyAll("join", username, "has entered the room")
     }
     
     case Talk(username, text) => {
-      println("talk", username, text)
       notifyAll("talk", username, text)
     }
     

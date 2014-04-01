@@ -28,13 +28,7 @@
     <script type="text/javascript" charset="utf-8">
     
         $(function() {
-            var protocols = [
-                // 'iframe-htmlfile'
-                //  'iframe-eventsource'
-                //  'jsonp-polling'
-                //    'xhr-streaming'
-                // 'xhr-polling'
-            ]
+            var protocols = [] // all
             var chatSocket = new SockJS("/room/chat", null, {debug: true, protocols_whitelist: protocols})
             window.chat = chatSocket;
             var sendMessage = function() {

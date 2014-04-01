@@ -8,13 +8,11 @@ object ApplicationBuild extends Build {
     val appVersion      = "1.0"
 
     val appDependencies = Seq(
-      "com.github.fdimuccio" %% "play2-sockjs" % "0.1-SNAPSHOT"
+      "com.github.fdimuccio" %% "play2-sockjs" % "0.1"
     )
 
     val main = play.Project(appName, appVersion, appDependencies).settings(
-      resolvers := Seq(
-        MavenRepository("Maven2 Local", (new File(Path.userHome, ".m2/repository/snapshots")).toURI.toURL.toExternalForm)
-      )
+      resolvers += Resolver.sonatypeRepo("snapshots")
     )
 
 }

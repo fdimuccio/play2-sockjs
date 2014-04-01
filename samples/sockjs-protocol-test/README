@@ -1,4 +1,1 @@
-A Chat room built using SockJS. Additionally there is a bot used speaking on the same chat room. It demonstrates:
-
-- SockJS connections.
-- Advanced usage of Akka.
+SockJS protocol test app, to be run in pair with https://github.com/sockjs/sockjs-protocol
