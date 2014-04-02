@@ -59,7 +59,7 @@ libraryDependencies <++= playVersion { v: String =>
     if (v.startsWith("2.2")) Seq("com.github.fdimuccio" %% "play2-sockjs" % "0.2")
     else if (v.startsWith("2.1")) Seq("com.github.fdimuccio" %% "play2-sockjs" % "0.1")
     else Seq()
-},
+}
 ```
 
 You may also need to add the Sonatype Repository as a resolver:
@@ -131,6 +131,43 @@ and finally connect with the javascript client:
    };
 </script>
 ```
+### Configure underlying SockJS server
+
+To change SockJS server side settings, such as connection heartbeat or session
+timeout, you have to override `server` method in SockJSRouter, as shown here:
+
+```scala
+package controllers
+
+import scala.concurrent.duration._
+
+import play.api.mvc._
+import play.sockjs.api._
+
+// mixin SockJSRouter trait with your controller
+object SockJSController extends Controller with SockJSRouter {
+
+  // here goes the server with custom settings
+  override val server = SockJSServer(SockJSSettings(websocket = false, heartbeat = 55 seconds)
+
+  // here goes the request handler
+  def sockjs = SockJS.using[String] { request =>
+
+    // Log events to the console
+    val in = Iteratee.foreach[String](println).map { _ =>
+      println("Disconnected")
+    }
+
+    // Send a single 'Hello!' message and close
+    val out = Enumerator("Hello SockJS!") >>> Enumerator.eof
+
+    (in, out)
+  }
+
+}
+```
+
+Note: each SockJSRouter will have is own SockJSServer
 
 ### Samples
 
