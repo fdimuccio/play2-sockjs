@@ -1,13 +1,6 @@
 package play.sockjs.core
 
 import play.api.libs.json._
-import play.api.libs.iteratee._
-import play.api.libs.Comet
-import play.api.http.{ContentTypeOf, Writeable}
-import play.api.mvc._
-import play.api.templates.Html
-
-import play.core.Execution.Implicits.internalContext
 
 /**
  * Frame accepted by SockJS clients
@@ -105,50 +98,6 @@ private[sockjs] object Frame {
     val GoAway = CloseFrame(3000, "Go away!")
     val AnotherConnectionStillOpen = CloseFrame(2010, "Another connection still open")
     val ConnectionInterrupted = CloseFrame(1002, "Connection interrupted!")
-  }
-
-  /**
-   * Transform a stream of Frame to a stream of text
-   */
-  def toText= Enumeratee.map[Frame](_.text)
-
-  /**
-   * Transform a stream of Frame to a stream of text, each element terminated with \n
-   */
-  def toTextN = Enumeratee.map[Frame](_.text + "\n")
-
-  /**
-   * Transform a stream of Frame to a stream of jsonp encoded text
-   */
-  def toJsonp(callback: String) = Enumeratee.map[Frame](JsonpFrame(callback, _))
-
-  /**
-   * Transform a stream of Frame to a stream to be transmitted over HTMLfile transport
-   */
-  def toHTMLfile = Enumeratee.map[Frame] { frame =>
-    Html(s"<script>\np(${JsString(frame.text)});\n</script>\r\n")
-  }
-
-  /**
-   * EventSource SockJS Frame encoder
-   */
-  implicit val eventsourceOf_Frame = Comet.CometMessage[Frame](_.text)
-
-}
-
-/**
- * JSONP Helper: used to write frames when using jsonp transport
- */
-private[sockjs] case class JsonpFrame(padding: String, frame: Frame)
-
-private[sockjs] object JsonpFrame {
-
-  implicit def contentTypeOf_JsonpFrame: ContentTypeOf[JsonpFrame] = {
-    ContentTypeOf[JsonpFrame](Some("application/javascript; charset=UTF-8"))
-  }
-
-  implicit def writeableOf_JsonpFrame: Writeable[JsonpFrame] = Writeable { jsonp =>
-    Codec.utf_8.encode(s"${jsonp.padding}(${JsString(jsonp.frame.text)});\r\n")
   }
 
 }

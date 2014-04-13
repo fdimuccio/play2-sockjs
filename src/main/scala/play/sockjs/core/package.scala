@@ -1,4 +1,4 @@
-package play.sockjs.core
+package play.sockjs
 
 import java.util.Locale
 
@@ -8,7 +8,7 @@ import play.api.mvc._
 import play.api.mvc.Results._
 import play.api.http.HeaderNames._
 
-package object transports {
+package object core {
 
   // -- Results helpers
 

@@ -2,7 +2,6 @@ package play.sockjs.core
 package transports
 
 import scala.util.control.Exception._
-import scala.concurrent.stm.Ref
 
 import play.api.libs.iteratee._
 import play.api.mvc._
@@ -13,33 +12,33 @@ import play.core.Execution.Implicits.internalContext
 
 import play.sockjs.api._
 
-object WebSocket extends HeaderNames with Results {
+private[sockjs] object WebSocket extends HeaderNames with Results {
 
   /**
    * websocket sockjs framed transport
    */
-  def sockjs = SockJSTransport { sockjs =>
+  def sockjs = handle { sockjs =>
     PlayWebSocket.using { req =>
       def bind[A](sockjs: SockJS[A]): (Iteratee[String, Unit], Enumerator[String]) = {
         val (itIN, enIN) = IterateeX.joined[String]
         val (itOUT, enOUT) = IterateeX.joined[String]
-        val aborted = Ref(false)
+        @volatile var aborted = false
         sockjs.f(req)(
           enIN &> Enumeratee.mapInputFlatten[String] {
             case Input.El(payload) if payload.isEmpty => Enumerator.enumInput[A](Input.Empty)
             case Input.El(payload) => (allCatch opt Json.parse(payload)).map(_.validate[Seq[String]].fold(
               invalid => Enumerator.enumInput[A](Input.Empty), // abort connection?
               valid   => Enumerator[A](valid.flatMap(allCatch opt sockjs.formatter.read(_)):_*))
-            ).getOrElse { aborted.single.set(true); Enumerator.eof[A] }
+            ).getOrElse { aborted = true; Enumerator.eof[A] }
             case Input.Empty => Enumerator.enumInput[A](Input.Empty)
             case Input.EOF => Enumerator.eof[A]
           },
           Enumeratee.mapInputFlatten[A] {
             case Input.El(obj) => Enumerator[Frame](Frame.MessageFrame(sockjs.formatter.write(obj)))
             case Input.Empty => Enumerator.enumInput[Frame](Input.Empty)
-            case Input.EOF if aborted.single() => Enumerator.eof[Frame]
+            case Input.EOF if aborted => Enumerator.eof[Frame]
             case Input.EOF => Enumerator[Frame](Frame.CloseFrame.GoAway) >>> Enumerator.eof
-          } ><> Enumeratee.heading(Enumerator(Frame.OpenFrame)) ><> Frame.toText &>> itOUT)
+          } ><> Enumeratee.heading(Enumerator(Frame.OpenFrame)) ><> Enumeratee.map(_.text) &>> itOUT)
         (itIN, enOUT)
       }
       bind(sockjs)
@@ -49,7 +48,7 @@ object WebSocket extends HeaderNames with Results {
   /**
    * raw websocket transport (no sockjs framing)
    */
-  def raw = SockJSTransport { sockjs =>
+  def raw = handle { sockjs =>
     PlayWebSocket.using { req =>
       def bind[A](sockjs: SockJS[A]): (Iteratee[String, Unit], Enumerator[String]) = {
         val (itIN, enIN) = IterateeX.joined[String]
@@ -71,6 +70,18 @@ object WebSocket extends HeaderNames with Results {
       }
       bind(sockjs)
     }
+  }
+
+  private def handle(f: SockJS[_] => Handler) = SockJSWebSocket { req =>
+    (if (req.method == "GET") {
+      if (req.headers.get(UPGRADE).exists(_.equalsIgnoreCase("websocket"))) {
+        if (req.headers.get(CONNECTION).exists(_.toLowerCase.contains("upgrade"))) {
+          Right(SockJSTransport(f))
+        } else Left(BadRequest("\"Connection\" must be \"Upgrade\"."))
+      } else Left(BadRequest("'Can \"Upgrade\" only to \"WebSocket\".'"))
+    } else Left(MethodNotAllowed.withHeaders(ALLOW -> "GET"))).fold(
+      result => SockJSTransport(sockjs => Action(result)),
+      transport => transport)
   }
 
 }

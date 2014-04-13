@@ -3,7 +3,6 @@ package play.sockjs.core
 import scala.util.control.Exception._
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import scala.concurrent.stm.Ref
 
 import akka.util._
 import akka.actor._
@@ -43,7 +42,7 @@ private[sockjs] object SessionMaster {
    */
   final class SessionOpened(actor: ActorRef) extends SessionResponse(actor) {
 
-    private[this] val closed = Ref(false)
+    private[this] var closed = false
 
     def bind[A](req: RequestHeader, sockjs: SockJS[A])(implicit ec: ExecutionContext): this.type = {
       // input enumerator: client messages will be read here and forwarded to the handler
@@ -51,9 +50,12 @@ private[sockjs] object SessionMaster {
         onStart = channel => actor ! Session.SessionBound(channel),
         // EOF could be sent by the session actor if timeout occurs so it's useless
         // to tell the actor that is closed
-        onComplete = closed.single.getAndTransform { closed =>
-          if (!closed) actor ! Session.CloseSession // sicuro che sia necessario qua?
-          true
+        onComplete = {
+          // sure that is needed?
+          if (!closed) {
+            actor ! Session.CloseSession
+            closed = true
+          }
         }
         //onError = (error, in) => self ! SessionUnbound(Some(error)), //bisogna gestire l'errore, ad esempio chiudendo la sessione
       ) &> Enumeratee.mapInputFlatten {
@@ -64,20 +66,20 @@ private[sockjs] object SessionMaster {
         // Concurrent.unicast[Unit](_.eofAndEnd()) &> Enumeratee.mapInput {
         //   case in => println(in); in
         // } |>> Iteratee.ignore.map(_ => println("DONE!"))
-        case Input.EOF => closed.single.set(true); Enumerator.eof[A]
+        case Input.EOF => closed = true; Enumerator.eof[A]
         case Input.El(message) => (allCatch opt sockjs.formatter.read(message)).map { msg =>
           Enumerator.enumInput[A](Input.El(msg))
         }.getOrElse(Enumerator.enumInput[A](Input.Empty))
         case Input.Empty => Enumerator.enumInput[A](Input.Empty)
       }
       // output iteratee: the handler will push messages here that will be written to the client
-      val it = Enumeratee.breakE[A](_ => closed.single()) &>> Iteratee.foreach[A] { message =>
+      val it = Enumeratee.breakE[A](_ => closed) &>> Iteratee.foreach[A] { message =>
         actor ! Session.Write(MessageFrame(sockjs.formatter.write(message)))
       }.map { _ =>
-        closed.single.getAndTransform { closed =>
-          if (!closed) actor ! Session.CloseSession
-          true
-        }; ()
+        if (!closed) {
+          actor ! Session.CloseSession
+          closed = true
+        }
       }
       // bind the session to the handler
       sockjs.f(req)(en, it)
@@ -142,7 +144,7 @@ private[sockjs] class SessionMaster extends Actor {
 private[sockjs] object Session {
 
   case class Connect(heartbeat: FiniteDuration, sessionTimeout: FiniteDuration, quota: Long)
-  case class Connected(enumerator: Enumerator[Frame], error: Boolean = false)
+  case class Connected(enumerator: Enumerator[Frame])
 
   case class SessionBound(channel: Concurrent.Channel[String])
 
@@ -178,7 +180,7 @@ private[sockjs] class Session extends Actor {
       if (context.child("c").isEmpty) {
         context.actorOf(Props(new Connection(client, heartbeat, quota)), "c")
         sessionTimeout = timeout
-      } else client ! Connected(Enumerator(CloseFrame.AnotherConnectionStillOpen), true)
+      } else client ! Connected(Enumerator(CloseFrame.AnotherConnectionStillOpen))
 
     case SessionBound(channel) =>
       connection.foreach(conn => self ! ConnectionBound(conn))
@@ -253,7 +255,7 @@ private[sockjs] class Session extends Actor {
       self ! Write(CloseFrame.GoAway)
 
     case Connect(_, _, _) =>
-      sender ! Connected(Enumerator(CloseFrame.AnotherConnectionStillOpen), true)
+      sender ! Connected(Enumerator(CloseFrame.AnotherConnectionStillOpen))
 
   }
 
@@ -264,7 +266,7 @@ private[sockjs] class Session extends Actor {
       if (context.child("c").isEmpty) {
         context.actorOf(Props(new Connection(client, heartbeat, quota)), "c")
         sessionTimeout = timeout
-      } else client ! Connected(Enumerator(CloseFrame.AnotherConnectionStillOpen), true)
+      } else client ! Connected(Enumerator(CloseFrame.AnotherConnectionStillOpen))
 
     case ConnectionBound(conn) =>
       self ! ConsumeQueue
@@ -289,7 +291,7 @@ private[sockjs] class Session extends Actor {
   }
 
   def closed: Receive = {
-    case Connect(_, _, _) => sender ! Connected(Enumerator(CloseFrame.GoAway), true)
+    case Connect(_, _, _) => sender ! Connected(Enumerator(CloseFrame.GoAway))
     case Push => sender ! Error
     case SessionTimeout => context.stop(self)
   }
@@ -326,12 +328,12 @@ private[sockjs] class Connection(client: ActorRef, heartbeat: FiniteDuration, li
   import Connection._
   import context.dispatcher
 
-  private[this] val done = Ref(false)
+  private[this] var done = false
 
   client ! Connected(Concurrent.unicast[Frame](
     onStart = channel => self ! ChannelBound(channel),
     onError = (error, in) => self ! ChannelUnbound(Some(error)),
-    onComplete = if(!done.single()) self ! ChannelUnbound(None)
+    onComplete = if(!done) self ! ChannelUnbound(None)
   ))
 
   def receive: Receive = awaiting
@@ -350,23 +352,22 @@ private[sockjs] class Connection(client: ActorRef, heartbeat: FiniteDuration, li
 
   def connected(channel: Channel[Frame], quota: Long): Receive = {
 
-    case WriteFrame(frame: CloseFrame) =>
-      channel.push(frame)
-      channel.eofAndEnd()
-      done.single.set(true)
-      context.parent ! ConnectionAborted
-      context.stop(self)
-
     case WriteFrame(frame) =>
       channel.push(frame)
       val r = quota - frame.size
-      if (r > 0) {
-        context.parent ! ConnectionCont
-        context.become(connected(channel, r))
-      } else {
+      frame match {
+        case frame: CloseFrame =>
+          done = true
+          context.parent ! ConnectionAborted
+        case _ if r > 0 =>
+          context.parent ! ConnectionCont
+          context.become(connected(channel, r))
+        case _ =>
+          done = true
+          context.parent ! ConnectionDone
+      }
+      if (done) {
         channel.eofAndEnd()
-        done.single.set(true)
-        context.parent ! ConnectionDone
         context.stop(self)
       }
 

@@ -16,11 +16,12 @@ import play.core.Execution.Implicits.internalContext
 
 import play.sockjs.api._
 import scala.concurrent.Future
+import play.api.http.Writeable
 
 /**
  * SockJS transport helper
  */
-case class Transport(f: ActorRef => (String, SockJSSettings) => SockJSHandler) {
+private[sockjs] case class Transport(f: ActorRef => (String, SockJSSettings) => SockJSHandler) {
 
   def apply(sessionID: String)(implicit sessionMaster: ActorRef, settings: SockJSSettings) = {
     f(sessionMaster)(sessionID, settings)
@@ -28,7 +29,7 @@ case class Transport(f: ActorRef => (String, SockJSSettings) => SockJSHandler) {
 
 }
 
-object Transport {
+private[sockjs] object Transport {
 
   implicit val defaultTimeout = akka.util.Timeout(5 seconds) //TODO: make it configurable?
 
@@ -37,6 +38,8 @@ object Transport {
     case P(serverID, sessionID, transport) => Some(sessionID -> transport)
     case _ => None
   }
+
+  case class Res[T](body: Enumerator[T], cors: Boolean = false)(implicit val writeable: Writeable[T])
 
   /**
    * The session the client is bound to
@@ -47,7 +50,7 @@ object Transport {
      * Bind this session to the SessionMaster. The enumerator provided must be used
      * to write messages to the client
      */
-    def bind(f: (Enumerator[Frame], Boolean) => SimpleResult): Future[SimpleResult]
+    def bind[A](f: Enumerator[Frame] => Res[A]): Future[SimpleResult]
 
   }
 
@@ -100,13 +103,19 @@ object Transport {
     SockJSTransport { sockjs =>
       Action.async { req =>
         f(req, new Session {
-          def bind(f: (Enumerator[Frame], Boolean) => SimpleResult): Future[SimpleResult] = {
+          def bind[A](f: Enumerator[Frame] => Res[A]): Future[SimpleResult] = {
             (sessionMaster ? SessionMaster.Get(sessionID)).map {
               case SessionMaster.SessionOpened(session) => session.bind(req, sockjs)
               case SessionMaster.SessionResumed(session) => session
             }.flatMap(_.connect(heartbeat, sessionTimeout, quota.getOrElse(streamingQuota)).map {
-              case Session.Connected(enumerator, error) =>
-                f(enumerator, error).withCookies(cookies.map(f => List(f(req))).getOrElse(Nil):_*)
+              case Session.Connected(enumerator) =>
+                val res = f(enumerator)
+                val status =
+                  if (req.version.contains("1.0")) Ok.feed(res.body)(res.writeable)
+                  else Ok.chunked(res.body)(res.writeable)
+                (if (res.cors) status.enableCORS(req) else status)
+                  .notcached
+                  .withCookies(cookies.map(f => List(f(req))).getOrElse(Nil):_*)
             })
           }
         })

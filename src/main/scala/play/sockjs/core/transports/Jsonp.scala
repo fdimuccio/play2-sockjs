@@ -1,11 +1,16 @@
 package play.sockjs.core
 package transports
 
-import play.api.mvc._
-import play.api.http._
 import scala.concurrent.Future
 
-object Jsonp extends HeaderNames with Results {
+import play.api.mvc._
+import play.api.http._
+import play.api.libs.iteratee._
+import play.api.libs.json._
+
+import play.core.Execution.Implicits.internalContext
+
+private[sockjs] object Jsonp extends HeaderNames with Results {
 
   /**
    * handler for jsonp_send
@@ -22,10 +27,18 @@ object Jsonp extends HeaderNames with Results {
   def polling = Transport.Polling { (req, session) =>
     req.getQueryString("c").orElse(req.getQueryString("callback")).map { callback =>
       if (!callback.matches("[^a-zA-Z0-9-_.]"))
-        session.bind((en, _) => Ok.chunked(en &> Frame.toJsonp(callback)).notcached)
+        session.bind { enumerator =>
+          Transport.Res(enumerator &> Enumeratee.map { frame =>
+            s"$callback(${JsString(frame.text)});\r\n"
+          })
+        }
       else
         Future.successful(InternalServerError("invalid \"callback\" parameter"))
     }.getOrElse(Future.successful(InternalServerError("\"callback\" parameter required")))
   }
+
+  implicit def writeableOf_JsonpTransport: Writeable[String] = Writeable[String] (
+    txt => Codec.utf_8.encode(txt),
+    Some("application/javascript; charset=UTF-8"))
 
 }

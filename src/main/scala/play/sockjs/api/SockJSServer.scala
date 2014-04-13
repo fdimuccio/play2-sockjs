@@ -95,7 +95,7 @@ object SockJSSettings {
   def default = SockJSSettings()
 
   /**
-   * Cookie calculator needed for transport cookie settings
+   * Cookie calculator used by transports to set cookie
    */
   case class CookieCalculator(f: RequestHeader => Cookie) {
     def apply(req: RequestHeader): Cookie = f(req)

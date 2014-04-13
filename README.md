@@ -27,11 +27,11 @@ val handler = { (request: RequestHeader) =>
 It is currently in a early release, however all transports offered by SockJS have been
 implemented according to the [0.3.3 protocol specifications](http://sockjs.github.io/sockjs-protocol/sockjs-protocol-0.3.3.html).
 Currently passes all transport tests from the specs except for test_haproxy, it should impact
-only users that uses websocket transport behind HAProxy.
+only users that uses WebSocket Hixie-76 protocol behind HAProxy.
 
     Current versions:
         Play 2.1.x : 0.1
-        Play 2.2.x : 0.2
+        Play 2.2.x : 0.2.1
 
 What is SockJS?
 ---------------
@@ -56,7 +56,7 @@ Add play2-sockjs dependency to your build.sbt or project/Build.scala:
 
 ```scala
 libraryDependencies <++= playVersion { v: String =>
-    if (v.startsWith("2.2")) Seq("com.github.fdimuccio" %% "play2-sockjs" % "0.2")
+    if (v.startsWith("2.2")) Seq("com.github.fdimuccio" %% "play2-sockjs" % "0.2.1")
     else if (v.startsWith("2.1")) Seq("com.github.fdimuccio" %% "play2-sockjs" % "0.1")
     else Seq()
 }
@@ -169,6 +169,22 @@ object SockJSController extends Controller with SockJSRouter {
 
 Note: each SockJSRouter will have is own SockJSServer
 
+### Load balancing and sticky sessions
+
+If your Play application is deployed in a load balanced environment you must make sure that
+all requests for a single session must reach the same server.
+
+SockJS has two mechanisms that can be useful to achieve that:
+
+    * Urls are prefixed with server and session id numbers, like:
+      /resource/<server_number>/<session_id>/transport. This is useful for load
+      balancers that support prefix-based affinity (HAProxy does).
+
+    * JESSIONID cookie: it's possible to enable cookie writing for load balancers that
+      support sticky sessions. In order to enable this feature please supply
+      SockJSSettings.CookieCalculator.jessionid when configuring SockJSServer, it's disabled
+      by default. It's also possible to implement custom CookieCalculator.
+
 ### Samples
 
 In the samples/ folder there are two sample applications:
@@ -178,7 +194,7 @@ In the samples/ folder there are two sample applications:
 
 ### What's missing?
 
-Currently, on 68 tests only 8 do not pass. As mentioned, the most important is test_haproxy.
-Other failing tests are edge cases of test_abort_xhr_streaming and test_abort_xhr_polling due to
-different implementation details, however session closure is handled correctly.
+Currently, on 68 tests only 3 do not pass. As mentioned, the most important is test_haproxy.
+The other two failing tests are edge cases of test_abort_xhr_streaming and test_abort_xhr_polling
+due to different implementation details, however session closure is handled correctly.
 
