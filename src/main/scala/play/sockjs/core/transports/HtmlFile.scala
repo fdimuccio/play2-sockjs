@@ -1,20 +1,22 @@
 package play.sockjs.core
 package transports
 
+import scala.concurrent.Future
+
 import play.api.libs.iteratee._
 import play.api.mvc._
 import play.api.http._
-import play.api.templates.Html
+import play.api.libs.json._
 
 /**
  * HTMLfile transport
  */
-object HtmlFile extends HeaderNames with Results {
+private[sockjs] object HtmlFile extends HeaderNames with Results {
 
   def transport = Transport.Streaming { (req, session) =>
     req.getQueryString("c").orElse(req.getQueryString("callback")).map { callback =>
-      if (!callback.matches("[^a-zA-Z0-9-_.]")) {
-        val tpl = Html(
+      if (!callback.matches("[^a-zA-Z0-9-_.]")) session.bind { enumerator =>
+        val tpl =
           """
             |<!doctype html>
             |<html><head>
@@ -28,15 +30,17 @@ object HtmlFile extends HeaderNames with Results {
             |    function p(d) {c.message(d);};
             |    window.onload = function() {c.stop();};
             |  </script>
-          """.stripMargin)
-        val prelude = tpl + Array.fill(1024 - tpl.body.length + 14)(' ').mkString + "\r\n\r\n"
-        session.bind { (enumerator, _) =>
-          Ok.stream(Enumerator(Html(prelude)) >>> (enumerator &> Frame.toHTMLfile))
-            .notcached
-            .as("text/html; charset=UTF-8")
-        }
-      } else InternalServerError("invalid \"callback\" parameter")
-    }.getOrElse(InternalServerError("\"callback\" parameter required"))
+          """.stripMargin
+        val prelude = tpl + Array.fill(1024 - tpl.length + 14)(' ').mkString + "\r\n\r\n"
+        Transport.Res(Enumerator(prelude) >>> (enumerator &> Enumeratee.map { frame =>
+          s"<script>\np(${JsString(frame.text)});\n</script>\r\n"
+        }))
+      } else Future.successful(InternalServerError("invalid \"callback\" parameter"))
+    }.getOrElse(Future.successful(InternalServerError("\"callback\" parameter required")))
   }
+
+  implicit def writeableOf_HtmlFileTransport: Writeable[String] = Writeable[String] (
+    txt => Codec.utf_8.encode(txt),
+    Some("text/html; charset=UTF-8"))
 
 }

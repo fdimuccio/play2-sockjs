@@ -1,12 +1,6 @@
 package play.sockjs.core
 
-import play.api.libs.json.{JsString, Json, JsArray}
-import play.api.http.{ContentTypes, ContentTypeOf, Writeable}
-import play.api.libs.iteratee.{Enumerator, Enumeratee}
-import play.api.libs.{Comet, Jsonp}
-import play.api.mvc.Codec
-import play.api.templates.Html
-import play.sockjs.api.SockJS.MessageFormatter
+import play.api.libs.json._
 
 /**
  * Frame accepted by SockJS clients
@@ -60,23 +54,22 @@ private[sockjs] object Frame {
        * This code adapted from http://wiki.fasterxml.com/JacksonSampleQuoteChars
        *
        * Refs:
-       *  - https://github.com/netty/netty/pull/1615/files#L29R71
-       *  - https://github.com/eclipse/vert.x/blob/master/vertx-core/src/main/java/org/vertx/java/core/sockjs/impl/JsonCodec.java#L32
+       * - https://github.com/netty/netty/pull/1615/files#L29R71
+       * - https://github.com/eclipse/vert.x/blob/master/vertx-core/src/main/java/org/vertx/java/core/sockjs/impl/JsonCodec.java#L32
        */
       def escape(message: String): String = {
         val buffer = new StringBuilder(message.length)
-        message.foreach { ch =>
-          if ((ch >= '\u0000' && ch <= '\u001F') ||
+        message.foreach {
+          ch =>
+            if ((ch >= '\u0000' && ch <= '\u001F') ||
               (ch >= '\uD800' && ch <= '\uDFFF') ||
               (ch >= '\u200C' && ch <= '\u200F') ||
               (ch >= '\u2028' && ch <= '\u202F') ||
               (ch >= '\u2060' && ch <= '\u206F') ||
               (ch >= '\uFFF0' && ch <= '\uFFFF'))
-            buffer.append('\\')
-                  .append('u')
-                  .append(Integer.toHexString(ch).toLowerCase)
-          else
-            buffer.append(ch)
+              buffer.append(f"\\u$ch%04x")
+            else
+              buffer.append(ch)
         }
         buffer.result()
       }
@@ -104,50 +97,6 @@ private[sockjs] object Frame {
     val GoAway = CloseFrame(3000, "Go away!")
     val AnotherConnectionStillOpen = CloseFrame(2010, "Another connection still open")
     val ConnectionInterrupted = CloseFrame(1002, "Connection interrupted!")
-  }
-
-  /**
-   * Transform a stream of Frame to a stream of text
-   */
-  def toText = Enumeratee.map[Frame](_.text)
-
-  /**
-   * Transform a stream of Frame to a stream of text, each element terminated with \n
-   */
-  def toTextN = Enumeratee.map[Frame](_.text + "\n")
-
-  /**
-   * Transform a stream of Frame to a stream of jsonp encoded text
-   */
-  def toJsonp(callback: String) = Enumeratee.map[Frame](JsonpFrame(callback, _))
-
-  /**
-   * Transform a stream of Frame to a stream to be transmitted over HTMLfile transport
-   */
-  def toHTMLfile = Enumeratee.map[Frame] { frame =>
-    Html(s"<script>\np(${JsString(frame.text)});\n</script>\r\n")
-  }
-
-  /**
-   * EventSource SockJS Frame encoder
-   */
-  implicit val eventsourceOf_Frame = Comet.CometMessage[Frame](_.text)
-
-}
-
-/**
- * JSONP Helper: used to write frames when using jsonp transport
- */
-private[sockjs] case class JsonpFrame(padding: String, frame: Frame)
-
-private[sockjs] object JsonpFrame {
-
-  implicit def contentTypeOf_JsonpFrame: ContentTypeOf[JsonpFrame] = {
-    ContentTypeOf[JsonpFrame](Some("application/javascript; charset=UTF-8"))
-  }
-
-  implicit def writeableOf_JsonpFrame: Writeable[JsonpFrame] = Writeable { jsonp =>
-    Codec.utf_8.encode(s"${jsonp.padding}(${JsString(jsonp.frame.text)});\r\n")
   }
 
 }

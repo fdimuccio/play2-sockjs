@@ -5,7 +5,7 @@ import play.api.libs.iteratee._
 import play.api.mvc._
 import play.api.http._
 
-object Xhr extends HeaderNames with Results {
+private[sockjs] object Xhr extends HeaderNames with Results {
 
   private[this] val prelude = Array.fill(2048)('h').mkString + '\n'
 
@@ -29,11 +29,8 @@ object Xhr extends HeaderNames with Results {
    * handler for xhr polling transport
    */
   def polling = Transport.Polling { (req, session) =>
-    session.bind { (enumerator, _) =>
-      Ok.stream(enumerator &> Frame.toTextN)
-        .enableCORS(req)
-        .notcached
-        .as("application/javascript; charset=UTF-8")
+    session.bind { enumerator =>
+      Transport.Res(enumerator &> Enumeratee.map(_.text + "\n"), true)
     }
   }
 
@@ -41,15 +38,14 @@ object Xhr extends HeaderNames with Results {
    * handler for xhr_streaming transport
    */
   def streaming = Transport.Streaming { (req, session) =>
-    session.bind { (enumerator, error) =>
-      val preludeE =
-        if (error) Enumerator.enumInput[String](Input.Empty)
-        else Enumerator(prelude)
-      Ok.stream(preludeE >>> (enumerator &> Frame.toTextN))
-        .enableCORS(req)
-        .notcached
-        .as("application/javascript; charset=UTF-8")
+    session.bind { enumerator =>
+      val preludeE = Enumerator(prelude)
+      Transport.Res(preludeE >>> (enumerator &> Enumeratee.map(_.text + "\n")), true)
     }
   }
+
+  implicit def writeableOf_XhrTransport: Writeable[String] = Writeable[String] (
+    txt => Codec.utf_8.encode(txt),
+    Some("application/javascript; charset=UTF-8"))
 
 }

@@ -4,10 +4,11 @@ import scala.runtime.AbstractPartialFunction
 
 import play.core.Router
 import play.api.mvc._
+import play.api.mvc.Results._
 
 import play.sockjs.core._
 
-trait SockJSRouter extends Router.Routes { self: Controller =>
+trait SockJSRouter extends Router.Routes {
 
   def server: SockJSServer = SockJSServer.default
 
@@ -28,6 +29,7 @@ trait SockJSRouter extends Router.Routes { self: Controller =>
         (rh.method, rh.path.drop(prefix.length)) match {
           case dispatcher(SockJSAction(handler)) => handler
           case dispatcher(SockJSTransport(transport)) => transport(sockjs)
+          case dispatcher(SockJSWebSocket(transport)) => transport(rh).f(sockjs)
           case _ => Action(NotFound)
         }
       } else default(rh)

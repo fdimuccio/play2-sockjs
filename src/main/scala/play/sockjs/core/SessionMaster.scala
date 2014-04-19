@@ -142,7 +142,7 @@ private[sockjs] class SessionMaster extends Actor {
 private[sockjs] object Session {
 
   case class Connect(heartbeat: FiniteDuration, sessionTimeout: FiniteDuration, quota: Long)
-  case class Connected(enumerator: Enumerator[Frame], error: Boolean = false)
+  case class Connected(enumerator: Enumerator[Frame])
 
   case class SessionBound(channel: Concurrent.Channel[String])
 
@@ -178,7 +178,7 @@ private[sockjs] class Session extends Actor {
       if (context.child("c").isEmpty) {
         context.actorOf(Props(new Connection(client, heartbeat, quota)), "c")
         sessionTimeout = timeout
-      } else client ! Connected(Enumerator(CloseFrame.AnotherConnectionStillOpen), true)
+      } else client ! Connected(Enumerator(CloseFrame.AnotherConnectionStillOpen))
 
     case SessionBound(channel) =>
       connection.foreach(conn => self ! ConnectionBound(conn))
@@ -253,7 +253,7 @@ private[sockjs] class Session extends Actor {
       self ! Write(CloseFrame.GoAway)
 
     case Connect(_, _, _) =>
-      sender ! Connected(Enumerator(CloseFrame.AnotherConnectionStillOpen), true)
+      sender ! Connected(Enumerator(CloseFrame.AnotherConnectionStillOpen))
 
   }
 
@@ -264,7 +264,7 @@ private[sockjs] class Session extends Actor {
       if (context.child("c").isEmpty) {
         context.actorOf(Props(new Connection(client, heartbeat, quota)), "c")
         sessionTimeout = timeout
-      } else client ! Connected(Enumerator(CloseFrame.AnotherConnectionStillOpen), true)
+      } else client ! Connected(Enumerator(CloseFrame.AnotherConnectionStillOpen))
 
     case ConnectionBound(conn) =>
       self ! ConsumeQueue
@@ -289,7 +289,7 @@ private[sockjs] class Session extends Actor {
   }
 
   def closed: Receive = {
-    case Connect(_, _, _) => sender ! Connected(Enumerator(CloseFrame.GoAway), true)
+    case Connect(_, _, _) => sender ! Connected(Enumerator(CloseFrame.GoAway))
     case Push => sender ! Error
     case SessionTimeout => context.stop(self)
   }

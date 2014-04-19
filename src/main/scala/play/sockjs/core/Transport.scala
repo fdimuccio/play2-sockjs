@@ -2,6 +2,7 @@ package play.sockjs.core
 
 import scala.util.control.Exception._
 import scala.concurrent.duration._
+import scala.concurrent.Future
 
 import akka.actor.ActorRef
 import akka.pattern.ask
@@ -11,6 +12,7 @@ import play.api.mvc._
 import play.api.mvc.BodyParsers._
 import play.api.mvc.Results._
 import play.api.libs.json._
+import play.api.http._
 import play.api.libs.iteratee._
 
 import play.sockjs.api._
@@ -18,7 +20,7 @@ import play.sockjs.api._
 /**
  * SockJS transport helper
  */
-case class Transport(f: ActorRef => (String, SockJSSettings) => SockJSHandler) {
+private[sockjs] case class Transport(f: ActorRef => (String, SockJSSettings) => SockJSHandler) {
 
   def apply(sessionID: String)(implicit sessionMaster: ActorRef, settings: SockJSSettings) = {
     f(sessionMaster)(sessionID, settings)
@@ -26,7 +28,7 @@ case class Transport(f: ActorRef => (String, SockJSSettings) => SockJSHandler) {
 
 }
 
-object Transport {
+private[sockjs] object Transport {
 
   implicit val ec = play.core.Execution.internalContext
   implicit val defaultTimeout = akka.util.Timeout(5 seconds) //TODO: make it configurable?
@@ -37,6 +39,8 @@ object Transport {
     case _ => None
   }
 
+  case class Res[T](body: Enumerator[T], cors: Boolean = false)(implicit val writeable: Writeable[T])
+
   /**
    * The session the client is bound to
    */
@@ -46,13 +50,13 @@ object Transport {
      * Bind this session to the SessionMaster. The enumerator provided must be used
      * to write messages to the client
      */
-    def bind(f: (Enumerator[Frame], Boolean) => Result): Result
+    def bind[A](f: Enumerator[Frame] => Res[A]): Future[PlainResult]
 
   }
 
   def Send(ok: RequestHeader => Result, ko: => Result) = Transport { sessionMaster => (sessionID, settings) =>
     import settings._
-    SockJSAction(Action(parse.tolerantText) { implicit req =>
+    SockJSAction(Action(parse.raw(Int.MaxValue)) { implicit req =>
       def parsePlainText(txt: String) = {
         (allCatch either Json.parse(txt)).left.map(_ => "Broken JSON encoding.")
       }
@@ -63,7 +67,7 @@ object Transport {
           json <- parsePlainText(d).right
         } yield json
       }
-      ((req.contentType.getOrElse(""), req.body) match {
+      ((req.contentType.getOrElse(""), new String(req.body.asBytes().getOrElse(Array()), "UTF-8")) match {
         case ("application/x-www-form-urlencoded", data) => parseFormUrlEncoded(data)
         case (_, txt) if !txt.isEmpty => parsePlainText(txt)
         case _ => Left("Payload expected.")
@@ -94,21 +98,27 @@ object Transport {
    * HTTP transport that emulate websockets. Provides method to bind this
    * transport session to the SessionMaster.
    */
-  def Http(quota: Option[Long])(f: (RequestHeader, Session) => Result) = Transport { sessionMaster => (sessionID, settings) =>
+  def Http(quota: Option[Long])(f: (RequestHeader, Session) => Future[PlainResult]) = Transport { sessionMaster => (sessionID, settings) =>
     import settings._
     SockJSTransport { sockjs =>
       Action { req =>
-        f(req, new Session {
-          def bind(f: (Enumerator[Frame], Boolean) => Result): Result = Async {
+        Async(f(req, new Session {
+          def bind[A](f: Enumerator[Frame] => Res[A]): Future[PlainResult] = {
             (sessionMaster ? SessionMaster.Get(sessionID)).map {
               case SessionMaster.SessionOpened(session) => session.bind(req, sockjs)
               case SessionMaster.SessionResumed(session) => session
             }.flatMap(_.connect(heartbeat, sessionTimeout, quota.getOrElse(streamingQuota)).map {
-              case Session.Connected(enumerator, error) =>
-                f(enumerator, error).withCookies(cookies.map(f => List(f(req))).getOrElse(Nil):_*)
+              case Session.Connected(enumerator) =>
+                val res = f(enumerator)
+                val status =
+                  if (req.version.contains("1.0")) Ok.feed(res.body)(res.writeable)
+                  else Ok.stream(res.body)(res.writeable)
+                (if (res.cors) status.enableCORS(req) else status)
+                  .notcached
+                  .withCookies(cookies.map(f => List(f(req))).getOrElse(Nil):_*)
             })
           }
-        })
+        }))
       }
     }
   }

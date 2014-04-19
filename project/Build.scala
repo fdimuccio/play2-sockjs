@@ -2,13 +2,13 @@ import sbt._
 import sbt.Keys._
 
 object BuildSettings {
-  val buildVersion = "0.1"
+  val buildVersion = "0.1.1"
 
   val buildSettings = Defaults.defaultSettings ++ Seq(
     organization := "com.github.fdimuccio",
     version := buildVersion,
-    scalaVersion := "2.10.3",
-    crossScalaVersions := Seq("2.10.3"),
+    scalaVersion := "2.10.4",
+    crossScalaVersions := Seq("2.10.4"),
     crossVersion := CrossVersion.binary,
     scalacOptions in Test ++= Seq("-Yrangepos"),
     shellPrompt := ShellPrompt.buildShellPrompt

@@ -2,21 +2,25 @@ package play.sockjs.core
 package transports
 
 import play.api.libs.iteratee._
-import play.api.libs.{EventSource => PlayEventSource}
-import play.api.http.HeaderNames
-import play.api.mvc.Results
+import play.api.libs.{EventSource => PlayEventSource, Comet}
+import play.api.http._
+import play.api.mvc._
 
 /**
  * EventSource transport
  */
-object EventSource extends HeaderNames with Results {
+private[sockjs] object EventSource extends HeaderNames with Results {
+
+  implicit val eventsourceOf_Frame = Comet.CometMessage[Frame](_.text)
 
   def transport = Transport.Streaming { (req, session) =>
-    session.bind { (enumerator, _) =>
-      Ok.stream(Enumerator("\r\n") >>> (enumerator &> PlayEventSource[Frame]()))
-        .notcached
-        .as("text/event-stream; charset=UTF-8")
+    session.bind { enumerator =>
+      Transport.Res(Enumerator("\r\n") >>> (enumerator &> PlayEventSource[Frame]()))
     }
   }
+
+  implicit def writeableOf_EventSourceTransport: Writeable[String] = Writeable[String] (
+    txt => Codec.utf_8.encode(txt),
+    Some("text/event-stream; charset=UTF-8"))
 
 }

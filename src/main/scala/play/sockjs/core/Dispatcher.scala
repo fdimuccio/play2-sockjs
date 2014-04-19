@@ -21,7 +21,7 @@ class Dispatcher(actorSystem: ActorSystem, name: String)(implicit settings: Sock
     case ("GET", MaybeSlash()) => Utils.greet
     case ("GET", IframePage()) => Utils.iframe(settings.scriptSRC)
     case ("GET" | "OPTIONS", "/info") => Utils.info(settings.websocket, settings.cookies.isDefined)
-    case ("GET", Transport(_, "websocket")) if settings.websocket => WebSocket.sockjs
+    case (_, Transport(_, "websocket")) if settings.websocket => WebSocket.sockjs
     case ("POST", Transport(sessionID, "xhr_send")) => Xhr.send(sessionID)
     case ("POST", Transport(sessionID, "xhr")) => Xhr.polling(sessionID)
     case ("POST", Transport(sessionID, "xhr_streaming")) => Xhr.streaming(sessionID)
@@ -30,7 +30,7 @@ class Dispatcher(actorSystem: ActorSystem, name: String)(implicit settings: Sock
     case ("GET", Transport(sessionID, "htmlfile")) => HtmlFile.transport(sessionID)
     case ("GET", Transport(sessionID, "jsonp")) => Jsonp.polling(sessionID)
     case ("POST", Transport(sessionID, "jsonp_send")) => Jsonp.send(sessionID)
-    case ("GET", "/websocket") if settings.websocket => WebSocket.raw
+    case (_, "/websocket") if settings.websocket => WebSocket.raw
   }
 
 }
