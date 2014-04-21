@@ -68,7 +68,7 @@ object SockJSRouter {
 
   def async[A](f: RequestHeader => Future[(Iteratee[A, _], Enumerator[A])])(implicit formatter: MessageFormatter[A]): Builder = Builder(SockJS.async(f))
 
-  case class Builder private(sockjs: SockJS[_], override val server: SockJSServer = SockJSServer.default) extends SockJSRouter {
+  case class Builder private[SockJSRouter](sockjs: SockJS[_], override val server: SockJSServer = SockJSServer.default) extends SockJSRouter {
 
     def script(f: RequestHeader => String) = copy(server = server.reconfigure(_.scriptSRC(f)))
 
