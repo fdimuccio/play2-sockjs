@@ -81,7 +81,8 @@ case class SockJSSettings(
     streamingQuota: Long = 128*1024) {
   def scriptSRC(src: RequestHeader => String): SockJSSettings = copy(scriptSRC = src)
   def websocket(enabled: Boolean): SockJSSettings = copy(websocket = enabled)
-  def cookies(cookies: CookieCalculator): SockJSSettings = copy(cookies = Some(cookies))
+  def cookies(calculator: CookieCalculator): SockJSSettings = cookies(Some(calculator))
+  def cookies(calculator: Option[CookieCalculator]): SockJSSettings = copy(cookies = calculator)
   def heartbeat(interval: FiniteDuration): SockJSSettings = copy(heartbeat = heartbeat)
   def streamingQuota(quota: Long): SockJSSettings = copy(streamingQuota = quota)
   def sessionTimeout(timeout: FiniteDuration): SockJSSettings = copy(sessionTimeout = timeout)

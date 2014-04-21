@@ -3,8 +3,8 @@
 # ~~~~
 
 # Home page
-->         /echo                           controllers.Echo
-->         /close                          controllers.Closed
-->         /disabled_websocket_echo        controllers.DisabledWebSocketEcho
-->         /cookie_needed_echo             controllers.CookieNeededEchoController
+->         /echo                           controllers.Application.echo
+->         /close                          controllers.Application.closed
+->         /disabled_websocket_echo        controllers.Application.disabledWebSocketEcho
+->         /cookie_needed_echo             controllers.Application.cookieNeededEcho
 
