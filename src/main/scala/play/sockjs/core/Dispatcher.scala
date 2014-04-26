@@ -4,18 +4,16 @@ import akka.actor.{ActorRef, ActorSystem}
 
 import play.sockjs.core.transports._
 import play.sockjs.api._
+import play.sockjs.core.actors.SockJSActor._
 
 /**
- * This the dispatcher that will handle incoming SockJS request.
+ * The dispatcher that will handle SockJS request.
  */
 class Dispatcher(actorSystem: ActorSystem, name: String)(implicit settings: SockJSSettings) {
 
   import Dispatcher._
 
-  implicit lazy val sessionMaster: ActorRef = {
-    if (!name.isEmpty) actorSystem.actorOf(SessionMaster.props, name)
-    else actorSystem.actorOf(SessionMaster.props)
-  }
+  implicit lazy val sessionMaster = SockJSExtension(actorSystem).sessionMaster(name)
 
   def unapply(mp: (String, String)): Option[SockJSHandler] = PartialFunction.condOpt(mp) {
     case ("GET", MaybeSlash()) => Utils.greet

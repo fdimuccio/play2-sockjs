@@ -9,21 +9,24 @@ import play.api.mvc._
 
 import play.sockjs.core._
 import play.sockjs.api.SockJSSettings.CookieCalculator
+import play.sockjs.core.actors.SessionMaster
 
 /**
  * ScokJS server.
  *
  * @param actorSystem The [[akka.actor.ActorSystem]] that will be used to create
- *                    the [[play.sockjs.core.SessionMaster]] to handle SockJS sessions.
+ *                    the [[SessionMaster]] to handle SockJS sessions.
  * @param settings The [[play.sockjs.api.SockJSSettings]] used to setup this server.
- * @param name The name of the newly created [[play.sockjs.core.SessionMaster]] actor for
- *             this server, if needed.
+ * @param name The name of the newly created [[SessionMaster]] actor for this server, if needed.
  */
 case class SockJSServer(actorSystem: ActorSystem, settings: SockJSSettings, name: Option[String]) {
 
   def reconfigure(f: SockJSSettings => SockJSSettings): SockJSServer = copy(settings = f(settings))
 
-  private[sockjs] def dispatcher(prefix: String) = new Dispatcher(actorSystem, name.getOrElse(s"sockjs-server-$prefix"))(settings)
+  private[sockjs] def dispatcher(prefix: String) = {
+    val _prefix = if (prefix.isEmpty || prefix == "/") "index" else prefix
+    new Dispatcher(actorSystem, name.getOrElse(_prefix.split("/").drop(1).mkString("-")))(settings)
+  }
 
 }
 
@@ -49,7 +52,7 @@ object SockJSServer {
    * Returns a SockJS server with specified actorSystem and settings
    *
    * @param actorSystem The [[akka.actor.ActorSystem]] that will be used to create
-   *                    the [[play.sockjs.core.SessionMaster]] to handle SockJS sessions.
+   *                    the [[SessionMaster]] to handle SockJS sessions.
    * @param settings The [[play.sockjs.api.SockJSSettings]] used to setup this server.
    */
   def apply(actorSystem: ActorSystem, settings: SockJSSettings): SockJSServer = SockJSServer(actorSystem, settings, None)

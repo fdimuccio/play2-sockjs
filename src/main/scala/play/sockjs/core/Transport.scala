@@ -1,6 +1,7 @@
 package play.sockjs.core
 
 import scala.util.control.Exception._
+import scala.concurrent.Future
 import scala.concurrent.duration._
 
 import akka.actor.ActorRef
@@ -12,18 +13,19 @@ import play.api.mvc.BodyParsers._
 import play.api.mvc.Results._
 import play.api.libs.json._
 import play.api.libs.iteratee._
+import play.api.http.Writeable
 import play.core.Execution.Implicits.internalContext
 
 import play.sockjs.api._
-import scala.concurrent.Future
-import play.api.http.Writeable
+import play.sockjs.core.actors._
+import play.sockjs.core.actors.SockJSActor.SessionMasterRef
 
 /**
  * SockJS transport helper
  */
-private[sockjs] case class Transport(f: ActorRef => (String, SockJSSettings) => SockJSHandler) {
+private[sockjs] case class Transport(f: SessionMasterRef => (String, SockJSSettings) => SockJSHandler) {
 
-  def apply(sessionID: String)(implicit sessionMaster: ActorRef, settings: SockJSSettings) = {
+  def apply(sessionID: String)(implicit sessionMaster: SessionMasterRef, settings: SockJSSettings) = {
     f(sessionMaster)(sessionID, settings)
   }
 
@@ -108,7 +110,7 @@ private[sockjs] object Transport {
               case SessionMaster.SessionOpened(session) => session.bind(req, sockjs)
               case SessionMaster.SessionResumed(session) => session
             }.flatMap(_.connect(heartbeat, sessionTimeout, quota.getOrElse(streamingQuota)).map {
-              case Session.Connected(enumerator) =>
+              case actors.Session.Connected(enumerator) =>
                 val res = f(enumerator)
                 val status =
                   if (req.version.contains("1.0")) Ok.feed(res.body)(res.writeable)

@@ -1,4 +1,5 @@
 package play.sockjs.core
+package actors
 
 import scala.util.control.Exception._
 import scala.concurrent.ExecutionContext
@@ -67,9 +68,7 @@ private[sockjs] object SessionMaster {
         //   case in => println(in); in
         // } |>> Iteratee.ignore.map(_ => println("DONE!"))
         case Input.EOF => closed = true; Enumerator.eof[A]
-        case Input.El(message) => (allCatch opt sockjs.formatter.read(message)).map { msg =>
-          Enumerator.enumInput[A](Input.El(msg))
-        }.getOrElse(Enumerator.enumInput[A](Input.Empty))
+        case Input.El(message) => (allCatch opt Enumerator.enumInput[A](Input.El(sockjs.formatter.read(message)))).getOrElse(Enumerator.enumInput[A](Input.Empty))
         case Input.Empty => Enumerator.enumInput[A](Input.Empty)
       }
       // output iteratee: the handler will push messages here that will be written to the client
@@ -126,6 +125,7 @@ private[sockjs] class SessionMaster extends Actor {
   import Session._
 
   import context.dispatcher
+
   implicit val defaultTimeout = Timeout(5 seconds)
 
   def receive = {
@@ -136,7 +136,6 @@ private[sockjs] class SessionMaster extends Actor {
 
     case Send(sessionID, payload) =>
       context.child(sessionID).map(_ ask Push(payload) pipeTo sender).getOrElse(sender ! Error)
-
   }
 
 }

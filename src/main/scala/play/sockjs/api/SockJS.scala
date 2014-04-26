@@ -6,6 +6,7 @@ import play.core.Execution.internalContext
 import play.api.libs.iteratee._
 import play.api.libs.json._
 import play.api.mvc._
+import akka.actor.ActorSystem
 
 case class SockJS[A](f: RequestHeader => (Enumerator[A], Iteratee[A, Unit]) => Unit)(implicit val formatter: SockJS.MessageFormatter[A]) {
 

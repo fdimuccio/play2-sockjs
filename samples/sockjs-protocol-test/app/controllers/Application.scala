@@ -9,26 +9,30 @@ import play.sockjs.core.IterateeX
 
 object Application {
 
-  val quota = 4096
+  object Settings {
+    val default = SockJSSettings(streamingQuota = 4096)
+    val nowebsocket = default.websocket(false)
+    val withjsessionid = default.cookies(SockJSSettings.CookieCalculator.jsessionid)
+  }
 
   /**
    * responds with identical data as received
    */
-  val echo = SockJSRouter.using(req => IterateeX.joined[String]).streamingQuota(quota)
+  val echo = SockJSRouter(Settings.default).using(req => IterateeX.joined[String])
 
   /**
    * identical to echo, but with websockets disabled
    */
-  val disabledWebSocketEcho = SockJSRouter.using(req => IterateeX.joined[String]).websocket(false)
+  val disabledWebSocketEcho = SockJSRouter(Settings.nowebsocket).using(req => IterateeX.joined[String])
 
   /**
    * identical to echo, but with JSESSIONID cookies sent
    */
-  val cookieNeededEcho = SockJSRouter.using(req => IterateeX.joined[String]).jsessionid(true)
+  val cookieNeededEcho = SockJSRouter(Settings.withjsessionid).using(req => IterateeX.joined[String])
 
   /**
    * server immediately closes the session
    */
-  val closed = SockJSRouter.using(req => (Iteratee.ignore[String], Enumerator.eof[String]))
+  val closed = SockJSRouter(Settings.default).using(req => (Iteratee.ignore[String], Enumerator.eof[String]))
 
 }

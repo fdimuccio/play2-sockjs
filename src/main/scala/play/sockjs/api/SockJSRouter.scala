@@ -14,12 +14,17 @@ import play.api.mvc.Results._
 import play.sockjs.core._
 import play.sockjs.api.SockJS._
 import play.sockjs.api.SockJSSettings._
+import play.core.Execution._
+import play.sockjs.core.SockJSWebSocket
+import scala.Some
+import play.sockjs.core.SockJSAction
+import play.sockjs.core.SockJSTransport
 
 trait SockJSRouter extends Router.Routes {
 
   def server: SockJSServer = SockJSServer.default
 
-  private lazy val dispatcher = server.dispatcher(prefix.split("/").drop(1).mkString("_"))
+  private lazy val dispatcher = server.dispatcher(prefix)
 
   private var path: String = ""
 
@@ -62,34 +67,28 @@ trait SockJSRouter extends Router.Routes {
 
 object SockJSRouter {
 
-  def using[A](f: RequestHeader => (Iteratee[A, _], Enumerator[A]))(implicit formatter: MessageFormatter[A]): Builder = Builder(SockJS.using(f))
+  def apply(): Builder = Builder(SockJSServer.default)
 
-  def adapter[A](f: RequestHeader => Enumeratee[A, A])(implicit formatter: MessageFormatter[A]): Builder = Builder(SockJS.adapter(f))
+  def apply(settings: SockJSSettings): Builder = Builder(SockJSServer(settings = settings))
 
-  def async[A](f: RequestHeader => Future[(Iteratee[A, _], Enumerator[A])])(implicit formatter: MessageFormatter[A]): Builder = Builder(SockJS.async(f))
+  def apply(server: SockJSServer): Builder = Builder(server)
 
-  case class Builder private[SockJSRouter](sockjs: SockJS[_], override val server: SockJSServer = SockJSServer.default) extends SockJSRouter {
+  case class Builder private[SockJSRouter](server: SockJSServer) {
 
-    def script(f: RequestHeader => String) = copy(server = server.reconfigure(_.scriptSRC(f)))
+    def using[A](f: RequestHeader => (Iteratee[A, _], Enumerator[A]))(implicit formatter: MessageFormatter[A]) = SockJSRouter(server, SockJS.using(f))
 
-    def websocket(enabled: Boolean) = copy(server = server.reconfigure(_.websocket(enabled)))
+    def adapter[A](f: RequestHeader => Enumeratee[A, A])(implicit formatter: MessageFormatter[A]) = SockJSRouter(server, SockJS.adapter(f))
 
-    def jsessionid(enabled: Boolean) = cookies(if (enabled) Some(CookieCalculator.jsessionid) else None)
+    def async[A](f: RequestHeader => Future[(Iteratee[A, _], Enumerator[A])])(implicit formatter: MessageFormatter[A]) = SockJSRouter(server, SockJS.async(f))
 
-    def cookies(calculator: CookieCalculator): Builder = cookies(Some(calculator))
+  }
 
-    def cookies(calculator: Option[CookieCalculator]): Builder = copy(server = server.reconfigure(_.cookies(calculator)))
-
-    def heartbeat(interval: FiniteDuration) = copy(server = server.reconfigure(_.heartbeat(interval)))
-
-    def sessionTimeout(timeout: FiniteDuration) = copy(server = server.reconfigure(_.sessionTimeout(timeout)))
-
-    def streamingQuota(quota: Long) = copy(server = server.reconfigure(_.streamingQuota(quota)))
-
-    def serverName(name: String) = copy(server = server.copy(name = Some(name)))
-
-    def actorSystem(system: ActorSystem) = copy(server = server.copy(actorSystem = system))
-
+  private[sockjs] def apply(server: SockJSServer, sockjs: SockJS[_]): SockJSRouter = {
+    val (_server, _sockjs) = (server, sockjs)
+    new SockJSRouter {
+      override val server = _server
+      def sockjs = _sockjs
+    }
   }
 
 }
