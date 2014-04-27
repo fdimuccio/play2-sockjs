@@ -24,13 +24,13 @@ val handler = { (request: RequestHeader) =>
 }
 ```
 
-It is currently in a early release, however all transports offered by SockJS have been
+It provides api for Scala and Java. All transports offered by SockJS have been
 implemented according to the [0.3.3 protocol specifications](http://sockjs.github.io/sockjs-protocol/sockjs-protocol-0.3.3.html).
 Currently passes all transport tests from the specs except for test_haproxy, it should impact
 only users that uses WebSocket Hixie-76 protocol behind HAProxy.
 
     Current versions:
-        Play 2.1.x : 0.1.1
+        Play 2.1.x : 0.1.2
         Play 2.2.x : 0.2.2
 
 What is SockJS?
@@ -57,7 +57,7 @@ Add play2-sockjs dependency to your build.sbt or project/Build.scala:
 ```scala
 libraryDependencies <++= playVersion { v: String =>
     if (v.startsWith("2.2")) Seq("com.github.fdimuccio" %% "play2-sockjs" % "0.2.2")
-    else if (v.startsWith("2.1")) Seq("com.github.fdimuccio" %% "play2-sockjs" % "0.1.1")
+    else if (v.startsWith("2.1")) Seq("com.github.fdimuccio" %% "play2-sockjs" % "0.1.2")
     else Seq()
 }
 ```
@@ -75,6 +75,8 @@ Since SockJS uses a complex path system to support different transports it can n
 instantiated as a classic Play action handler, instead it must be used inside a SockJSRouter.
 Each SockJSRouter can contain only one SockJS handler, however the application can contain
 as many SockJSRouter as you wish.
+
+#### Scala API
 
 A SockJS endpoint could be implemented in two way.
 
@@ -173,7 +175,7 @@ and finally connect with the javascript client:
    };
 </script>
 ```
-### Configure underlying SockJS server
+###### Configure underlying SockJS server
 
 It's possible to change SockJS server side settings such as connection heartbeat or
 session timeout.
@@ -237,7 +239,99 @@ object SockJSController extends Controller with SockJSRouter {
 
 Note: each SockJSRouter will have is own SockJSServer
 
-### Load balancing and sticky sessions
+#### Java API
+
+Here is a short example of how to implement a SockJS endpoint in Java:
+
+```java
+package controllers;
+
+import play.libs.F;
+import play.mvc.*;
+
+import play.sockjs.*;
+
+public class Application extends Controller {
+
+    public static SockJSRouter hello = new SockJSRouter() {
+
+        // override sockjs method
+        public SockJS sockjs() {
+            return new SockJS() {
+
+                // Called when the SockJS Handshake is done.
+                public void onReady(SockJS.In in, SockJS.Out out) {
+
+                    // For each event received on the socket,
+                    in.onMessage(new Callback<String>() {
+                        public void invoke(String event) {
+
+                            // Log events to the console
+                            System.out.println(event);
+
+                        }
+                    });
+
+                    // When SockJS connection is closed.
+                    in.onClose(new Callback0() {
+                        public void invoke() {
+
+                            System.out.println("Disconnected");
+
+                        }
+                    });
+
+                    // Send a single 'Hello!' message
+                    out.write("Hello!");
+
+                }
+
+            };
+        }
+    }
+
+}
+```
+
+in route.conf define the route:
+
+```scala
+
+# Using Play sub routes include syntax `->`, map /foo url to SockJS router
+->      /hello                  controllers.Application.hello
+
+```
+
+To configure it you can use @SockJS.Settings annotation:
+
+```java
+package controllers;
+
+import play.libs.F;
+import play.mvc.*;
+
+import play.sockjs.*;
+
+public class Application extends Controller {
+
+    public static SockJSRouter hello = new SockJSRouter() {
+
+        @SockJS.Settings(
+            cookies = CookieCalculator.JSESSIONID.class,
+            websocket = false,
+            heartbeat = 55000 // duration in milliseconds
+        )
+        public SockJS sockjs() {
+            return new SockJS() {...}
+        }
+
+    }
+
+}
+```
+
+Load balancing and sticky sessions
+----------------------------------
 
 If your Play application is deployed in a load balanced environment you must make sure that
 all requests for a single session must reach the same server.
@@ -253,7 +347,8 @@ SockJS has two mechanisms that can be useful to achieve that:
       SockJSSettings.CookieCalculator.jessionid when configuring SockJSServer, it's disabled
       by default. It's also possible to implement custom CookieCalculator.
 
-### Samples
+Samples
+-------
 
 In the samples/ folder there are two sample applications:
 
