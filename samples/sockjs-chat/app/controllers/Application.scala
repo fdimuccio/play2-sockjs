@@ -36,16 +36,7 @@ object Application extends Controller {
     }
   }
 
-}
-
-object SockJSChat extends SockJSRouter with Controller {
-
-  override def server = SockJSServer(SockJSSettings(websocket = false))
-
-  /**
-   * Handles the chat websocket.
-   */
-  def sockjs = SockJS.async[JsValue] { request  =>
+  val chat = SockJSRouter(_.websocket(false)).async[JsValue] { request =>
     request.cookies.get("username").map { cookie =>
       ChatRoom.join(cookie.value)
     }.getOrElse {

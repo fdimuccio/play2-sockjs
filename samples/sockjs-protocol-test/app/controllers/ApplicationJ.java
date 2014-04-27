@@ -1,12 +1,14 @@
 package controllers;
 
 import play.libs.F;
+import play.mvc.*;
+
 import play.sockjs.*;
 
-public class ApplicationJ {
+public class ApplicationJ extends Controller {
 
-    static class SockJSEcho extends SockJS<String> {
-        public void onReady(SockJS.In<String> in, final SockJS.Out<String> out) {
+    static class SockJSEcho extends SockJS {
+        public void onReady(SockJS.In in, final SockJS.Out out) {
             in.onMessage(new F.Callback<String>() {
                 public void invoke(String s) {
                     out.write(s);
@@ -17,16 +19,15 @@ public class ApplicationJ {
 
     public static SockJSRouter echo = new SockJSRouter() {
         @SockJS.Settings(streamingQuota = 4096)
-        public SockJS<String> sockjs() {
+        public SockJS sockjs() {
             return new SockJSEcho();
         };
-
     };
 
     public static SockJSRouter closed = new SockJSRouter() {
-        public SockJS<String> sockjs() {
-            return new SockJS<String>() {
-                public void onReady(SockJS.In<String> in, SockJS.Out<String> out) {
+        public SockJS sockjs() {
+            return new SockJS() {
+                public void onReady(SockJS.In in, SockJS.Out out) {
                     out.close();
                 };
             };
@@ -35,14 +36,14 @@ public class ApplicationJ {
 
     public static SockJSRouter disabledWebSocketEcho = new SockJSRouter() {
         @SockJS.Settings(streamingQuota = 4096, websocket = false)
-        public SockJS<String> sockjs() {
+        public SockJS sockjs() {
             return new SockJSEcho();
         };
     };
 
     public static SockJSRouter cookieNeededEcho = new SockJSRouter() {
-        @SockJS.Settings(streamingQuota = 4096)
-        public SockJS<String> sockjs() {
+        @SockJS.Settings(streamingQuota = 4096, cookies = CookieCalculator.JSESSIONID.class)
+        public SockJS sockjs() {
             return new SockJSEcho();
         };
     };

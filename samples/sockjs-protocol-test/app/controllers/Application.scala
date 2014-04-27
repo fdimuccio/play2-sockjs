@@ -34,5 +34,4 @@ object Application {
    * server immediately closes the session
    */
   val closed = SockJSRouter(Settings.default).using(req => (Iteratee.ignore[String], Enumerator.eof[String]))
-
 }

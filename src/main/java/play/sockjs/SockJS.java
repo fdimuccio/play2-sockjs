@@ -2,30 +2,27 @@ package play.sockjs;
 
 import java.lang.annotation.*;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
-
-import scala.concurrent.duration.Duration;
 
 import play.libs.F.*;
 
-public abstract class SockJS<A> {
+public abstract class SockJS {
 
-    public abstract void onReady(In<A> in, Out<A> out);
+    public abstract void onReady(In in, Out out);
 
-    public static interface Out<A> {
+    public static interface Out {
 
-        public void write(A frame);
+        public void write(String message);
 
         public void close();
 
     }
 
-    public static class In<A> {
+    public static class In {
 
         /**
          * Callbacks to invoke at each frame.
          */
-        public final List<Callback<A>> callbacks = new ArrayList<Callback<A>>();
+        public final List<Callback<String>> callbacks = new ArrayList<Callback<String>>();
 
         /**
          * Callbacks to invoke on close.
@@ -35,7 +32,7 @@ public abstract class SockJS<A> {
         /**
          * Registers a message callback.
          */
-        public void onMessage(Callback<A> callback) {
+        public void onMessage(Callback<String> callback) {
             callbacks.add(callback);
         }
 
@@ -51,8 +48,8 @@ public abstract class SockJS<A> {
     @Target(ElementType.METHOD)
     @Retention(RetentionPolicy.RUNTIME)
     public @interface Settings {
-        //TODO: scriptSRC
-        //TODO: cookies
+        Class<? extends ScriptLocation> script() default ScriptLocation.DefaultCdn.class;
+        Class<? extends CookieCalculator> cookies() default CookieCalculator.None.class;
         boolean websocket() default true;
         long heartbeat() default 25000;
         long sessionTimeout() default 5000;

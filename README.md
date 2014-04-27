@@ -31,7 +31,7 @@ only users that uses WebSocket Hixie-76 protocol behind HAProxy.
 
     Current versions:
         Play 2.1.x : 0.1.1
-        Play 2.2.x : 0.2.1
+        Play 2.2.x : 0.2.2
 
 What is SockJS?
 ---------------
@@ -56,7 +56,7 @@ Add play2-sockjs dependency to your build.sbt or project/Build.scala:
 
 ```scala
 libraryDependencies <++= playVersion { v: String =>
-    if (v.startsWith("2.2")) Seq("com.github.fdimuccio" %% "play2-sockjs" % "0.2.1")
+    if (v.startsWith("2.2")) Seq("com.github.fdimuccio" %% "play2-sockjs" % "0.2.2")
     else if (v.startsWith("2.1")) Seq("com.github.fdimuccio" %% "play2-sockjs" % "0.1.1")
     else Seq()
 }
@@ -76,7 +76,9 @@ instantiated as a classic Play action handler, instead it must be used inside a 
 Each SockJSRouter can contain only one SockJS handler, however the application can contain
 as many SockJSRouter as you wish.
 
-A SockJS controller could be implemented like this:
+A SockJS endpoint could be implemented in two way.
+
+First, using SockJSRouter builder facility:
 
 ```scala
 package controllers
@@ -84,8 +86,48 @@ package controllers
 import play.api.mvc._
 import play.sockjs.api._
 
-// mixin SockJSRouter trait with your controller
-object SockJSController extends Controller with SockJSRouter {
+object Application extends Controller {
+
+    def index = Action {
+        Ok("It Works!")
+    }
+
+    // it must be a `val` or `lazy val` because you are instantiating a play Router and not a
+    // classic request handler
+    lazy val sockjs = SockJSRouter.using[String] { request =>
+
+        // Log events to the console
+        val in = Iteratee.foreach[String](println).map { _ =>
+          println("Disconnected")
+        }
+
+        // Send a single 'Hello!' message and close
+        val out = Enumerator("Hello SockJS!") >>> Enumerator.eof
+
+        (in, out)
+    }
+}
+```
+
+and in route.conf define the route:
+
+```scala
+
+# Using Play sub routes include syntax `->`, map /foo url to SockJS router
+->      /foo                  controllers.Application.sockjs
+
+```
+
+Second (more verbose), extending SockJSRouter trait:
+
+```scala
+package controllers
+
+import play.api.mvc._
+import play.sockjs.api._
+
+// extends or mixin SockJSRouter trait
+object SockJSController extends SockJSRouter {
 
   // to handle a SockJS request override sockjs method
   def sockjs = SockJS.using[String] { request =>
@@ -104,7 +146,7 @@ object SockJSController extends Controller with SockJSRouter {
 }
 ```
 
-in route.conf define the path to the controller:
+and in route.conf define the path to the controller:
 
 ```scala
 
@@ -133,8 +175,43 @@ and finally connect with the javascript client:
 ```
 ### Configure underlying SockJS server
 
-To change SockJS server side settings, such as connection heartbeat or session
-timeout, you have to override `server` method in SockJSRouter, as shown here:
+It's possible to change SockJS server side settings such as connection heartbeat or
+session timeout.
+
+When using SockJSRouter builder:
+
+```scala
+package controllers
+
+import scala.concurrent.duration._
+
+import play.api.mvc._
+import play.sockjs.api._
+
+object Application extends Controller {
+
+    def index = Action {
+        Ok("It Works!")
+    }
+
+    // it's possible to change default settings
+    lazy val sockjs = SockJSRouter(_.websocket(false).heartbeat(55 seconds)).using[String] { request =>
+        ...
+    }
+
+    // or to pass a new SockJSSettings instance
+    lazy val sockjs = SockJSRouter(SockJSSettings(websocket = false, heartbeat = 55 seconds)).using[String] { request =>
+        ...
+    }
+
+    // or to pass a new SockJSServer instance
+    lazy val sockjs = SockJSRouter(SockJSServer(...)).using[String] { request =>
+        ...
+    }
+}
+```
+
+When extending SockJSRouter:
 
 ```scala
 package controllers
@@ -147,21 +224,12 @@ import play.sockjs.api._
 // mixin SockJSRouter trait with your controller
 object SockJSController extends Controller with SockJSRouter {
 
-  // here goes the server with custom settings
+  // override this method to specify a different SockJSServer instance with custom settings
   override val server = SockJSServer(SockJSSettings(websocket = false, heartbeat = 55 seconds)
 
   // here goes the request handler
   def sockjs = SockJS.using[String] { request =>
-
-    // Log events to the console
-    val in = Iteratee.foreach[String](println).map { _ =>
-      println("Disconnected")
-    }
-
-    // Send a single 'Hello!' message and close
-    val out = Enumerator("Hello SockJS!") >>> Enumerator.eof
-
-    (in, out)
+    ...
   }
 
 }

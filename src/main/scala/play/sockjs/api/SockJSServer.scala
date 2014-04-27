@@ -67,7 +67,7 @@ object SockJSServer {
  * @param cookies Some hosting providers enable sticky sessions only to requests that have JSESSIONID cookie set.
  *                This setting controls if the server should set this cookie to a dummy value.
  *                By default setting JSESSIONID cookie is disabled. More sophisticated behaviour
- *                can be achieved by supplying a function.
+ *                can be achieved by supplying a SockJSSettings.CookieCalculator.
  * @param heartbeat Interval at which heartbeat frame should be sent. Defaults to 25 seconds.
  * @param sessionTimeout The session will be closed if does not receive any connection
  *                       during this time. Defaults to 5 seconds.

@@ -2,23 +2,14 @@ package play.sockjs.api
 
 import scala.runtime.AbstractPartialFunction
 import scala.concurrent.Future
-import scala.concurrent.duration._
-
-import akka.actor.ActorSystem
 
 import play.core.Router
 import play.api.libs.iteratee._
 import play.api.mvc._
 import play.api.mvc.Results._
 
-import play.sockjs.core._
 import play.sockjs.api.SockJS._
-import play.sockjs.api.SockJSSettings._
-import play.core.Execution._
-import play.sockjs.core.SockJSWebSocket
-import scala.Some
-import play.sockjs.core.SockJSAction
-import play.sockjs.core.SockJSTransport
+import play.sockjs.core._
 
 trait SockJSRouter extends Router.Routes {
 
@@ -67,13 +58,19 @@ trait SockJSRouter extends Router.Routes {
 
 object SockJSRouter {
 
-  def apply(): Builder = Builder(SockJSServer.default)
+  def using[A](f: RequestHeader => (Iteratee[A, _], Enumerator[A]))(implicit formatter: MessageFormatter[A]) = Builder().using(f)
+
+  def adapter[A](f: RequestHeader => Enumeratee[A, A])(implicit formatter: MessageFormatter[A]) = Builder().adapter(f)
+
+  def async[A](f: RequestHeader => Future[(Iteratee[A, _], Enumerator[A])])(implicit formatter: MessageFormatter[A]) = Builder().async(f)
 
   def apply(settings: SockJSSettings): Builder = Builder(SockJSServer(settings = settings))
 
-  def apply(server: SockJSServer): Builder = Builder(server)
+  def apply(f: SockJSSettings => SockJSSettings): Builder = Builder(SockJSServer(settings = f(SockJSSettings.default)))
 
-  case class Builder private[SockJSRouter](server: SockJSServer) {
+  def apply(server: SockJSServer): Builder = Builder()
+
+  case class Builder private[SockJSRouter](server: SockJSServer = SockJSServer.default) {
 
     def using[A](f: RequestHeader => (Iteratee[A, _], Enumerator[A]))(implicit formatter: MessageFormatter[A]) = SockJSRouter(server, SockJS.using(f))
 
