@@ -1,12 +1,15 @@
 package play.sockjs.api
 
+import scala.concurrent.Future
 import scala.runtime.AbstractPartialFunction
 
 import play.core.Router
+import play.api.libs.iteratee._
 import play.api.mvc._
 import play.api.mvc.Results._
 
 import play.sockjs.core._
+import play.sockjs.api.SockJS._
 
 trait SockJSRouter extends Router.Routes {
 
@@ -50,5 +53,39 @@ trait SockJSRouter extends Router.Routes {
    * SockJS handler
    */
   def sockjs: SockJS[_]
+
+}
+
+object SockJSRouter {
+
+  def using[A](f: RequestHeader => (Iteratee[A, _], Enumerator[A]))(implicit formatter: MessageFormatter[A]) = Builder().using(f)
+
+  def adapter[A](f: RequestHeader => Enumeratee[A, A])(implicit formatter: MessageFormatter[A]) = Builder().adapter(f)
+
+  def async[A](f: RequestHeader => Future[(Iteratee[A, _], Enumerator[A])])(implicit formatter: MessageFormatter[A]) = Builder().async(f)
+
+  def apply(settings: SockJSSettings): Builder = Builder(SockJSServer(settings = settings))
+
+  def apply(f: SockJSSettings => SockJSSettings): Builder = Builder(SockJSServer(settings = f(SockJSSettings.default)))
+
+  def apply(server: SockJSServer): Builder = Builder()
+
+  case class Builder private[SockJSRouter](server: SockJSServer = SockJSServer.default) {
+
+    def using[A](f: RequestHeader => (Iteratee[A, _], Enumerator[A]))(implicit formatter: MessageFormatter[A]) = SockJSRouter(server, SockJS.using(f))
+
+    def adapter[A](f: RequestHeader => Enumeratee[A, A])(implicit formatter: MessageFormatter[A]) = SockJSRouter(server, SockJS.adapter(f))
+
+    def async[A](f: RequestHeader => Future[(Iteratee[A, _], Enumerator[A])])(implicit formatter: MessageFormatter[A]) = SockJSRouter(server, SockJS.async(f))
+
+  }
+
+  private[sockjs] def apply(server: SockJSServer, sockjs: SockJS[_]): SockJSRouter = {
+    val (_server, _sockjs) = (server, sockjs)
+    new SockJSRouter {
+      override val server = _server
+      def sockjs = _sockjs
+    }
+  }
 
 }

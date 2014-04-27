@@ -30,7 +30,7 @@ Currently passes all transport tests from the specs except for test_haproxy, it 
 only users that uses websocket transport behind HAProxy.
 
     Current versions:
-        Play 2.1.x : 0.1.1
+        Play 2.1.x : 0.1.2
 
 What is SockJS?
 ---------------
@@ -55,7 +55,7 @@ Add play2-sockjs dependency to your build.sbt or project/Build.scala:
 
 ```scala
 libraryDependencies ++= Seq(
-  "com.github.fdimuccio" %% "play2-sockjs" % "0.1.1"
+  "com.github.fdimuccio" %% "play2-sockjs" % "0.1.2"
 )
 ```
 

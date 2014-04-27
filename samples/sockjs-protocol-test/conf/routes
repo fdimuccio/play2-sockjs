@@ -2,9 +2,12 @@
 # This file defines all application routes (Higher priority routes first)
 # ~~~~
 
-# Home page
-->         /echo                           controllers.Echo
-->         /close                          controllers.Closed
-->         /disabled_websocket_echo        controllers.DisabledWebSocketEcho
-->         /cookie_needed_echo             controllers.CookieNeededEchoController
+->        /echo                                controllers.Application.echo
+->        /close                               controllers.Application.closed
+->        /disabled_websocket_echo             controllers.Application.disabledWebSocketEcho
+->        /cookie_needed_echo                  controllers.Application.cookieNeededEcho
 
+->        /java/echo                           controllers.ApplicationJ.echo
+->        /java/close                          controllers.ApplicationJ.closed
+->        /java/disabled_websocket_echo        controllers.ApplicationJ.disabledWebSocketEcho
+->        /java/cookie_needed_echo             controllers.ApplicationJ.cookieNeededEcho
