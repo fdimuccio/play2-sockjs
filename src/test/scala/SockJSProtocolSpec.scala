@@ -15,6 +15,7 @@ import play.api.libs.concurrent._
 import play.api.test._
 import play.api.test.Helpers._
 import scala.concurrent.Promise
+import scala.concurrent.Future
 import scala.util.parsing.json.JSONArray
 
 //Here goes the tests for sockjs protocol
@@ -41,7 +42,7 @@ class SockJSProtocolSpec extends Specification with JsonMatchers  {
 
   def FakeApp = FakeApplication(withGlobal = Some(new GlobalSettings with FakeRouter))
 
-  implicit class Verifier(val result: SimpleResult) {
+  implicit class Verifier(val result: Future[SimpleResult]) {
     def verify200 = status(result) must equalTo(OK)
     def verify204 = status(result) must equalTo(NO_CONTENT)
     def verify404 = status(result) must equalTo(NOT_FOUND)
