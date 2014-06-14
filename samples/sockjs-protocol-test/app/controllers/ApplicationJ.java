@@ -7,7 +7,7 @@ import play.sockjs.*;
 
 public class ApplicationJ extends Controller {
 
-    static class SockJSEcho extends SockJS {
+    static class SockJSEcho implements SockJS {
         public void onReady(SockJS.In in, final SockJS.Out out) {
             in.onMessage(new F.Callback<String>() {
                 public void invoke(String s) {

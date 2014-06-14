@@ -241,7 +241,34 @@ Note: each SockJSRouter will have is own SockJSServer
 
 #### Java API
 
-Here is a short example of how to implement a SockJS endpoint in Java:
+Here is a short example of how to implement a SockJS endpoint in Java 8:
+
+```java
+package controllers;
+
+import play.mvc.*;
+
+import play.sockjs.*;
+
+public class Application extends Controller {
+
+    public static SockJSRouter hello = SockJSRouter.whenReady((in, out) -> {
+
+    	// Log each event received on the socket to the console
+        in.onMessage(System.out::println);
+
+        // When SockJS connection is closed.
+        in.onClose(() -> System.out.println("Disconnected"));
+
+        // Send a single 'Hello!' message
+        out.write("Hello!");
+
+    });
+
+}
+```
+
+The same example in plain old Java:
 
 ```java
 package controllers;
