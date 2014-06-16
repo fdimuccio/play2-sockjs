@@ -4,10 +4,11 @@ import java.util.concurrent.TimeUnit
 
 import scala.concurrent.duration._
 
+import play.libs.F
 import play.core.Router
 import play.core.j.JavaHelpers
 
-abstract class JavaRouter extends Router.Routes {
+abstract class JavaRouter(cfg: F.Option[play.sockjs.SockJS.Settings]) extends Router.Routes {
   self =>
 
   def prefix = scalaRouter.prefix
@@ -23,10 +24,10 @@ abstract class JavaRouter extends Router.Routes {
   private lazy val scalaRouter = new play.sockjs.api.SockJSRouter {
     import play.sockjs.api._
     override lazy val server = {
-      val settings = for {
+      val settings = Option(cfg.getOrElse(null)).orElse(for {
         method <- Option(self.getClass.getMethod("sockjs"))
         cfg <- Option(method.getAnnotation(classOf[play.sockjs.SockJS.Settings]))
-      } yield {
+      } yield cfg).map { cfg =>
         val cookieCalculator = cfg.cookies().newInstance() match {
           case _: play.sockjs.CookieCalculator.None => None
           case jcalculator =>
