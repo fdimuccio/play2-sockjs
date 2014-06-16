@@ -30,8 +30,9 @@ Currently passes all transport tests from the specs except for test_haproxy, it 
 only users that uses WebSocket Hixie-76 protocol behind HAProxy.
 
     Current versions:
-        Play 2.1.x : 0.1.2
-        Play 2.2.x : 0.2.2
+        Play 2.1.x : 0.1.3
+        Play 2.2.x : 0.2.3
+        Play 2.3.x : Coming Soon!
 
 What is SockJS?
 ---------------
@@ -56,8 +57,8 @@ Add play2-sockjs dependency to your build.sbt or project/Build.scala:
 
 ```scala
 libraryDependencies <++= playVersion { v: String =>
-    if (v.startsWith("2.2")) Seq("com.github.fdimuccio" %% "play2-sockjs" % "0.2.2")
-    else if (v.startsWith("2.1")) Seq("com.github.fdimuccio" %% "play2-sockjs" % "0.1.2")
+    if (v.startsWith("2.2")) Seq("com.github.fdimuccio" %% "play2-sockjs" % "0.2.3")
+    else if (v.startsWith("2.1")) Seq("com.github.fdimuccio" %% "play2-sockjs" % "0.1.3")
     else Seq()
 }
 ```
@@ -241,34 +242,7 @@ Note: each SockJSRouter will have is own SockJSServer
 
 #### Java API
 
-Here is a short example of how to implement a SockJS endpoint in Java 8:
-
-```java
-package controllers;
-
-import play.mvc.*;
-
-import play.sockjs.*;
-
-public class Application extends Controller {
-
-    public static SockJSRouter hello = SockJSRouter.whenReady((in, out) -> {
-
-    	// Log each event received on the socket to the console
-        in.onMessage(System.out::println);
-
-        // When SockJS connection is closed.
-        in.onClose(() -> System.out.println("Disconnected"));
-
-        // Send a single 'Hello!' message
-        out.write("Hello!");
-
-    });
-
-}
-```
-
-The same example in plain old Java:
+Here is a short example of how to implement a SockJS endpoint in Java (for Java8 see below):
 
 ```java
 package controllers;
@@ -353,6 +327,41 @@ public class Application extends Controller {
         }
 
     }
+
+}
+```
+
+### Java 8 API
+
+If you are using Java 8 you can take advantage of Lambda Expressions (api contribution by [Ariel Scarpinelli](https://github.com/arielscarpinelli)): 
+
+```java
+package controllers;
+
+import play.mvc.*;
+
+import play.sockjs.*;
+
+public class Application extends Controller {
+
+    // SockJS endpoint handler with default configuration:
+    public static SockJSRouter hello = SockJSRouter.whenReady((in, out) -> {
+
+    	// Log each event received on the socket to the console
+        in.onMessage(System.out::println);
+
+        // When SockJS connection is closed.
+        in.onClose(() -> System.out.println("Disconnected"));
+
+        // Send a single 'Hello!' message
+        out.write("Hello!");
+
+    });
+    
+    // and if default configuration isn't enough:
+    public static SockJSRouter helloNoWebSocket = SockJSRouter.withWebSocket(false).whenReady((in, out) -> {    
+        ...
+    });
 
 }
 ```
