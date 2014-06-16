@@ -52,7 +52,7 @@ public abstract class SockJSRouter extends play.sockjs.core.j.JavaRouter {
         final long streamingQuotaBytes;
 
         private Builder() {
-            this(ScriptLocation.DefaultCdn.class, CookieCalculator.None.class, true, 25000, 5000, 128*1204);
+            this(ScriptLocation.DefaultCdn.class, CookieCalculator.None.class, true, 25000, 5000, 128*1024);
         }
 
         private Builder(Class<? extends ScriptLocation> script, Class<? extends CookieCalculator> cookies, boolean websocket, long heartbeatMillis, long sessionTimeoutMillis, long streamingQuotaBytes) {
