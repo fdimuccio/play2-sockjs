@@ -5,9 +5,9 @@ import java.util.*;
 
 import play.libs.F.*;
 
-public abstract class SockJS {
+public interface SockJS {
 
-    public abstract void onReady(In in, Out out);
+    public void onReady(In in, Out out);
 
     public static interface Out {
 
