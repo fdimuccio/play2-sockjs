@@ -52,11 +52,11 @@ private[sockjs] object Transport {
      * Bind this session to the SessionMaster. The enumerator provided must be used
      * to write messages to the client
      */
-    def bind[A](f: Enumerator[Frame] => Res[A]): Future[SimpleResult]
+    def bind[A](f: Enumerator[Frame] => Res[A]): Future[Result]
 
   }
 
-  def Send(ok: RequestHeader => SimpleResult, ko: => SimpleResult)= Transport { sessionMaster => (sessionID, settings) =>
+  def Send(ok: RequestHeader => Result, ko: => Result)= Transport { sessionMaster => (sessionID, settings) =>
     import settings._
     SockJSAction(Action.async(parse.raw(Int.MaxValue)) { implicit req =>
       def parsePlainText(txt: String) = {
@@ -100,16 +100,16 @@ private[sockjs] object Transport {
    * HTTP transport that emulate websockets. Provides method to bind this
    * transport session to the SessionMaster.
    */
-  def Http(quota: Option[Long])(f: (RequestHeader, Session) => Future[SimpleResult]) = Transport { sessionMaster => (sessionID, settings) =>
+  def Http(quota: Option[Long])(f: (RequestHeader, Session) => Future[Result]) = Transport { sessionMaster => (sessionID, settings) =>
     import settings._
     SockJSTransport { sockjs =>
       Action.async { req =>
         f(req, new Session {
-          def bind[A](f: Enumerator[Frame] => Res[A]): Future[SimpleResult] = {
-            (sessionMaster ? SessionMaster.Get(sessionID)).map {
+          def bind[A](f: Enumerator[Frame] => Res[A]): Future[Result] = {
+            (sessionMaster ? SessionMaster.Get(sessionID)).flatMap {
               case SessionMaster.SessionOpened(session) => session.bind(req, sockjs)
-              case SessionMaster.SessionResumed(session) => session
-            }.flatMap(_.connect(heartbeat, sessionTimeout, quota.getOrElse(streamingQuota)).map {
+              case SessionMaster.SessionResumed(session) => Future.successful(Right(session))
+            }.flatMap(_.right.map(_.connect(heartbeat, sessionTimeout, quota.getOrElse(streamingQuota)).map {
               case actors.Session.Connected(enumerator) =>
                 val res = f(enumerator)
                 val status =
@@ -118,7 +118,7 @@ private[sockjs] object Transport {
                 (if (res.cors) status.enableCORS(req) else status)
                   .notcached
                   .withCookies(cookies.map(f => List(f(req))).getOrElse(Nil):_*)
-            })
+            }).fold(result => Future.successful(result), identity))
           }
         })
       }

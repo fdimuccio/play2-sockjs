@@ -9,7 +9,8 @@ import play.core.Execution.Implicits.internalContext
 
 object JavaSockJS extends JavaHelpers {
 
-  def sockjsWrapper(retrieveSockJS: => play.sockjs.SockJS): play.sockjs.api.SockJS[String] =  play.sockjs.api.SockJS[String] { request =>
+  /*
+  def sockjsWrapper(retrieveSockJS: => play.sockjs.SockJS): play.sockjs.api.SockJS[String, String] =  play.sockjs.api.SockJS[String, String] { request =>
     (in, out) =>
 
       import play.api.libs.iteratee._
@@ -38,5 +39,8 @@ object JavaSockJS extends JavaHelpers {
 
       javaSockJS.onReady(socketIn, socketOut)
   }
+  */
+
+  def sockjsWrapper(retrieveSockJS: => play.sockjs.SockJS) = ???
 
 }

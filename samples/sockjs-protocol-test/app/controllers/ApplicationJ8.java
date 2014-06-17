@@ -9,7 +9,6 @@ import play.sockjs.SockJSRouter;
 
 /**
  * Test application with Java8 lambda expressions
- */
 public class ApplicationJ8 extends Controller {
 
 	static SockJS echoer = (in, out) -> in.onMessage(s -> out.write(s));
@@ -23,3 +22,4 @@ public class ApplicationJ8 extends Controller {
 	public static SockJSRouter cookieNeededEcho = SockJSRouter.withStreamingQuota(4096).withCookies(CookieCalculator.JSESSIONID.class).whenReady(echoer);
 
 }
+*/

@@ -2,15 +2,16 @@ package play.sockjs.api
 
 import scala.concurrent.Future
 
-import play.core.Execution.internalContext
 import play.api.libs.iteratee._
 import play.api.libs.json._
 import play.api.mvc._
-import akka.actor.ActorSystem
 
-case class SockJS[A](f: RequestHeader => (Enumerator[A], Iteratee[A, Unit]) => Unit)(implicit val formatter: SockJS.MessageFormatter[A]) {
+import play.core.Execution.Implicits.internalContext
 
-  type MESSAGES_TYPE = A
+case class SockJS[IN, OUT](f: RequestHeader => Future[Either[Result, (Enumerator[IN], Iteratee[OUT, Unit]) => Unit]])(implicit val inFormatter: SockJS.MessageFormatter[IN], val outFormatter: SockJS.MessageFormatter[OUT]) {
+
+  type FramesIN = IN
+  type FramesOUT = OUT
 
 }
 
@@ -20,7 +21,7 @@ object SockJS {
    * Typeclass to handle SockJS message format.
    *
    * @param read Convert a text message sent from SockJS client into an A
-   * @param write Convert an A in a text message to be sent to SockJS clien
+   * @param write Convert an A in a text message to be sent to SockJS client
    * @tparam A
    */
   case class MessageFormatter[A](read: String => A, write: A => String) {
@@ -40,21 +41,27 @@ object SockJS {
 
   }
 
-  def using[A](f: RequestHeader => (Iteratee[A, _], Enumerator[A]))(implicit formatter: MessageFormatter[A]): SockJS[A] = {
-    SockJS(h => (e, i) => {val (rIn, wOut) = f(h); e |>> rIn; wOut |>> i})
+  def using[A](f: RequestHeader => (Iteratee[A, _], Enumerator[A]))(implicit formatter: MessageFormatter[A]): SockJS[A, A] = {
+    tryAccept[A](f.andThen(handler => Future.successful(Right(handler))))
   }
 
-  def adapter[A](f: RequestHeader => Enumeratee[A, A])(implicit formatter: MessageFormatter[A]): SockJS[A] = {
-    SockJS[A](h => (in, out) => {in &> f(h) |>> out})
+  def adapter[A](f: RequestHeader => Enumeratee[A, A])(implicit formatter: MessageFormatter[A]): SockJS[A, A] = {
+    SockJS[A, A](h => Future.successful(Right((in, out) => { in &> f(h) |>> out })))
   }
 
-  def async[A](f: RequestHeader => Future[(Iteratee[A, _], Enumerator[A])])(implicit formatter: MessageFormatter[A]): SockJS[A] = {
-    using { rh =>
-      val p = f(rh)
-      val it = Iteratee.flatten(p.map(_._1)(internalContext))
-      val enum = Enumerator.flatten(p.map(_._2)(internalContext))
-      (it, enum)
-    }
+  @deprecated("Use SockJS.tryAccept instead", "0.3")
+  def async[A](f: RequestHeader => Future[(Iteratee[A, _], Enumerator[A])])(implicit formatter: MessageFormatter[A]): SockJS[A, A] = {
+    tryAccept(f.andThen(_.map(Right.apply)))
   }
+
+  def tryAccept[A](f: RequestHeader => Future[Either[Result, (Iteratee[A, _], Enumerator[A])]])(implicit formatter: MessageFormatter[A]): SockJS[A, A] = {
+    SockJS[A, A](f.andThen(_.map { resultOrSocket =>
+      resultOrSocket.right.map {
+        case (readIn, writeOut) => (e, i) => { e |>> readIn; writeOut |>> i }
+      }
+    }))
+  }
+
+  //TODO: actors api
 
 }

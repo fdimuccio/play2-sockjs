@@ -2,7 +2,7 @@ import sbt._
 import sbt.Keys._
 
 object BuildSettings {
-  val buildVersion = "0.2.3"
+  val buildVersion = "0.3.0-SNAPSHOT"
 
   val buildSettings = Defaults.defaultSettings ++ Seq(
     organization := "com.github.fdimuccio",
@@ -35,7 +35,7 @@ object Publish {
   }
   lazy val settings = Seq(
     publishMavenStyle := true,
-    publishTo <<= TargetRepository.sonatype,
+    publishTo <<= TargetRepository.local,
     publishArtifact in Test := false,
     pomIncludeRepository := { _ => false },
     licenses := Seq("Apache 2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
@@ -92,9 +92,9 @@ object Play2SockJSBuild extends Build {
         Resolver.typesafeRepo("releases")
       ),
       libraryDependencies ++= Seq(
-        "com.typesafe.akka" %% "akka-actor" % "2.2.4",
-        "com.typesafe.play" %% "play" % "2.2.2" % "provided",
-        "com.typesafe.play" %% "play-test" % "2.2.2" % "test",
+        "com.typesafe.akka" %% "akka-actor" % "2.3.3",
+        "com.typesafe.play" %% "play" % "2.3.0" % "provided",
+        //"com.typesafe.play" %% "play-test" % "2.3.0" % "test",
         "org.specs2" %% "specs2" % "2.3.10" % "test",
         "junit" % "junit" % "4.8" % "test" cross CrossVersion.Disabled
       )

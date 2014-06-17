@@ -52,7 +52,7 @@ trait SockJSRouter extends Router.Routes {
   /**
    * SockJS handler
    */
-  def sockjs: SockJS[_]
+  def sockjs: SockJS[_, _]
 
 }
 
@@ -80,7 +80,7 @@ object SockJSRouter {
 
   }
 
-  private[sockjs] def apply(server: SockJSServer, sockjs: SockJS[_]): SockJSRouter = {
+  private[sockjs] def apply(server: SockJSServer, sockjs: SockJS[_, _]): SockJSRouter = {
     val (_server, _sockjs) = (server, sockjs)
     new SockJSRouter {
       override val server = _server

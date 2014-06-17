@@ -2,20 +2,29 @@ package play.sockjs.core
 package transports
 
 import play.api.libs.iteratee._
-import play.api.libs.{EventSource => PlayEventSource, Comet}
 import play.api.http._
 import play.api.mvc._
+
+import play.core.Execution.Implicits.internalContext
 
 /**
  * EventSource transport
  */
 private[sockjs] object EventSource extends HeaderNames with Results {
 
-  implicit val eventsourceOf_Frame = Comet.CometMessage[Frame](_.text)
-
   def transport = Transport.Streaming { (req, session) =>
     session.bind { enumerator =>
-      Transport.Res(Enumerator("\r\n") >>> (enumerator &> PlayEventSource[Frame]()))
+      // Here I should have used play.api.libs.EventSource, but I couldn't since
+      // sockjs protocol tests expect "\r\n" as data terminator, and play.api.libs.EventSource
+      // uses just "\n" (and that's correct, blame sockjs tests)
+      Transport.Res(Enumerator("\r\n") >>> (enumerator &> Enumeratee.map[Frame] { frame =>
+        val sb = new StringBuilder
+        for (line <- frame.text.split("(\r?\n)|\r")) {
+          sb.append("data: ").append(line).append("\r\n")
+        }
+        sb.append("\r\n")
+        sb.toString()
+      }))
     }
   }
 

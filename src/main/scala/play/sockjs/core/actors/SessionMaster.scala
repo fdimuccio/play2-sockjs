@@ -2,7 +2,7 @@ package play.sockjs.core
 package actors
 
 import scala.util.control.Exception._
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{Future, ExecutionContext}
 import scala.concurrent.duration._
 
 import akka.util._
@@ -45,9 +45,9 @@ private[sockjs] object SessionMaster {
 
     private[this] var closed = false
 
-    def bind[A](req: RequestHeader, sockjs: SockJS[A])(implicit ec: ExecutionContext): this.type = {
+    def bind[A, B](req: RequestHeader, sockjs: SockJS[A, B])(implicit ec: ExecutionContext): Future[Either[Result, SessionResponse]] = {
       // input enumerator: client messages will be read here and forwarded to the handler
-      val en = Concurrent.unicast[String](
+      def en = Concurrent.unicast[String](
         onStart = channel => actor ! Session.SessionBound(channel),
         // EOF could be sent by the session actor if timeout occurs so it's useless
         // to tell the actor that is closed
@@ -68,12 +68,12 @@ private[sockjs] object SessionMaster {
         //   case in => println(in); in
         // } |>> Iteratee.ignore.map(_ => println("DONE!"))
         case Input.EOF => closed = true; Enumerator.eof[A]
-        case Input.El(message) => (allCatch opt Enumerator.enumInput[A](Input.El(sockjs.formatter.read(message)))).getOrElse(Enumerator.enumInput[A](Input.Empty))
+        case Input.El(message) => (allCatch opt Enumerator.enumInput[A](Input.El(sockjs.inFormatter.read(message)))).getOrElse(Enumerator.enumInput[A](Input.Empty))
         case Input.Empty => Enumerator.enumInput[A](Input.Empty)
       }
       // output iteratee: the handler will push messages here that will be written to the client
-      val it = Enumeratee.breakE[A](_ => closed) &>> Iteratee.foreach[A] { message =>
-        actor ! Session.Write(MessageFrame(sockjs.formatter.write(message)))
+      def it = Enumeratee.breakE[B](_ => closed) &>> Iteratee.foreach[B] { message =>
+        actor ! Session.Write(MessageFrame(sockjs.outFormatter.write(message)))
       }.map { _ =>
         if (!closed) {
           actor ! Session.CloseSession
@@ -81,8 +81,7 @@ private[sockjs] object SessionMaster {
         }
       }
       // bind the session to the handler
-      sockjs.f(req)(en, it)
-      this
+      sockjs.f(req).map(_.right.map { f => f(en, it); this })
     }
 
   }
