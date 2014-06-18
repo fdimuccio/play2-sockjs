@@ -7,11 +7,12 @@ import play.mvc.Http.{Context => JContext}
 
 import play.core.Execution.Implicits.internalContext
 
+import scala.concurrent.Future
+
 object JavaSockJS extends JavaHelpers {
 
-  /*
   def sockjsWrapper(retrieveSockJS: => play.sockjs.SockJS): play.sockjs.api.SockJS[String, String] =  play.sockjs.api.SockJS[String, String] { request =>
-    (in, out) =>
+    Future.successful(Right((in, out) => {
 
       import play.api.libs.iteratee._
 
@@ -38,9 +39,7 @@ object JavaSockJS extends JavaHelpers {
       enumerator |>> out
 
       javaSockJS.onReady(socketIn, socketOut)
+    }))
   }
-  */
-
-  def sockjsWrapper(retrieveSockJS: => play.sockjs.SockJS) = ???
 
 }
