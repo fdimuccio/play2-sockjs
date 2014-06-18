@@ -4,9 +4,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 import play.api.libs.iteratee._
 import play.api.mvc._
-
-import play.sockjs.core.IterateeX
 import play.sockjs.api._
+import play.sockjs.core.iteratee.IterateeX
 
 abstract class SockJSTestRouter(websocket: Boolean = true, cookies: Boolean = false) extends SockJSRouter with Controller {
   override def server = {

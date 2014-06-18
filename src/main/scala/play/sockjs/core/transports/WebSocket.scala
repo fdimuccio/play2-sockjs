@@ -2,6 +2,7 @@ package play.sockjs.core
 package transports
 
 import scala.util.control.Exception._
+import scala.concurrent.Future
 
 import play.api.libs.iteratee._
 import play.api.mvc._
@@ -10,8 +11,8 @@ import play.api.libs.json._
 import play.api.http._
 import play.core.Execution.Implicits.internalContext
 
+import play.sockjs.core.iteratee.IterateeX
 import play.sockjs.api._
-import scala.concurrent.Future
 
 private[sockjs] object WebSocket extends HeaderNames with Results {
 

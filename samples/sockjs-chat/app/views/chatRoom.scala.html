@@ -14,8 +14,7 @@
     
     <div id="onChat" class="row">
         <div class="span10" id="main">
-            <div id="messages">
-            </div>
+            <div id="messages"></div>
             <textarea id="talk"></textarea>
         </div>
         <div class="span4">
@@ -28,7 +27,7 @@
     <script type="text/javascript" charset="utf-8">
     
         $(function() {
-            var protocols = [] // all protocols
+            var protocols = ['xhr-polling'] // all protocols
             var chatSocket = new SockJS("/room/chat", null, {debug: true, protocols_whitelist: protocols})
             window.chat = chatSocket;
             var sendMessage = function() {

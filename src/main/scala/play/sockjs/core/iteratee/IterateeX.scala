@@ -1,4 +1,4 @@
-package play.sockjs.core
+package play.sockjs.core.iteratee
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
 

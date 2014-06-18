@@ -5,7 +5,7 @@ import play.api.libs.iteratee._
 import scala.concurrent.ExecutionContext.Implicits.global
 
 import play.sockjs.api._
-import play.sockjs.core.IterateeX
+import play.sockjs.core.iteratee.IterateeX
 
 object Application {
 
