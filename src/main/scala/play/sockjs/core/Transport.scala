@@ -56,7 +56,7 @@ private[sockjs] object Transport {
 
   }
 
-  def Send(ok: RequestHeader => Result, ko: => Result)= Transport { sessionMaster => (sessionID, settings) =>
+  def Send(f: RequestHeader => Result) = Transport { sessionMaster => (sessionID, settings) =>
     import settings._
     SockJSAction(Action.async(parse.raw(Int.MaxValue)) { implicit req =>
       def parsePlainText(txt: String) = {
@@ -80,8 +80,8 @@ private[sockjs] object Transport {
         json => json.validate[Seq[String]].fold(
           invalid => Future.successful(InternalServerError("Payload expected.")),
           payload => (sessionMaster ? SessionMaster.Send(sessionID, payload)).map {
-            case SessionMaster.Ack => ok(req).withCookies(cookies.map(f => List(f(req))).getOrElse(Nil):_*)
-            case SessionMaster.Error => ko
+            case SessionMaster.Ack => f(req).withCookies(cookies.map(f => List(f(req))).getOrElse(Nil):_*)
+            case SessionMaster.Error => NotFound
           }))
     })
   }
