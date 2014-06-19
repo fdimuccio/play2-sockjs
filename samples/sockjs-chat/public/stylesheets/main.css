@@ -69,6 +69,8 @@ body {
 #messages {
     position: absolute;
     bottom: 60px;
+    height: 500px;
+    overflow-y: scroll;
 }
 
 #talk {
@@ -87,7 +89,7 @@ body {
 }
 
 .message span {
-    width: 70px;
+    width: 60px;
     overflow: hidden;
     text-align: right;
     font-weight: bold;

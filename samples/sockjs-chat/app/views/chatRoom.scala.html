@@ -28,7 +28,7 @@
     <script type="text/javascript" charset="utf-8">
     
         $(function() {
-            var protocols = [] // all
+            var protocols = ['xhr-polling'] // all
             var chatSocket = new SockJS("/room/chat", null, {debug: true, protocols_whitelist: protocols})
             window.chat = chatSocket;
             var sendMessage = function() {

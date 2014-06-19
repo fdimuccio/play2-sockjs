@@ -168,6 +168,7 @@ private[sockjs] class Session extends Actor {
   private val buffer = new FrameBuffer
   private var sessionTimeout: FiniteDuration = 5 seconds
   private var toTimer: Option[Cancellable] = None
+  private var awaitingCont: Boolean = false
 
   def receive: Receive = opening(None, None)
 
@@ -226,23 +227,31 @@ private[sockjs] class Session extends Actor {
 
   def connected(session: Channel[String], connection: ActorRef): Receive = {
 
-    case ConsumeQueue if !buffer.isEmpty =>
-      connection ! WriteFrame(buffer.dequeue())
-
-    case ConnectionCont =>
-      self ! ConsumeQueue
-
-    case ConnectionDone =>
-      scheduleTimeout()
-      context.become(disconnected(session))
+    case Connect(_, _, _) =>
+      sender ! Connected(Enumerator(CloseFrame.AnotherConnectionStillOpen))
 
     case Push(jsons) =>
       jsons.foreach(session.push)
       sender ! Ack
 
+    case ConsumeQueue if !buffer.isEmpty =>
+      connection ! WriteFrame(buffer.dequeue())
+      awaitingCont = true
+
     case Write(frame) =>
-      if (buffer.isEmpty) connection ! WriteFrame(frame)
-      else {buffer.enqueue(frame); self ! ConsumeQueue}
+      if (buffer.isEmpty && !awaitingCont) {
+        connection ! WriteFrame(frame)
+        awaitingCont = true
+      } else buffer.enqueue(frame)
+
+    case ConnectionCont =>
+      awaitingCont = false
+      self ! ConsumeQueue
+
+    case ConnectionDone =>
+      awaitingCont = false
+      scheduleTimeout()
+      context.become(disconnected(session))
 
     case ConnectionAborted =>
       session.eofAndEnd()
@@ -251,9 +260,6 @@ private[sockjs] class Session extends Actor {
 
     case CloseSession =>
       self ! Write(CloseFrame.GoAway)
-
-    case Connect(_, _, _) =>
-      sender ! Connected(Enumerator(CloseFrame.AnotherConnectionStillOpen))
 
   }
 
@@ -325,12 +331,13 @@ private[sockjs] class Connection(client: ActorRef, heartbeat: FiniteDuration, li
   import Session._
   import Connection._
 
-  private[this] val done = Ref(false)
+  private[this] var done = false
+  private[this] var quota = limit
 
   client ! Connected(Concurrent.unicast[Frame](
     onStart = channel => self ! ChannelBound(channel),
     onError = (error, in) => self ! ChannelUnbound(Some(error)),
-    onComplete = if(!done.single()) self ! ChannelUnbound(None)
+    onComplete = self ! ChannelUnbound(None)
   ))
 
   def receive: Receive = awaiting
@@ -340,37 +347,32 @@ private[sockjs] class Connection(client: ActorRef, heartbeat: FiniteDuration, li
     case ChannelBound(channel) =>
       context.parent ! ConnectionBound(self)
       context.setReceiveTimeout(heartbeat)
-      context.become(connected(channel, limit))
+      context.become(connected(channel))
 
     case ChannelUnbound(error) =>
       context.parent ! ConnectionAborted
       context.stop(self)
   }
 
-  def connected(channel: Channel[Frame], quota: Long): Receive = {
-
-    case WriteFrame(frame: CloseFrame) =>
-      channel.push(frame)
-      channel.eofAndEnd()
-      done.single.set(true)
-      context.parent ! ConnectionAborted
-      context.stop(self)
+  def connected(channel: Channel[Frame]): Receive = {
 
     case WriteFrame(frame) =>
       channel.push(frame)
-      val r = quota - frame.size
-      if (r > 0) {
-        context.parent ! ConnectionCont
-        context.become(connected(channel, r))
-      } else {
-        channel.eofAndEnd()
-        done.single.set(true)
-        context.parent ! ConnectionDone
-        context.stop(self)
+      quota -= frame.size
+      frame match {
+        case frame: CloseFrame =>
+          done = true
+          context.parent ! ConnectionAborted
+        case _ if quota > 0 =>
+          context.parent ! ConnectionCont
+        case _ =>
+          done = true
+          context.parent ! ConnectionDone
       }
+      if (done) channel.eofAndEnd()
 
     case ChannelUnbound(error) =>
-      context.parent ! ConnectionAborted
+      if (!done) context.parent ! ConnectionAborted
       context.stop(self)
 
     case ReceiveTimeout =>

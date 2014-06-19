@@ -76,13 +76,12 @@ private[sockjs] object WebSocket extends HeaderNames with Results {
   private def handle(f: SockJS[_] => Handler) = SockJSWebSocket { req =>
     (if (req.method == "GET") {
       if (req.headers.get(UPGRADE).exists(_.equalsIgnoreCase("websocket"))) {
-        if (req.headers.get(CONNECTION).exists(_.toLowerCase.contains("upgrade"))) {
+        if (req.headers.get(CONNECTION).exists(_.equalsIgnoreCase("upgrade"))) {
           Right(SockJSTransport(f))
         } else Left(BadRequest("\"Connection\" must be \"Upgrade\"."))
       } else Left(BadRequest("'Can \"Upgrade\" only to \"WebSocket\".'"))
-    } else Left(MethodNotAllowed.withHeaders(ALLOW -> "GET"))).fold(
-        result => SockJSTransport(sockjs => Action(result)),
-        transport => transport)
+    } else Left(MethodNotAllowed.withHeaders(ALLOW -> "GET")))
+    .fold(result => SockJSTransport(_ => Action(result)), identity)
   }
 
 }
