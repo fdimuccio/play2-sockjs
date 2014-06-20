@@ -15,11 +15,7 @@ private[sockjs] object Jsonp extends HeaderNames with Results {
   /**
    * handler for jsonp_send
    */
-  def send = {
-    Transport.Send(
-      ok = req => Ok("ok").withHeaders(CONTENT_TYPE -> "text/plain; charset=UTF-8").notcached,
-      ko = NotFound)
-  }
+  def send = Transport.Send(req => Ok("ok").withHeaders(CONTENT_TYPE -> "text/plain; charset=UTF-8").notcached)
 
   /**
    * Handler for jsonp polling transport

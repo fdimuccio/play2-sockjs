@@ -21,11 +21,7 @@ private[sockjs] object Xhr extends HeaderNames with Results {
   /**
    * handler for xhr_send
    */
-  def send = {
-    Transport.Send(
-      ok = req => NoContent.enableCORS(req).notcached.as("text/plain; charset=UTF-8"),
-      ko = NotFound)
-  }
+  def send = Transport.Send(req => NoContent.enableCORS(req).notcached.as("text/plain; charset=UTF-8"))
 
   /**
    * handler for xhr polling transport
