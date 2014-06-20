@@ -2,52 +2,49 @@ package play.sockjs.core
 package actors
 
 import akka.actor._
-import akka.util.Timeout
-import akka.pattern._
-import scala.concurrent.Future
+
+import play.api.libs.iteratee._
+
+import play.sockjs.api.SockJS
+import scala.reflect.ClassTag
 
 private[sockjs] object SockJSActor {
 
-  object SessionMasterSupervisor {
-
-    val props = Props(new SessionMasterSupervisor)
-
-    case class GetSessionMaster(name: String)
-    case class AskToSessionMaster(name: String, message: Any)
-  }
-
-  /**
-   * The actor that manages all SessionMaster actors under the same ActorSystem
-   */
-  class SessionMasterSupervisor extends Actor {
-    import SessionMasterSupervisor._
-
-    def receive = {
-      case GetSessionMaster(name) => sender ! get(name)
-      case AskToSessionMaster(name, message) => get(name) forward message
-    }
-
-    private def get(name: String) = context.child(name).getOrElse(context.actorOf(SessionMaster.props, name))
-  }
-
-  /**
-   * Convenience wrapper useful to communicate directly with the SessionMaster
-   */
-  class SessionMasterRef(supervisor: ActorRef, name: String) {
-    import SessionMasterSupervisor._
-    def ?(message: Any)(implicit timeout: Timeout): Future[Any] = supervisor ? AskToSessionMaster(name, message)
-  }
+  // -- Akka extension
 
   /**
    * The extension for managing sockjs SessionMasters and handlers
    */
   object SockJSExtension extends ExtensionId[SockJSExtension] {
-    def createExtension(system: ExtendedActorSystem) = {
-      new SockJSExtension(system.actorOf(SessionMasterSupervisor.props, "sockjs"))
-    }
+    def createExtension(system: ExtendedActorSystem) = new SockJSExtension(system)
   }
 
-  class SockJSExtension(actor: ActorRef) extends Extension {
-    def sessionMaster(name: String): SessionMasterRef = new SessionMasterRef(actor, name)
+  class SockJSExtension(system: ExtendedActorSystem) extends Extension {
+    def sessionMaster(name: String): ActorRef = system.actorOf(SessionMaster.props, name)
+    def sessionMaster(): ActorRef = system.actorOf(SessionMaster.props)
   }
+
+  // -- SockJS actor supervisor
+
+  class SockJSActorSupervisor extends Actor {
+
+    def receive: Receive = ???
+
+  }
+
+  // -- Actors API
+
+  /**
+   * Connect an actor to the SockJS connection on the end of the given enumerator/iteratee.
+   *
+   * @param requestId The requestId. Used to name the actor.
+   * @param enumerator The enumerator to send messages to.
+   * @param iteratee The iteratee to consume messages from.
+   * @param createHandler A function that creates a SockJS handler, given an actor to send messages
+   *                      to.
+   * @param messageType The type of message this SockJS connection deals with.
+   */
+  case class Connect[In, Out](requestId: Long, enumerator: Enumerator[In], iteratee: Iteratee[Out, Unit], createHandler: SockJS.HandlerProps)(implicit val messageType: ClassTag[Out])
+
+
 }

@@ -9,11 +9,11 @@ import play.sockjs.core.actors.SockJSActor._
 /**
  * The dispatcher that will handle SockJS request.
  */
-class Dispatcher(actorSystem: ActorSystem, name: String)(implicit settings: SockJSSettings) {
+class Dispatcher(sessionMaster: ActorRef, settings: SockJSSettings) {
 
   import Dispatcher._
 
-  implicit lazy val sessionMaster = SockJSExtension(actorSystem).sessionMaster(name)
+  private[this] implicit val (sm, cfg) = (sessionMaster, settings)
 
   def unapply(mp: (String, String)): Option[SockJSHandler] = PartialFunction.condOpt(mp) {
     case ("GET", MaybeSlash()) => Utils.greet

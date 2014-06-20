@@ -18,14 +18,13 @@ import play.core.Execution.Implicits.internalContext
 
 import play.sockjs.api._
 import play.sockjs.core.actors._
-import play.sockjs.core.actors.SockJSActor.SessionMasterRef
 
 /**
  * SockJS transport helper
  */
-private[sockjs] case class Transport(f: SessionMasterRef => (String, SockJSSettings) => SockJSHandler) {
+private[sockjs] case class Transport(f: ActorRef => (String, SockJSSettings) => SockJSHandler) {
 
-  def apply(sessionID: String)(implicit sessionMaster: SessionMasterRef, settings: SockJSSettings) = {
+  def apply(sessionID: String)(implicit sessionMaster: ActorRef, settings: SockJSSettings) = {
     f(sessionMaster)(sessionID, settings)
   }
 

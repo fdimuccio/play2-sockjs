@@ -33,10 +33,10 @@ private[sockjs] object SessionMaster {
    */
   sealed abstract class SessionResponse(actor: ActorRef) {
     final def connect(
-                       heartbeat: FiniteDuration,
-                       sessionTimeout: FiniteDuration,
-                       quota: Long)(
-                       implicit timeout: Timeout) = actor ? Session.Connect(heartbeat, sessionTimeout, quota)
+      heartbeat: FiniteDuration,
+      sessionTimeout: FiniteDuration,
+      quota: Long)(
+      implicit timeout: Timeout) = actor ? Session.Connect(heartbeat, sessionTimeout, quota)
   }
 
   /**
@@ -44,7 +44,7 @@ private[sockjs] object SessionMaster {
    */
   final class SessionOpened(actor: ActorRef) extends SessionResponse(actor) {
 
-    private[this] var closed = false
+    @volatile private[this] var closed = false
 
     def bind[A, B](req: RequestHeader, sockjs: SockJS[A, B])(implicit ec: ExecutionContext): Future[Either[Result, SessionResponse]] = {
       // input enumerator: client messages will be read here and forwarded to the handler
@@ -125,6 +125,10 @@ private[sockjs] class SessionMaster extends Actor {
   import Session._
 
   import context.dispatcher
+
+  override def supervisorStrategy = OneForOneStrategy() {
+    case _ => SupervisorStrategy.Stop
+  }
 
   implicit val defaultTimeout = Timeout(5 seconds)
 
