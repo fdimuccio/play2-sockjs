@@ -94,8 +94,9 @@ object Play2SockJSBuild extends Build {
       libraryDependencies ++= Seq(
         "com.typesafe.akka" %% "akka-actor" % "2.3.3",
         "com.typesafe.play" %% "play" % "2.3.0" % "provided",
-        //"com.typesafe.play" %% "play-test" % "2.3.0" % "test",
-        "org.specs2" %% "specs2" % "2.3.10" % "test",
+        "com.typesafe.play" %% "play-test" % "2.3.0" % "test",
+        "com.typesafe.play" %% "play-ws" % "2.3.0" % "test",
+        "org.specs2" %% "specs2" % "2.3.12" % "test",
         "junit" % "junit" % "4.8" % "test" cross CrossVersion.Disabled
       )
     )
