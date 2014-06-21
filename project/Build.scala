@@ -8,7 +8,7 @@ object BuildSettings {
     organization := "com.github.fdimuccio",
     version := buildVersion,
     scalaVersion := "2.10.4",
-    crossScalaVersions := Seq("2.10.4"),
+    crossScalaVersions := Seq("2.10.4", "2.11.1"),
     crossVersion := CrossVersion.binary,
     javaOptions in test ++= Seq("-Xmx512m", "-XX:MaxPermSize=512m"),
     scalacOptions ++= Seq("-unchecked", "-deprecation"),
@@ -35,7 +35,7 @@ object Publish {
   }
   lazy val settings = Seq(
     publishMavenStyle := true,
-    publishTo <<= TargetRepository.local,
+    publishTo <<= TargetRepository.sonatype,
     publishArtifact in Test := false,
     pomIncludeRepository := { _ => false },
     licenses := Seq("Apache 2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),

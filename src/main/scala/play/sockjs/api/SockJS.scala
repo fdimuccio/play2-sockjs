@@ -11,8 +11,7 @@ import play.api.mvc._
 
 import play.core.Execution.Implicits.internalContext
 
-import play.sockjs.core.actors._
-import play.sockjs.core.actors.SockJSActor.SockJSExtension
+import play.sockjs.core.actors.SockJSActor._
 
 case class SockJS[IN, OUT](f: RequestHeader => Future[Either[Result, (Enumerator[IN], Iteratee[OUT, Unit]) => Unit]])(implicit val inFormatter: SockJS.MessageFormatter[IN], val outFormatter: SockJS.MessageFormatter[OUT]) {
 
@@ -88,6 +87,24 @@ object SockJS {
   type HandlerProps = ActorRef => Props
 
   /**
+   * Create a SockJS handler that will pass messages to/from the actor created by the given props.
+   *
+   * Given a request and an actor ref to send messages to, the function passed should return the props for an actor
+   * to create to handle this SockJS connection.
+   *
+   * For example:
+   *
+   * {{{
+   *   def sockjs = SockJS.acceptWithActor[JsValue, JsValue] { req => out =>
+   *     MySockJSActor.props(out)
+   *   }
+   * }}}
+   */
+  def acceptWithActor[In, Out](f: RequestHeader => HandlerProps)(implicit in: MessageFormatter[In], out: MessageFormatter[Out], app: play.api.Application, outMessageType: ClassTag[Out]): SockJS[In, Out] = {
+    tryAcceptWithActor(req => Future.successful(Right(f(req))))
+  }
+
+  /**
    * Create a SockJS handler that will pass messages to/from the actor created by the given props asynchronously.
    *
    * Given a request, this method should return a future of either:
@@ -107,14 +124,13 @@ object SockJS {
    *   }
    * }}}
    */
-  def tryAcceptWithActor[In, Out](f: RequestHeader => Future[Either[Result, HandlerProps]])(implicit in: MessageFormatter[In], out: MessageFormatter[Out], app: play.Application, outMessageType: ClassTag[Out]): SockJS[In, Out] = {
+  def tryAcceptWithActor[In, Out](f: RequestHeader => Future[Either[Result, HandlerProps]])(implicit in: MessageFormatter[In], out: MessageFormatter[Out], app: play.api.Application, outMessageType: ClassTag[Out]): SockJS[In, Out] = {
     SockJS[In, Out] { request =>
       f(request).map { resultOrProps =>
         resultOrProps.right.map { props =>
           (enumerator, iteratee) =>
-            ???
-            //SockJSExtension(play.api.libs.concurrent.Akka.system).actor !
-            //  SockJSActor.Connect(request.id, enumerator, iteratee, props)
+            SockJSExtension(play.api.libs.concurrent.Akka.system).actor !
+              SockJSActor.Connect(request.id, enumerator, iteratee, props)
         }
       }
     }

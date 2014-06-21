@@ -8,8 +8,6 @@ import play.api.http._
 import play.api.libs.iteratee._
 import play.api.libs.json._
 
-import play.core.Execution.Implicits.internalContext
-
 private[sockjs] object Jsonp extends HeaderNames with Results {
 
   /**
@@ -24,9 +22,9 @@ private[sockjs] object Jsonp extends HeaderNames with Results {
     req.getQueryString("c").orElse(req.getQueryString("callback")).map { callback =>
       if (!callback.matches("[^a-zA-Z0-9-_.]"))
         session.bind { enumerator =>
-          Transport.Res(enumerator &> Enumeratee.map { frame =>
+          Transport.Res(enumerator &> Enumeratee.map { (frame: Frame) =>
             s"$callback(${JsString(frame.text)});\r\n"
-          })
+          }(play.api.libs.iteratee.Execution.trampoline))
         }
       else
         Future.successful(InternalServerError("invalid \"callback\" parameter"))

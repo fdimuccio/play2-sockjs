@@ -5,9 +5,9 @@ import play.api.libs.iteratee._
 import play.api.mvc._
 import play.api.http._
 
-import play.core.Execution.Implicits.internalContext
-
 private[sockjs] object Xhr extends HeaderNames with Results {
+
+  import play.api.libs.iteratee.Execution.Implicits.trampoline
 
   private[this] val prelude = Array.fill(2048)('h').mkString + '\n'
 

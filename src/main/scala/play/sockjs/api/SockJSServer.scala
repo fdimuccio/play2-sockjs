@@ -25,9 +25,7 @@ case class SockJSServer(actorSystem: ActorSystem, settings: SockJSSettings, name
   def reconfigure(f: SockJSSettings => SockJSSettings): SockJSServer = copy(settings = f(settings))
 
   private[sockjs] def dispatcher(prefix: String) = {
-    val ext = SockJSExtension(actorSystem)
-    val sessionMaster = name.map(ext.sessionMaster).getOrElse(ext.sessionMaster())
-    new Dispatcher(sessionMaster, settings)
+    new Dispatcher(SockJSExtension(actorSystem).sessionMaster(name), settings)
   }
 
 }

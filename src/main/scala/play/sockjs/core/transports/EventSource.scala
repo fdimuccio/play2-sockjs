@@ -5,8 +5,6 @@ import play.api.libs.iteratee._
 import play.api.http._
 import play.api.mvc._
 
-import play.core.Execution.Implicits.internalContext
-
 /**
  * EventSource transport
  */
@@ -24,7 +22,7 @@ private[sockjs] object EventSource extends HeaderNames with Results {
         }
         sb.append("\r\n")
         sb.toString()
-      }))
+      }(play.api.libs.iteratee.Execution.trampoline)))
     }
   }
 

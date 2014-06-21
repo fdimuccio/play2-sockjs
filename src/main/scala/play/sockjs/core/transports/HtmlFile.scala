@@ -8,8 +8,6 @@ import play.api.mvc._
 import play.api.http._
 import play.api.libs.json._
 
-import play.core.Execution.Implicits.internalContext
-
 /**
  * HTMLfile transport
  */
@@ -34,9 +32,9 @@ private[sockjs] object HtmlFile extends HeaderNames with Results {
             |  </script>
           """.stripMargin
         val prelude = tpl + Array.fill(1024 - tpl.length + 14)(' ').mkString + "\r\n\r\n"
-        Transport.Res(Enumerator(prelude) >>> (enumerator &> Enumeratee.map { frame =>
+        Transport.Res(Enumerator(prelude) >>> (enumerator &> Enumeratee.map { (frame: Frame) =>
           s"<script>\np(${JsString(frame.text)});\n</script>\r\n"
-        }))
+        }(play.api.libs.iteratee.Execution.trampoline)))
       } else Future.successful(InternalServerError("invalid \"callback\" parameter"))
     }.getOrElse(Future.successful(InternalServerError("\"callback\" parameter required")))
   }

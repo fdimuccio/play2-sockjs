@@ -46,7 +46,7 @@ object Utils extends HeaderNames with Results {
     val digest = MessageDigest.getInstance("MD5").digest(content.getBytes("UTF-8")).map(b => f"$b%02x").mkString
     if (req.headers.get(IF_NONE_MATCH).exists(_ == digest)) NotModified
     else Ok(content)
-      .cached(31536000) // one year, as sockjs 0.3.3 specs
+      .cached(31536000) // 31536000 seconds, that is one year, as sockjs 0.3.3 specs
       .withHeaders(
         ETAG -> digest,
         CONTENT_TYPE -> "text/html; charset=UTF-8")

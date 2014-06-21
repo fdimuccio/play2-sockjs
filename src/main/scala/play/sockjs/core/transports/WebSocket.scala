@@ -9,12 +9,13 @@ import play.api.mvc._
 import play.api.mvc.{WebSocket => PlayWebSocket}
 import play.api.libs.json._
 import play.api.http._
-import play.core.Execution.Implicits.internalContext
 
 import play.sockjs.core.iteratee.IterateeX
 import play.sockjs.api._
 
 private[sockjs] object WebSocket extends HeaderNames with Results {
+
+  import play.api.libs.iteratee.Execution.Implicits.trampoline
 
   /**
    * websocket sockjs framed transport
