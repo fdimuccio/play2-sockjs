@@ -13,6 +13,12 @@
 ->        /java/disabled_websocket_echo        controllers.ApplicationJ.disabledWebSocketEcho
 ->        /java/cookie_needed_echo             controllers.ApplicationJ.cookieNeededEcho
 
+->        /java_actor/echo                     controllers.ApplicationActorJ.echo
+->        /java_actor/close                    controllers.ApplicationActorJ.closed
+->        /java_actor/disabled_websocket_echo  controllers.ApplicationActorJ.disabledWebSocketEcho
+->        /java_actor/cookie_needed_echo       controllers.ApplicationActorJ.cookieNeededEcho
+
+
 #->        /java8/echo                           controllers.ApplicationJ8.echo
 #->        /java8/close                          controllers.ApplicationJ8.closed
 #->        /java8/disabled_websocket_echo        controllers.ApplicationJ8.disabledWebSocketEcho

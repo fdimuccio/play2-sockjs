@@ -1,5 +1,8 @@
 package play.sockjs.core.j
 
+import akka.actor.ActorRef
+import akka.actor.Props
+
 import java.util.concurrent.TimeUnit
 
 import scala.concurrent.duration._
@@ -7,6 +10,8 @@ import scala.concurrent.duration._
 import play.libs.F
 import play.core.Router
 import play.core.j.JavaHelpers
+import play.mvc.Result
+import play.mvc.Http.Request
 
 abstract class JavaRouter(cfg: F.Option[play.sockjs.SockJS.Settings]) extends Router.Routes {
   self =>
@@ -20,6 +25,10 @@ abstract class JavaRouter(cfg: F.Option[play.sockjs.SockJS.Settings]) extends Ro
   def routes = scalaRouter.routes
 
   def sockjs: play.sockjs.SockJS
+  
+  def isActor = false
+  
+  def resultOrProps: F.Function[Request, F.Either[Result, F.Function[ActorRef, Props]]] = null
 
   private lazy val scalaRouter = new play.sockjs.api.SockJSRouter {
     import play.sockjs.api._
@@ -53,6 +62,6 @@ abstract class JavaRouter(cfg: F.Option[play.sockjs.SockJS.Settings]) extends Ro
       }
       SockJSServer(settings.getOrElse(SockJSSettings.default))
     }
-    def sockjs = JavaSockJS.sockjsWrapper(self.sockjs)
+    def sockjs = if(isActor) JavaSockJS.propsWrapper(self.resultOrProps) else JavaSockJS.sockjsWrapper(self.sockjs)
   }
 }
