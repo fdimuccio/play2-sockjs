@@ -68,7 +68,7 @@ object SockJSRouter {
 
   def apply(f: SockJSSettings => SockJSSettings): Builder = Builder(SockJSServer(settings = f(SockJSSettings.default)))
 
-  def apply(server: SockJSServer): Builder = Builder()
+  def apply(server: SockJSServer): Builder = Builder(server)
 
   case class Builder private[SockJSRouter](server: SockJSServer = SockJSServer.default) {
 
