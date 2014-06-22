@@ -1,13 +1,22 @@
 package play.sockjs.core.j
 
+import akka.actor.ActorRef
+import akka.actor.Props
+
 import scala.collection.JavaConverters._
+
+import play.api.Play.current
 
 import play.core.j.JavaHelpers
 import play.mvc.Http.{Context => JContext}
 
 import play.core.Execution.Implicits.internalContext
+import play.libs.F
+import play.mvc.Result
+import play.mvc.Http.Request
 
 import scala.concurrent.Future
+
 
 object JavaSockJS extends JavaHelpers {
 
@@ -41,5 +50,22 @@ object JavaSockJS extends JavaHelpers {
       javaSockJS.onReady(socketIn, socketOut)
     }))
   }
+  
+  def propsWrapper(f: F.Function[Request, F.Either[Result, F.Function[ActorRef, Props]]]): play.sockjs.api.SockJS[String, String] = 
+    play.sockjs.api.SockJS.tryAcceptWithActor[String, String] { request => 
+      Future {
+        try {
+          val context = createJavaContext(request)
+          JContext.current.set(context)
+          val resultOrProps = f(context.request())
+          resultOrProps.left match {
+            case _: F.Some[Result] => Left(createResult(context, resultOrProps.left.get()))
+            case _ => Right(out => resultOrProps.right.get().apply(out))
+          }
+        } finally {
+          JContext.current.remove()
+        }        
+      }
+    }
 
 }
