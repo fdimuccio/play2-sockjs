@@ -70,7 +70,7 @@ You may also need to add the Sonatype Repository as a resolver:
 resolvers += Resolver.sonatypeRepo("releases")
 ```
 
-or if using snapshot release:
+or if using snapshot version:
 
 ```scala
 resolvers += Resolver.sonatypeRepo("snapshots")
