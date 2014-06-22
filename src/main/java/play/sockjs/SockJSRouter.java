@@ -5,8 +5,10 @@ import java.lang.annotation.Annotation;
 import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.actor.UntypedActor;
+
 import play.libs.F;
-import play.mvc.Result; 
+import play.mvc.Http;
+import play.mvc.Result;
 import play.mvc.Http.Request;
 
 public abstract class SockJSRouter extends play.sockjs.core.j.JavaRouter {
@@ -43,8 +45,8 @@ public abstract class SockJSRouter extends play.sockjs.core.j.JavaRouter {
         return new Builder().withStreamingQuota(bytes);
     }
 
-    public static SockJSRouter whenReady(final SockJS sockJs) {
-        return new Builder().whenReady(sockJs);
+    public static SockJSRouter whenReady(final F.Callback2<SockJS.In, SockJS.Out> callback) {
+        return new Builder().whenReady(callback);
     }
 
     public static SockJSRouter withActor(final F.Function<ActorRef, Props> props) {
@@ -54,9 +56,9 @@ public abstract class SockJSRouter extends play.sockjs.core.j.JavaRouter {
     public static SockJSRouter withActor(final Class<? extends UntypedActor> actorClass) {
         return new Builder().withActor(actorClass);
     }
-    
-    public static SockJSRouter tryAcceptWithActor(F.Function<Request, F.Either<Result, F.Function<ActorRef, Props>>> resultOrProps) {
-        return new Builder().tryAcceptWithActor(resultOrProps);
+
+    public static SockJSRouter tryAccept(final F.Function<Request, SockJS> sockjs) {
+        return new Builder().tryAccept(sockjs);
     }
 
     public static class Builder {
@@ -105,8 +107,8 @@ public abstract class SockJSRouter extends play.sockjs.core.j.JavaRouter {
             return new Builder(script, cookies, websocket, heartbeatMillis, sessionTimeoutMillis, bytes);
         }
 
-        protected SockJS.Settings asSettings() {
-        	return new SockJS.Settings() {
+        protected F.Some<SockJS.Settings> asSettings() {
+        	return new F.Some<SockJS.Settings>(new SockJS.Settings() {
                 @Override
                 public Class<? extends ScriptLocation> script() {
                     return script;
@@ -135,14 +137,14 @@ public abstract class SockJSRouter extends play.sockjs.core.j.JavaRouter {
                 public Class<? extends Annotation> annotationType() {
                     return SockJS.Settings.class;
                 }
-            };        	
+            });
         }
         
-        public SockJSRouter whenReady(final SockJS sockJs) {
-            F.Option<SockJS.Settings> cfg = new F.Some<SockJS.Settings>(asSettings());
-            return new SockJSRouter(cfg) {
+        public SockJSRouter whenReady(final F.Callback2<SockJS.In, SockJS.Out> callback) {
+            if (callback == null) throw new NullPointerException("SockJS onReady callback cannot be null");
+            return new SockJSRouter(asSettings()) {
                 public SockJS sockjs() {
-                    return sockJs;
+                    return SockJS.whenReady(callback);
                 }
             };
         }
@@ -156,29 +158,29 @@ public abstract class SockJSRouter extends play.sockjs.core.j.JavaRouter {
         }
         
         public SockJSRouter withActor(final F.Function<ActorRef, Props> props) {
-        	return tryAcceptWithActor(new F.Function<Request, F.Either<Result, F.Function<ActorRef, Props>>>() {
-                public F.Either<Result, F.Function<ActorRef, Props>> apply(Request request) throws Throwable {
-                    return F.Either.Right(props);
-                }
-            });
-        }
-
-        public SockJSRouter tryAcceptWithActor(final F.Function<Request, F.Either<Result, F.Function<ActorRef, Props>>> resultOrProps) {
-            F.Option<SockJS.Settings> cfg = new F.Some<SockJS.Settings>(asSettings());
-            return new SockJSRouter(cfg) {
+        	return new SockJSRouter(asSettings()) {
                 public SockJS sockjs() {
-                    return null;
-                }
-                
-                public boolean isActor() {
-                	return true;
-                }
-                
-                public F.Function<Request, F.Either<Result, F.Function<ActorRef, Props>>> resultOrProps() {
-                	return resultOrProps;
+                    return SockJS.withActor(props);
                 }
             };
         }
+
+        public SockJSRouter tryAccept(final F.Function<Request, SockJS> sockjs) {
+            return new SockJSRouter(asSettings()) {
+                public SockJS sockjs() {
+                    try {
+                        return sockjs.apply(Http.Context.current().request());
+                    } catch (RuntimeException e) {
+                        throw e;
+                    } catch (Error e) {
+                        throw e;
+                    } catch (Throwable t) {
+                        throw new RuntimeException(t);
+                    }
+                }
+            };
+        }
+
     }
 
 }
