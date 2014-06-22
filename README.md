@@ -30,8 +30,8 @@ Currently passes all transport tests from the specs except for test_haproxy, it 
 only users that uses WebSocket Hixie-76 protocol behind HAProxy.
 
     Current versions:
-        Play 2.1.x : 0.1.4
-        Play 2.2.x : 0.2.4
+        Play 2.1.x : 0.1.5
+        Play 2.2.x : 0.2.5
         Play 2.3.x : 0.3.0-SNAPSHOT
 
 What is SockJS?
@@ -58,8 +58,8 @@ Add play2-sockjs dependency to your build.sbt or project/Build.scala:
 ```scala
 libraryDependencies <++= playVersion { v: String =>
     if (v.startsWith("2.3")) Seq("com.github.fdimuccio" %% "play2-sockjs" % "0.3.0-SNAPSHOT")
-    else if (v.startsWith("2.2")) Seq("com.github.fdimuccio" %% "play2-sockjs" % "0.2.4")
-    else if (v.startsWith("2.1")) Seq("com.github.fdimuccio" %% "play2-sockjs" % "0.1.4")
+    else if (v.startsWith("2.2")) Seq("com.github.fdimuccio" %% "play2-sockjs" % "0.2.5")
+    else if (v.startsWith("2.1")) Seq("com.github.fdimuccio" %% "play2-sockjs" % "0.1.5")
     else Seq()
 }
 ```
