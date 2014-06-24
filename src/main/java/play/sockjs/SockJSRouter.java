@@ -57,7 +57,7 @@ public abstract class SockJSRouter extends play.sockjs.core.j.JavaRouter {
         return new Builder().withActor(actorClass);
     }
 
-    public static SockJSRouter tryAccept(final F.Function<Request, SockJS> sockjs) {
+    public static SockJSRouter tryAccept(final F.Function<Http.Context, SockJS> sockjs)  {
         return new Builder().tryAccept(sockjs);
     }
 
@@ -165,11 +165,11 @@ public abstract class SockJSRouter extends play.sockjs.core.j.JavaRouter {
             };
         }
 
-        public SockJSRouter tryAccept(final F.Function<Request, SockJS> sockjs) {
+        public SockJSRouter tryAccept(final F.Function<Http.Context, SockJS> sockjs) {
             return new SockJSRouter(asSettings()) {
                 public SockJS sockjs() {
                     try {
-                        return sockjs.apply(Http.Context.current().request());
+                        return sockjs.apply(Http.Context.current());
                     } catch (RuntimeException e) {
                         throw e;
                     } catch (Error e) {

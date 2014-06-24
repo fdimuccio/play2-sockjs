@@ -29,7 +29,7 @@
         $(function() {
             var protocols = [] // all protocols
             var chatSocket = new SockJS("/room/chat", null, {debug: true, protocols_whitelist: protocols})
-            window.chat = chatSocket;
+
             var sendMessage = function() {
                 chatSocket.send(JSON.stringify(
                     {text: $("#talk").val()}
@@ -75,7 +75,8 @@
             $("#talk").keypress(handleReturnKey)
             
             chatSocket.onmessage = receiveEvent
-            
+
+            window.chat = chatSocket;
         })
     
     </script>

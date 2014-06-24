@@ -94,6 +94,7 @@ First, using SockJSRouter builder facility:
 package controllers
 
 import play.api.mvc._
+import play.api.libs.iteratee._
 import play.sockjs.api._
 
 object Application extends Controller {
@@ -134,6 +135,7 @@ Second (more verbose), extending SockJSRouter trait:
 package controllers
 
 import play.api.mvc._
+import play.api.libs.iteratee._
 import play.sockjs.api._
 
 // extends or mixin SockJSRouter trait
@@ -196,6 +198,7 @@ package controllers
 import scala.concurrent.duration._
 
 import play.api.mvc._
+import play.api.libs.iteratee._
 import play.sockjs.api._
 
 object Application extends Controller {

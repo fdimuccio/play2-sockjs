@@ -5,6 +5,7 @@ import play.api.mvc._
 
 import play.api.libs.json._
 import play.api.libs.iteratee._
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
 
 import models._
 
@@ -36,11 +37,11 @@ object Application extends Controller {
     }
   }
 
-  val chat = SockJSRouter(_.websocket(false)).async[JsValue] { request =>
+  val chat = SockJSRouter(_.websocket(true)).tryAccept[JsValue] { request =>
     request.cookies.get("username").map { cookie =>
-      ChatRoom.join(cookie.value)
+      ChatRoom.join(cookie.value).map(Right(_))
     }.getOrElse {
-      Future.successful(Done[JsValue,Unit]((),Input.EOF), Enumerator[JsValue](Json.obj("error" -> "unknown username")).andThen(Enumerator.enumInput(Input.EOF)))
+      Future.successful(Left(BadRequest(Json.obj("error" -> "unknown username"))))
     }
   }
 }
