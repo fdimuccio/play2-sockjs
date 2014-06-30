@@ -10,7 +10,7 @@ object ApplicationBuild extends Build {
 
   val main = Project(appName, file(".")).enablePlugins(play.PlayScala).settings(
     version := appVersion,
-    libraryDependencies += "com.github.fdimuccio" %% "play2-sockjs" % "0.3.0-SNAPSHOT",
+    libraryDependencies += "com.github.fdimuccio" %% "play2-sockjs" % "0.3.0",
     resolvers += "Maven2 Local" at new File(Path.userHome, ".m2/repository/snapshots").toURI.toURL.toExternalForm,
     resolvers += Resolver.sonatypeRepo("snapshots")
   )

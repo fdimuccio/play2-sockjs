@@ -73,7 +73,7 @@ object SockJSServer {
  *                       during this time. Defaults to 5 seconds.
  * @param streamingQuota Quota in bytes for a single streaming request: after the quota is
  *                       reached the request will be closed by the server to let the
- *                       client GC received messages. Defaults to 4096 bytes.
+ *                       client GC received messages. Defaults to 128Kb.
  */
 case class SockJSSettings(
     scriptSRC: RequestHeader => String = _ => "http://cdn.sockjs.org/sockjs-0.3.min.js",
