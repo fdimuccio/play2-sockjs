@@ -1,7 +1,7 @@
 play2-sockjs
 -----------
 
-A SockJS server implementation for [Play Framework](http://http://www.playframework.com/).
+A SockJS server implementation for [Play Framework](http://www.playframework.com/).
 
 play2-sockjs api aims to be as similar as possible to the WebSocket one provided by Play Framework:
 
