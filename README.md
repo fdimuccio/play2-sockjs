@@ -398,8 +398,11 @@ Samples
 
 In the samples/ folder there are two sample applications:
 
-    * sockjs-chat: a port of the Play sample websocket-chat to SockJS
     * sockjs-protocol-test: server for SockJS 0.3.3 protocol specifications tests
+    * sockjs-chat: a port of the Play sample websocket-chat to SockJS
+    * sockjs-chat-actor-di: same demo app of sockjs-chat but implemented with the 
+                            actor api available from 0.3.0 and dependency injection 
+                            using [macwire](https://github.com/adamw/macwire)
 
 ### What's missing?
 
