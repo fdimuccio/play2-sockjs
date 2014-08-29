@@ -2,15 +2,17 @@ import sbt._
 import sbt.Keys._
 
 object BuildSettings {
-  val buildVersion = "0.3.0"
+  val buildVersion = "0.3.1-SNAPSHOT"
 
   val buildSettings = Defaults.defaultSettings ++ Seq(
     organization := "com.github.fdimuccio",
     version := buildVersion,
     scalaVersion := "2.10.4",
-    crossScalaVersions := Seq("2.10.4", "2.11.1"),
+    crossScalaVersions := Seq("2.10.4", "2.11.2"),
     crossVersion := CrossVersion.binary,
     javaOptions in test ++= Seq("-Xmx512m", "-XX:MaxPermSize=512m"),
+    javacOptions ++= Seq("-source", "1.6", "-target", "1.6", "-encoding", "UTF-8", "-Xlint:-options"),
+    javacOptions in doc := Seq("-source", "1.6"),
     scalacOptions ++= Seq("-unchecked", "-deprecation"),
     shellPrompt := ShellPrompt.buildShellPrompt
   ) ++ Publish.settings
@@ -92,10 +94,10 @@ object Play2SockJSBuild extends Build {
         Resolver.typesafeRepo("releases")
       ),
       libraryDependencies ++= Seq(
-        "com.typesafe.akka" %% "akka-actor" % "2.3.3",
-        "com.typesafe.play" %% "play" % "2.3.0" % "provided",
-        "com.typesafe.play" %% "play-test" % "2.3.0" % "test",
-        "com.typesafe.play" %% "play-ws" % "2.3.0" % "test",
+        "com.typesafe.akka" %% "akka-actor" % "2.3.5",
+        "com.typesafe.play" %% "play" % "2.3.3" % "provided",
+        "com.typesafe.play" %% "play-test" % "2.3.3" % "test",
+        "com.typesafe.play" %% "play-ws" % "2.3.3" % "test",
         "org.specs2" %% "specs2" % "2.3.12" % "test",
         "junit" % "junit" % "4.8" % "test" cross CrossVersion.Disabled
       )

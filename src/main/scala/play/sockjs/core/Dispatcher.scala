@@ -17,9 +17,9 @@ class Dispatcher(sessionMaster: ActorRef, settings: SockJSSettings) {
 
   def unapply(mp: (String, String)): Option[SockJSHandler] = PartialFunction.condOpt(mp) {
     case ("GET", MaybeSlash()) => Utils.greet
-    case ("GET", IframePage()) => Utils.iframe(settings.scriptSRC)
-    case ("GET" | "OPTIONS", "/info") => Utils.info(settings.websocket, settings.cookies.isDefined)
-    case (_, Transport(_, "websocket")) if settings.websocket => WebSocket.sockjs
+    case ("GET", IframePage()) => Utils.iframe(cfg.scriptSRC)
+    case ("GET" | "OPTIONS", "/info") => Utils.info(cfg.websocket, cfg.cookies.isDefined)
+    case (_, Transport(_, "websocket")) if settings.websocket => WebSocket.sockjs(cfg.heartbeat)
     case ("POST", Transport(sessionID, "xhr_send")) => Xhr.send(sessionID)
     case ("POST", Transport(sessionID, "xhr")) => Xhr.polling(sessionID)
     case ("POST", Transport(sessionID, "xhr_streaming")) => Xhr.streaming(sessionID)
