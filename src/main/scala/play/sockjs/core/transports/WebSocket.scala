@@ -37,7 +37,7 @@ private[sockjs] object WebSocket extends HeaderNames with Results {
                 valid => Enumerator[A](valid.flatMap(allCatch opt sockjs.inFormatter.read(_)): _*))
               ).getOrElse { aborted = true; Enumerator.eof[A] }
               case Input.Empty => Enumerator.enumInput[A](Input.Empty)
-              case Input.EOF => Enumerator.eof[A]
+              case Input.EOF => aborted = true; Enumerator.eof[A]
             },
             Enumeratee.mapInputFlatten[B] {
               case Input.El(obj) => Enumerator[Frame](Frame.MessageFrame(sockjs.outFormatter.write(obj)))
