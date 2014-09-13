@@ -30,9 +30,9 @@ Currently passes all transport tests from the specs except for test_haproxy, it 
 only users that uses WebSocket Hixie-76 protocol behind HAProxy.
 
     Current versions:
-        Play 2.1.x : 0.1.5
-        Play 2.2.x : 0.2.5
-        Play 2.3.x : 0.3.0
+        Play 2.1.x : 0.1.6
+        Play 2.2.x : 0.2.6
+        Play 2.3.x : 0.3.1
 
 What is SockJS?
 ---------------
