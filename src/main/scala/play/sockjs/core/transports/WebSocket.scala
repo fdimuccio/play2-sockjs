@@ -1,6 +1,8 @@
 package play.sockjs.core
 package transports
 
+import scala.concurrent.{Future, Promise}
+import scala.concurrent.duration.FiniteDuration
 import scala.util.control.Exception._
 
 import play.api.libs.iteratee._
@@ -8,6 +10,7 @@ import play.api.mvc._
 import play.api.mvc.{WebSocket => PlayWebSocket}
 import play.api.libs.json._
 import play.api.http._
+import play.api.libs.concurrent.{Promise => PlayPromise}
 
 import play.sockjs.api._
 
@@ -18,11 +21,12 @@ private[sockjs] object WebSocket extends HeaderNames with Results {
   /**
    * websocket sockjs framed transport
    */
-  def sockjs = handle { sockjs =>
+  def sockjs(heartbeat: FiniteDuration) = handle { sockjs =>
     PlayWebSocket.using { req =>
       def bind[A](sockjs: SockJS[A]): (Iteratee[String, Unit], Enumerator[String]) = {
         val (itIN, enIN) = IterateeX.joined[String]
         val (itOUT, enOUT) = IterateeX.joined[String]
+        val heartbeatK = Promise[Unit]() // A promise that when completed will kill the heartbeat
         @volatile var aborted = false
         sockjs.f(req)(
           enIN &> Enumeratee.mapInputFlatten[String] {
@@ -32,15 +36,22 @@ private[sockjs] object WebSocket extends HeaderNames with Results {
               valid   => Enumerator[A](valid.flatMap(allCatch opt sockjs.formatter.read(_)):_*))
             ).getOrElse { aborted = true; Enumerator.eof[A] }
             case Input.Empty => Enumerator.enumInput[A](Input.Empty)
-            case Input.EOF => Enumerator.eof[A]
+            case Input.EOF => aborted = true; Enumerator.eof[A]
           },
           Enumeratee.mapInputFlatten[A] {
             case Input.El(obj) => Enumerator[Frame](Frame.MessageFrame(sockjs.formatter.write(obj)))
             case Input.Empty => Enumerator.enumInput[Frame](Input.Empty)
             case Input.EOF if aborted => Enumerator.eof[Frame]
-            case Input.EOF => Enumerator[Frame](Frame.CloseFrame.GoAway) >>> Enumerator.eof
-          } ><> Enumeratee.heading(Enumerator(Frame.OpenFrame)) ><> Enumeratee.map(_.text) &>> itOUT)
-        (itIN, enOUT)
+            case Input.EOF => heartbeatK.trySuccess(); Enumerator[Frame](Frame.CloseFrame.GoAway) >>> Enumerator.eof
+          } ><> Enumeratee.map(_.text) &>> itOUT)
+        (itIN, Enumerator(Frame.OpenFrame.text) >>> Enumerator.fromCallback1(
+          retriever = _ =>
+            Future.firstCompletedOf(Seq(
+              heartbeatK.future.map(_ => None),
+              PlayPromise.timeout({
+                if (aborted || heartbeatK.isCompleted) None: Option[String]
+                else Some(Frame.HeartbeatFrame.text)
+              }, heartbeat)))) >- enOUT)
       }
       bind(sockjs)
     }

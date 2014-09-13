@@ -30,7 +30,7 @@ Currently passes all transport tests from the specs except for test_haproxy, it 
 only users that uses websocket transport behind HAProxy.
 
     Current versions:
-        Play 2.1.x : 0.1.2
+        Play 2.1.x : 0.1.6
 
 What is SockJS?
 ---------------
