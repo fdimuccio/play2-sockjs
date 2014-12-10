@@ -12,7 +12,7 @@ import play.api.mvc.{WebSocket => PlayWebSocket}
 import play.api.libs.json._
 import play.api.http._
 
-import play.sockjs.core.iteratee.IterateeX
+import play.sockjs.core.iteratee._
 import play.sockjs.api._
 
 private[sockjs] object WebSocket extends HeaderNames with Results {
@@ -31,17 +31,17 @@ private[sockjs] object WebSocket extends HeaderNames with Results {
           val heartbeatK = Promise[Unit]() // A promise that when completed will kill the heartbeat
           @volatile var aborted = false
           f(enIN &> Enumeratee.mapInputFlatten[String] {
-              case Input.El(payload) if payload.isEmpty => Enumerator.enumInput[A](Input.Empty)
+              case Input.El(payload) if payload.isEmpty => Enumerator.empty[A]
               case Input.El(payload) => (allCatch opt Json.parse(payload)).map(_.validate[Seq[String]].fold(
-                invalid => Enumerator.enumInput[A](Input.Empty), // abort connection?
+                invalid => Enumerator.empty[A], // abort connection?
                 valid => Enumerator[A](valid.flatMap(allCatch opt sockjs.inFormatter.read(_)): _*))
               ).getOrElse { aborted = true; Enumerator.eof[A] }
-              case Input.Empty => Enumerator.enumInput[A](Input.Empty)
+              case Input.Empty => Enumerator.empty[A]
               case Input.EOF => aborted = true; Enumerator.eof[A]
             },
             Enumeratee.mapInputFlatten[B] {
               case Input.El(obj) => Enumerator[Frame](Frame.MessageFrame(sockjs.outFormatter.write(obj)))
-              case Input.Empty => Enumerator.enumInput[Frame](Input.Empty)
+              case Input.Empty => Enumerator.empty[Frame]
               case Input.EOF if aborted => Enumerator.eof[Frame]
               case Input.EOF => heartbeatK.trySuccess(); Enumerator[Frame](Frame.CloseFrame.GoAway) >>> Enumerator.eof
             } ><> Enumeratee.map(_.text) &>> itOUT)
@@ -63,28 +63,10 @@ private[sockjs] object WebSocket extends HeaderNames with Results {
    * raw websocket transport (no sockjs framing)
    */
   def raw = handle { sockjs =>
-    PlayWebSocket.tryAccept { req =>
-      def bind[A, B](sockjs: SockJS[A, B]): Future[Either[Result, (Iteratee[String, Unit], Enumerator[String])]] = {
-        sockjs.f(req).map(_.right.map { f =>
-          val (itIN, enIN) = IterateeX.joined[String]
-          val (itOUT, enOUT) = IterateeX.joined[String]
-          f(enIN &> Enumeratee.mapInputFlatten[String] {
-              case Input.El(payload) if payload.isEmpty => Enumerator.enumInput[A](Input.Empty)
-              case Input.El(payload) => (allCatch opt sockjs.inFormatter.read(payload))
-                .map(Enumerator[A](_)).getOrElse(Enumerator.enumInput[A](Input.Empty))
-              case Input.Empty => Enumerator.enumInput[A](Input.Empty)
-              case Input.EOF => Enumerator.eof[A]
-            },
-            Enumeratee.mapInputFlatten[B] {
-              case Input.El(obj) => Enumerator(sockjs.outFormatter.write(obj))
-              case Input.Empty => Enumerator.enumInput[String](Input.Empty)
-              case Input.EOF => Enumerator.eof[String]
-            } &>> itOUT)
-          (itIN, enOUT)
-        })
-      }
-      bind(sockjs)
+    def bind[A, B](sockjs: SockJS[A, B]): PlayWebSocket[A, B] = {
+      PlayWebSocket(sockjs.f)(sockjs.inFormatter, sockjs.outFormatter)
     }
+    bind(sockjs)
   }
 
   private def handle(f: SockJS[_, _] => Handler) = SockJSWebSocket { req =>
@@ -99,4 +81,7 @@ private[sockjs] object WebSocket extends HeaderNames with Results {
       transport => transport)
   }
 
+  private implicit def toFrameFormatter[A](fmt: SockJS.MessageFormatter[A]): PlayWebSocket.FrameFormatter[A] = {
+    PlayWebSocket.FrameFormatter.stringFrame.transform(fmt.write, fmt.read)
+  }
 }

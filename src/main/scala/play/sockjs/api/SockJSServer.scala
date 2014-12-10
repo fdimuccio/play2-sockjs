@@ -76,7 +76,7 @@ object SockJSServer {
  *                       client GC received messages. Defaults to 128Kb.
  */
 case class SockJSSettings(
-    scriptSRC: RequestHeader => String = _ => "http://cdn.sockjs.org/sockjs-0.3.min.js",
+    scriptSRC: RequestHeader => String = _ => "//cdn.jsdelivr.net/sockjs/0.3.4/sockjs.min.js",
     websocket: Boolean = true,
     cookies: Option[CookieCalculator] = None,
     heartbeat: FiniteDuration = 25 seconds,

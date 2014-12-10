@@ -8,7 +8,7 @@ public interface ScriptLocation {
 
     public static class DefaultCdn implements ScriptLocation {
         public String src(Http.RequestHeader request) {
-            return "http://cdn.sockjs.org/sockjs-0.3.min.js";
+            return "//cdn.jsdelivr.net/sockjs/0.3.4/sockjs.min.js";
         }
     }
 

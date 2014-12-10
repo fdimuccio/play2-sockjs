@@ -170,7 +170,7 @@ and in route.conf define the path to the controller:
 and finally connect with the javascript client:
 
 ```javascript
-<script src="http://cdn.sockjs.org/sockjs-0.3.min.js"></script>
+<script src="//cdn.jsdelivr.net/sockjs/0.3.4/sockjs.min.js"></script>
 
 <script>
    var sock = new SockJS('http://localhost:9000/foo');
