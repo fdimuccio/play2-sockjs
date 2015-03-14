@@ -43,7 +43,7 @@ private[sockjs] object WebSocket extends HeaderNames with Results {
               case Input.El(obj) => Enumerator[Frame](Frame.MessageFrame(sockjs.outFormatter.write(obj)))
               case Input.Empty => Enumerator.empty[Frame]
               case Input.EOF if aborted => Enumerator.eof[Frame]
-              case Input.EOF => heartbeatK.trySuccess(); Enumerator[Frame](Frame.CloseFrame.GoAway) >>> Enumerator.eof
+              case Input.EOF => heartbeatK.trySuccess((): Unit); Enumerator[Frame](Frame.CloseFrame.GoAway) >>> Enumerator.eof
             } ><> Enumeratee.map(_.text) &>> itOUT)
           (itIN, Enumerator(Frame.OpenFrame.text) >>> Enumerator.fromCallback1(
             retriever = _ =>

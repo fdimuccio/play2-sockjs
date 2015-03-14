@@ -3,7 +3,7 @@ package play.sockjs.api
 import scala.runtime.AbstractPartialFunction
 import scala.concurrent.Future
 
-import play.core.Router
+import play.api.routing.Router
 import play.api.libs.iteratee._
 import play.api.mvc._
 import play.api.mvc.Results._
@@ -12,17 +12,19 @@ import play.sockjs.api.SockJS._
 import play.sockjs.core._
 import scala.reflect.ClassTag
 
-trait SockJSRouter extends Router.Routes {
+trait SockJSRouter extends Router {
 
   def server: SockJSServer = SockJSServer.default
 
   private lazy val dispatcher = server.dispatcher(prefix)
 
-  private var path: String = ""
+  private var prefix: String = ""
 
-  def prefix: String = path
-
-  def setPrefix(prefix: String): Unit = path = prefix
+  def withPrefix(prefix: String): Router = {
+    //TODO: return a copy of the router with updated prefix
+    this.prefix = prefix
+    this
+  }
 
   def documentation: Seq[(String, String, String)] = Seq.empty
 

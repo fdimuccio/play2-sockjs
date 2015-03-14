@@ -81,16 +81,7 @@ public abstract class SockJS {
      * @throws NullPointerException if the specified callback is null
      */
     public static SockJS whenReady(final Callback2<SockJS.In, SockJS.Out> callback) {
-        if (callback == null) throw new NullPointerException("SockJS onReady callback cannot be null");
-        return new SockJS() {
-            public void onReady(In in, Out out) {
-                try {
-                    callback.invoke(in, out);
-                } catch (Throwable e) {
-                    play.PlayInternal.logger().error("Exception in SockJS.onReady", e);
-                }
-            }
-        };
+        return new WhenReadySockJS(callback);
     }
 
     /**
@@ -137,5 +128,26 @@ public abstract class SockJS {
                 }
             }
         };
+    }
+
+    static final class WhenReadySockJS extends SockJS {
+
+        private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(WhenReadySockJS.class);
+
+        private final Callback2<SockJS.In, SockJS.Out> callback;
+
+        WhenReadySockJS(Callback2<SockJS.In, SockJS.Out> callback) {
+            if (callback == null) throw new NullPointerException("SockJS onReady callback cannot be null");
+            this.callback = callback;
+        }
+
+        @Override
+        public void onReady(In in, Out out) {
+            try {
+                callback.invoke(in, out);
+            } catch (Throwable e) {
+                logger.error("Exception in SockJS.onReady", e);
+            }
+        }
     }
 }

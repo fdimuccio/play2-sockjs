@@ -1,24 +1,17 @@
 package play.sockjs.core.j
 
-import akka.actor.ActorRef
-import akka.actor.Props
-
 import java.util.concurrent.TimeUnit
 
 import scala.concurrent.duration._
 
 import play.libs.F
-import play.core.Router
-import play.core.j.JavaHelpers
-import play.mvc.Result
-import play.mvc.Http.Request
+import play.api.routing.Router
+import play.core.j._
 
-abstract class JavaRouter(cfg: F.Option[play.sockjs.SockJS.Settings]) extends Router.Routes {
+abstract class JavaRouter(cfg: F.Option[play.sockjs.SockJS.Settings]) extends Router {
   self =>
 
-  def prefix = scalaRouter.prefix
-
-  def setPrefix(prefix: String) = scalaRouter.setPrefix(prefix)
+  def withPrefix(prefix: String) = scalaRouter.withPrefix(prefix)
 
   def documentation = scalaRouter.documentation
 
@@ -37,7 +30,7 @@ abstract class JavaRouter(cfg: F.Option[play.sockjs.SockJS.Settings]) extends Ro
           case _: play.sockjs.CookieCalculator.None => None
           case jcalculator =>
             Some(SockJSSettings.CookieCalculator { req =>
-              val jcookie = jcalculator.cookie(JavaHelpers.createJavaRequest(req))
+              val jcookie = jcalculator.cookie(new RequestHeaderImpl(req))
               play.api.mvc.Cookie(
                 jcookie.name(),
                 jcookie.value(),
@@ -49,7 +42,7 @@ abstract class JavaRouter(cfg: F.Option[play.sockjs.SockJS.Settings]) extends Ro
             })
         }
         SockJSSettings(
-          scriptSRC = req => cfg.script().newInstance().src(JavaHelpers.createJavaRequest(req)),
+          scriptSRC = req => cfg.script().newInstance().src(new RequestHeaderImpl(req)),
           cookies = cookieCalculator,
           websocket = cfg.websocket(),
           heartbeat = Duration(cfg.heartbeat(), TimeUnit.MILLISECONDS),
