@@ -41,6 +41,6 @@ private[sockjs] object HtmlFile extends HeaderNames with Results {
 
   implicit def writeableOf_HtmlFileTransport: Writeable[String] = Writeable[String] (
     txt => Codec.utf_8.encode(txt),
-    Some("text/html; charset=UTF-8"))
+    Some("text/html; charset=UTF-8"))(play.api.libs.iteratee.Execution.trampoline)
 
 }

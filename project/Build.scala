@@ -2,13 +2,13 @@ import sbt._
 import sbt.Keys._
 
 object BuildSettings {
-  val buildVersion = "0.4.0-SNAPSHOT"
+  val buildVersion = "0.4.0"
 
   val buildSettings = Defaults.defaultSettings ++ Seq(
     organization := "com.github.fdimuccio",
     version := buildVersion,
-    scalaVersion := "2.10.4",
-    crossScalaVersions := Seq("2.10.4", "2.11.5"),
+    scalaVersion := "2.11.6",
+    crossScalaVersions := Seq("2.10.4", "2.11.6"),
     crossVersion := CrossVersion.binary,
     javaOptions in test ++= Seq("-Xmx512m", "-XX:MaxPermSize=512m"),
     javacOptions ++= Seq("-source", "1.6", "-target", "1.6", "-encoding", "UTF-8", "-Xlint:-options"),
@@ -83,7 +83,7 @@ object ShellPrompt {
 object Play2SockJSBuild extends Build {
   import BuildSettings._
 
-  val play2Version = "2.4.0-M3"
+  val play2Version = "2.4.0"
 
   lazy val play2SockJS = Project(
     "play2-sockjs",
@@ -96,7 +96,7 @@ object Play2SockJSBuild extends Build {
         Resolver.typesafeRepo("releases")
       ),
       libraryDependencies ++= Seq(
-        "com.typesafe.akka" %% "akka-actor" % "2.3.9",
+        "com.typesafe.akka" %% "akka-actor" % "2.3.11",
         "com.typesafe.play" %% "play" % play2Version % "provided->default",
         "com.typesafe.play" %% "play-test" % play2Version % "test",
         "com.typesafe.play" %% "play-ws" % play2Version % "test",

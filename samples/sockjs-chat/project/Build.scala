@@ -12,7 +12,7 @@ object ApplicationBuild extends Build {
     version := appVersion,
     resolvers += "Maven2 Local" at new File(Path.userHome, ".m2/repository/snapshots").toURI.toURL.toExternalForm,
     resolvers += Resolver.sonatypeRepo("snapshots"),
-    libraryDependencies += "com.github.fdimuccio" %% "play2-sockjs" % "0.4.0-SNAPSHOT"
+    libraryDependencies += "com.github.fdimuccio" %% "play2-sockjs" % "0.4.0"
   )
 
 }

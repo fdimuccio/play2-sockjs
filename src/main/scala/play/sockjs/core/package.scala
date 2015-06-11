@@ -25,12 +25,15 @@ package object core {
   implicit class ResultEnricher(val result: Result) extends AnyVal {
 
     def enableCORS(req: RequestHeader) = {
-      val origin  = req.headers.get(ORIGIN).filter(_ != "null").getOrElse("*")
+      val headers = req.headers.get(ORIGIN) match {
+        case Some(origin) if origin != "null" =>
+          List(ACCESS_CONTROL_ALLOW_ORIGIN -> origin, ACCESS_CONTROL_ALLOW_CREDENTIALS -> "true")
+        case _ =>
+          List(ACCESS_CONTROL_ALLOW_ORIGIN -> "*")
+      }
       req.headers.get(ACCESS_CONTROL_REQUEST_HEADERS).foldLeft(result) { (res, h) =>
         res.withHeaders(ACCESS_CONTROL_ALLOW_HEADERS -> h)
-      }.withHeaders(
-          ACCESS_CONTROL_ALLOW_ORIGIN -> origin,
-          ACCESS_CONTROL_ALLOW_CREDENTIALS -> "true")
+      }.withHeaders(headers:_*)
     }
 
     def notcached = result.withHeaders(CACHE_CONTROL -> "no-store, no-cache, must-revalidate, max-age=0")
