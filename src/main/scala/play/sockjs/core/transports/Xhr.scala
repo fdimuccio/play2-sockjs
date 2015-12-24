@@ -1,13 +1,12 @@
 package play.sockjs.core
 package transports
 
-import play.api.libs.iteratee._
+import akka.stream.scaladsl._
+
 import play.api.mvc._
 import play.api.http._
 
 private[sockjs] object Xhr extends HeaderNames with Results {
-
-  import play.api.libs.iteratee.Execution.Implicits.trampoline
 
   private[this] val prelude = Array.fill(2048)('h').mkString + '\n'
 
@@ -27,19 +26,18 @@ private[sockjs] object Xhr extends HeaderNames with Results {
    * handler for xhr polling transport
    */
   def polling = Transport.Polling { (req, session) =>
-    session.bind { enumerator =>
-      Transport.Res(enumerator &> Enumeratee.map(_.text + "\n"), true)
-    }
+    session.bind { source =>
+      source.map(_.encode + "\n")
+    }.map(_.enableCORS(req))(play.api.libs.iteratee.Execution.trampoline)
   }
 
   /**
    * handler for xhr_streaming transport
    */
   def streaming = Transport.Streaming { (req, session) =>
-    session.bind { enumerator =>
-      val preludeE = Enumerator(prelude)
-      Transport.Res(preludeE >>> (enumerator &> Enumeratee.map(_.text + "\n")), true)
-    }
+    session.bind { source =>
+      Source.single(prelude).concat(source.map(_.encode + "\n"))
+    }.map(_.enableCORS(req))(play.api.libs.iteratee.Execution.trampoline)
   }
 
   implicit def writeableOf_XhrTransport: Writeable[String] = Writeable[String] (

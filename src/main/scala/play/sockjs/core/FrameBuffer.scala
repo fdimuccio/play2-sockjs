@@ -1,5 +1,8 @@
 package play.sockjs.core
 
+
+import play.sockjs.api.Frame
+
 import scala.collection.mutable
 
 /**

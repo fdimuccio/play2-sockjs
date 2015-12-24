@@ -5,7 +5,6 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import play.api.libs.iteratee._
 import play.api.mvc._
 import play.sockjs.api._
-import play.sockjs.core.iteratee.IterateeX
 
 abstract class SockJSTestRouter(websocket: Boolean = true, cookies: Boolean = false) extends SockJSRouter with Controller {
   override def server = {
@@ -20,10 +19,10 @@ abstract class SockJSTestRouter(websocket: Boolean = true, cookies: Boolean = fa
 /**
  * responds with identical data as received
  */
-class Echo(override val prefix: String) extends SockJSTestRouter {
+class Echo extends SockJSTestRouter {
 
   def sockjs = SockJS.using { req =>
-    IterateeX.joined[String]
+    Concurrent.joined[String]
   }
 
 }
@@ -31,10 +30,10 @@ class Echo(override val prefix: String) extends SockJSTestRouter {
 /**
  * identical to echo, but with websockets disabled
  */
-class DisabledWebSocketEcho(override val prefix: String) extends SockJSTestRouter(false) {
+class DisabledWebSocketEcho extends SockJSTestRouter(false) {
 
   def sockjs = SockJS.using { req =>
-    IterateeX.joined[String]
+    Concurrent.joined[String]
   }
 
 }
@@ -42,10 +41,10 @@ class DisabledWebSocketEcho(override val prefix: String) extends SockJSTestRoute
 /**
  * identical to echo, but with JSESSIONID cookies sent
  */
-class CookieNeededEchoController(override val prefix: String) extends SockJSTestRouter(true, false) {
+class CookieNeededEchoController extends SockJSTestRouter(true, false) {
 
   def sockjs = SockJS.using { req =>
-    IterateeX.joined[String]
+    Concurrent.joined[String]
   }
 
 }
@@ -53,7 +52,7 @@ class CookieNeededEchoController(override val prefix: String) extends SockJSTest
 /**
  * server immediately closes the session
  */
-class Closed(override val prefix: String) extends SockJSTestRouter {
+class Closed extends SockJSTestRouter {
 
   def sockjs = SockJS.using { req =>
     (Iteratee.ignore[String], Enumerator.eof[String])

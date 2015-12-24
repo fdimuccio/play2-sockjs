@@ -1,14 +1,14 @@
 package play.sockjs.core.j
 
+import java.util.Optional
 import java.util.concurrent.TimeUnit
 
 import scala.concurrent.duration._
 
-import play.libs.F
 import play.api.routing.Router
 import play.core.j._
 
-abstract class JavaRouter(cfg: F.Option[play.sockjs.SockJS.Settings]) extends Router {
+abstract class JavaRouter(cfg: Optional[play.sockjs.SockJS.Settings]) extends Router {
   self =>
 
   def withPrefix(prefix: String) = scalaRouter.withPrefix(prefix)
@@ -22,7 +22,7 @@ abstract class JavaRouter(cfg: F.Option[play.sockjs.SockJS.Settings]) extends Ro
   private lazy val scalaRouter = new play.sockjs.api.SockJSRouter {
     import play.sockjs.api._
     override lazy val server = {
-      val settings = Option(cfg.getOrElse(null)).orElse(for {
+      val settings = Option(cfg.orElse(null)).orElse(for {
         method <- Option(self.getClass.getMethod("sockjs"))
         cfg <- Option(method.getAnnotation(classOf[play.sockjs.SockJS.Settings]))
       } yield cfg).map { cfg =>

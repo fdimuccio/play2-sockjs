@@ -17,7 +17,7 @@ case class SockJSAction[A](action: Action[A]) extends SockJSHandler
 /**
  * Helper for a SockJS transport
  */
-case class SockJSTransport(f: SockJS[_, _] => Handler) extends SockJSHandler
+case class SockJSTransport(f: SockJS => Handler) extends SockJSHandler
 
 /**
  * Helper for a SockJS websocket transport

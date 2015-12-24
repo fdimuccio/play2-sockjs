@@ -2,12 +2,14 @@ package play.sockjs;
 
 import java.lang.annotation.*;
 import java.util.*;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 import akka.actor.ActorRef;
 import akka.actor.Props;
 
 import play.mvc.*;
-import play.libs.F.*;
 
 public abstract class SockJS {
 
@@ -38,24 +40,24 @@ public abstract class SockJS {
         /**
          * Callbacks to invoke at each frame.
          */
-        public final List<Callback<String>> callbacks = new ArrayList<Callback<String>>();
+        public final List<Consumer<String>> callbacks = new ArrayList<Consumer<String>>();
 
         /**
          * Callbacks to invoke on close.
          */
-        public final List<Callback0> closeCallbacks = new ArrayList<Callback0>();
+        public final List<Runnable> closeCallbacks = new ArrayList<Runnable>();
 
         /**
          * Registers a message callback.
          */
-        public void onMessage(Callback<String> callback) {
+        public void onMessage(Consumer<String> callback) {
             callbacks.add(callback);
         }
 
         /**
          * Registers a close callback.
          */
-        public void onClose(Callback0 callback) {
+        public void onClose(Runnable callback) {
             closeCallbacks.add(callback);
         }
 
@@ -80,7 +82,7 @@ public abstract class SockJS {
      * @return a new WebSocket
      * @throws NullPointerException if the specified callback is null
      */
-    public static SockJS whenReady(final Callback2<SockJS.In, SockJS.Out> callback) {
+    public static SockJS whenReady(final BiConsumer<In, Out> callback) {
         return new WhenReadySockJS(callback);
     }
 
@@ -134,9 +136,9 @@ public abstract class SockJS {
 
         private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(WhenReadySockJS.class);
 
-        private final Callback2<SockJS.In, SockJS.Out> callback;
+        private final BiConsumer<In, Out> callback;
 
-        WhenReadySockJS(Callback2<SockJS.In, SockJS.Out> callback) {
+        WhenReadySockJS(BiConsumer<SockJS.In, SockJS.Out> callback) {
             if (callback == null) throw new NullPointerException("SockJS onReady callback cannot be null");
             this.callback = callback;
         }
@@ -144,7 +146,7 @@ public abstract class SockJS {
         @Override
         public void onReady(In in, Out out) {
             try {
-                callback.invoke(in, out);
+                callback.accept(in, out);
             } catch (Throwable e) {
                 logger.error("Exception in SockJS.onReady", e);
             }

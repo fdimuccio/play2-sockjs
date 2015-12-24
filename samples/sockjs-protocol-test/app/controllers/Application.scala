@@ -5,7 +5,6 @@ import play.api.libs.iteratee._
 import scala.concurrent.ExecutionContext.Implicits.global
 
 import play.sockjs.api._
-import play.sockjs.core.iteratee.IterateeX
 
 object Application {
 
@@ -18,17 +17,17 @@ object Application {
   /**
    * responds with identical data as received
    */
-  val echo = SockJSRouter(Settings.default).using(req => IterateeX.joined[String])
+  val echo = SockJSRouter(Settings.default).using(req => Concurrent.joined[String])
 
   /**
    * identical to echo, but with websockets disabled
    */
-  val disabledWebSocketEcho = SockJSRouter(Settings.nowebsocket).using(req => IterateeX.joined[String])
+  val disabledWebSocketEcho = SockJSRouter(Settings.nowebsocket).using(req => Concurrent.joined[String])
 
   /**
    * identical to echo, but with JSESSIONID cookies sent
    */
-  val cookieNeededEcho = SockJSRouter(Settings.withjsessionid).using(req => IterateeX.joined[String])
+  val cookieNeededEcho = SockJSRouter(Settings.withjsessionid).using(req => Concurrent.joined[String])
 
   /**
    * server immediately closes the session

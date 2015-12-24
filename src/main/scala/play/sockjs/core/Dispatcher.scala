@@ -4,7 +4,6 @@ import akka.actor.{ActorRef, ActorSystem}
 
 import play.sockjs.core.transports._
 import play.sockjs.api._
-import play.sockjs.core.actors.SockJSActor._
 
 /**
  * The dispatcher that will handle SockJS request.

@@ -1,16 +1,18 @@
-package play.sockjs.core
+package play.sockjs.api
+
+import scala.collection.immutable.Seq
 
 import play.api.libs.json._
 
 /**
  * Frame accepted by SockJS clients
  */
-private[sockjs] sealed abstract class Frame {
-  def text: String
-  lazy val size: Long = text.size
+sealed abstract class Frame {
+  def encode: String
+  lazy val size: Long = encode.length
 }
 
-private[sockjs] object Frame {
+object Frame {
 
   /**
    * Open frame.  Every time a new session is established, the server must immediately
@@ -19,8 +21,8 @@ private[sockjs] object Frame {
    * convince the client that it is indeed a valid url and it can be expecting further
    * messages in the future on that url.
    */
-  case object OpenFrame extends Frame {
-    def text = "o"
+  private[sockjs] case object OpenFrame extends Frame {
+    def encode = "o"
   }
 
   /**
@@ -29,15 +31,15 @@ private[sockjs] object Frame {
    * every now and then. The typical delay is 25 seconds and should be configurable.
    */
   case object HeartbeatFrame extends Frame {
-    def text = "h"
+    def encode = "h"
   }
 
   /**
    * Array of json-encoded messages. For example: a["message"].
    */
-  final case class MessageFrame private(payload: Seq[String]) extends Frame {
-    def ++(frame: MessageFrame) = copy(payload = payload ++ frame.payload)
-    lazy val text = {
+  final case class MessageFrame(data: Seq[String]) extends Frame {
+    def ++(frame: MessageFrame) = copy(data = data ++ frame.data)
+    lazy val encode = {
       /**
        * SockJS requires a special JSON codec - it requires that many other characters,
        * over and above what is required by the JSON spec are escaped.
@@ -74,12 +76,12 @@ private[sockjs] object Frame {
         }
         buffer.result()
       }
-      s"a${escape(Json.stringify(Json.toJson(payload)))}"
+      s"a${escape(Json.stringify(Json.toJson(data)))}"
     }
   }
 
   object MessageFrame {
-    def apply(message: String): MessageFrame = MessageFrame(Seq(message))
+    def apply(data: String): MessageFrame = MessageFrame(Seq(data))
   }
 
   /**
@@ -91,7 +93,7 @@ private[sockjs] object Frame {
    * @param reason
    */
   final case class CloseFrame(code: Int, reason: String) extends Frame {
-    lazy val text = s"c${Json.stringify(Json.arr(code, reason))}"
+    lazy val encode = s"c${Json.stringify(Json.arr(code, reason))}"
   }
 
   object CloseFrame {
@@ -99,5 +101,11 @@ private[sockjs] object Frame {
     val AnotherConnectionStillOpen = CloseFrame(2010, "Another connection still open")
     val ConnectionInterrupted = CloseFrame(1002, "Connection interrupted!")
   }
-
 }
+
+/**
+  * An exception that, if thrown by a SockJS source, will cause the SockJS to be closed with the given close
+  * message. This is a convenience that allows the SockJS to close with a particular close code without having
+  * to produce generic Messages.
+  */
+case class SockJSCloseException(message: Frame.CloseFrame) extends RuntimeException(message.reason, null, false, false)

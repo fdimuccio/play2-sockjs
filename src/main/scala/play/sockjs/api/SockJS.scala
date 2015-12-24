@@ -1,83 +1,174 @@
 package play.sockjs.api
 
-import scala.concurrent.Future
-import scala.reflect.ClassTag
+import play.api.Application
+import play.api.libs.concurrent.Akka
+
+import scala.concurrent.{Promise, ExecutionContext, Future}
+import scala.util.control.NonFatal
 
 import akka.actor.{ActorRef, Props}
+import akka.stream.scaladsl._
+import akka.stream.Materializer
 
+import play.api.http.websocket.CloseCodes
 import play.api.libs.iteratee._
+import play.api.libs.streams._
 import play.api.libs.json._
 import play.api.mvc._
 
 import play.core.Execution.Implicits.internalContext
 
-import play.sockjs.core.actors.SockJSActor._
+import play.sockjs.api.Frame._
 
-case class SockJS[IN, OUT](f: RequestHeader => Future[Either[Result, (Enumerator[IN], Iteratee[OUT, Unit]) => Unit]])(implicit val inFormatter: SockJS.MessageFormatter[IN], val outFormatter: SockJS.MessageFormatter[OUT]) {
+/**
+  * A SockJS handler.
+  */
+trait SockJS extends Handler {
 
-  type FramesIN = IN
-  type FramesOUT = OUT
-
+  /**
+    * Execute the SockJS handler.
+    *
+    * The return value is either a result to reject the SockJS connection with,
+    * or a flow that will handle the SockJS messages.
+    *
+    * The flow inlet receives the messages coming from the client, that in case
+    * of SockJS protocol, are plain (unframed) strings. The flow outlet emits
+    * SockJS frames.
+    */
+  def apply(request: RequestHeader): Future[Either[Result, Flow[String, Frame, _]]]
 }
 
-object SockJS {
+
+object SockJS extends SockJSOps {
+
+  type Repr = SockJS
+
+  def apply(f: RequestHeader => Future[Either[Result, Flow[String, Frame, _]]]): SockJS = {
+    new SockJS {
+      def apply(request: RequestHeader) = f(request)
+    }
+  }
 
   /**
-   * Typeclass to handle SockJS message format.
-   *
-   * @param read Convert a text message sent from SockJS client into an A
-   * @param write Convert an A in a text message to be sent to SockJS client
-   * @tparam A
-   */
-  case class MessageFormatter[A](read: String => A, write: A => String) {
+    * Transforms SockJS message flows into flows of another type.
+    *
+    * The transformation may be more than just converting from one message to another, it may also produce messages, such
+    * as close messages with an appropriate error code if the message can't be consumed.
+    */
+  trait MessageFlowTransformer[+In, -Out] { self =>
 
     /**
-     * Transform a MessageFormatter[A] to a MessageFormatter[B]
-     */
-    def transform[B](fba: B => A, fab: A => B) = MessageFormatter[B](read.andThen(fab), write.compose(fba))
+      * Transform the flow of In/Out messages into a flow of SockJS frames.
+      */
+    def transform(flow: Flow[In, Out, _]): Flow[String, Frame, _]
 
+    /**
+      * Contramap the out type of this transformer.
+      */
+    def contramap[NewOut](f: NewOut => Out): MessageFlowTransformer[In, NewOut] = {
+      new MessageFlowTransformer[In, NewOut] {
+        def transform(flow: Flow[In, NewOut, _]) = self.transform(flow map f)
+      }
+    }
+
+    /**
+      * Map the in type of this transformer.
+      */
+    def map[NewIn](f: In => NewIn): MessageFlowTransformer[NewIn, Out] = {
+      new MessageFlowTransformer[NewIn, Out] {
+        def transform(flow: Flow[NewIn, Out, _]) = self.transform(Flow[In] map f via flow)
+      }
+    }
+
+    /**
+      * Map the in type and contramap the out type of this transformer.
+      */
+    def map[NewIn, NewOut](f: In => NewIn, g: NewOut => Out): MessageFlowTransformer[NewIn, NewOut] = {
+      new MessageFlowTransformer[NewIn, NewOut] {
+        def transform(flow: Flow[NewIn, NewOut, _]) = self.transform(Flow[In] map f via flow map g)
+      }
+    }
   }
 
+  /**
+    * Defaults message transformers.
+    */
+  object MessageFlowTransformer {
+
+    implicit val identityFrameFlowTransformer: MessageFlowTransformer[String, Frame] = {
+      new MessageFlowTransformer[String, Frame] {
+        def transform(flow: Flow[String, Frame, _]) = flow
+      }
+    }
+
+    /**
+      * Converts text message to/from Strings.
+      */
+    implicit val stringFrameFlowTransformer: MessageFlowTransformer[String, String] = {
+      new MessageFlowTransformer[String, String] {
+        def transform(flow: Flow[String, String, _]) = {
+          Flow[String].map(MessageFrame.apply)
+        }
+      }
+    }
+
+    /**
+      * Converts messages to/from JsValue.
+      */
+    implicit val jsonMessageFlowTransformer: MessageFlowTransformer[JsValue, JsValue] = {
+      def closeOnException[T](block: => T) = try {
+        Left(block)
+      } catch {
+        case NonFatal(e) => Right(Frame.CloseFrame(CloseCodes.Unacceptable, "Unable to parse json message"))
+      }
+
+      new MessageFlowTransformer[JsValue, JsValue] {
+        def transform(flow: Flow[JsValue, JsValue, _]) = {
+          AkkaStreams.bypassWith[String, JsValue, Frame](Flow[String].map { text =>
+            closeOnException(Json.parse(text))
+          })(flow map (json => MessageFrame(Json.stringify(json))))
+        }
+      }
+    }
+
+    /**
+      * Converts messages to/from a JSON high level object.
+      *
+      * If the input messages fail to be parsed, the SockJS will be closed with an 1003 close code and the parse error
+      * serialised to JSON.
+      */
+    def jsonMessageFlowTransformer[In: Reads, Out: Writes]: MessageFlowTransformer[In, Out] = {
+      jsonMessageFlowTransformer.map(json => Json.fromJson[In](json).fold(
+        errors => throw SockJSCloseException(CloseFrame(CloseCodes.Unacceptable, Json.stringify(JsError.toJson(errors)))),
+        identity
+      ), out => Json.toJson(out))
+    }
+  }
+
+  @deprecated("Use MessageFormatter instead", "0.5.0")
+  type MessageFormatter[A] = MessageFlowTransformer[A, A]
+
+  /**
+    * Defaults (old) message formatters.
+    */
   object MessageFormatter {
 
-    implicit val textMessage: MessageFormatter[String] = MessageFormatter(identity, identity)
+    @deprecated("Use MessageFlowTransformer.stringMessageFlowTransformer instead", "0.5.0")
+    implicit val textMessage: MessageFormatter[String] = MessageFlowTransformer.stringFrameFlowTransformer
 
-    implicit val jsonMessage: MessageFormatter[JsValue] = MessageFormatter(Json.parse, Json.stringify)
+    @deprecated("Use MessageFlowTransformer.jsonMessageFlowTransformer instead", "0.5.0")
+    implicit val jsonMessage: MessageFormatter[JsValue] = MessageFlowTransformer.jsonMessageFlowTransformer
 
   }
 
   /**
-   * Accepts a SockJS connection using the given inbound/outbound channels.
-   */
-  def using[A](f: RequestHeader => (Iteratee[A, _], Enumerator[A]))(implicit formatter: MessageFormatter[A]): SockJS[A, A] = {
-    tryAccept[A](f.andThen(handler => Future.successful(Right(handler))))
-  }
-
-  /**
-   * Creates a SockJS handler that will adapt the incoming stream and send it back out.
-   */
-  def adapter[A](f: RequestHeader => Enumeratee[A, A])(implicit formatter: MessageFormatter[A]): SockJS[A, A] = {
-    SockJS[A, A](h => Future.successful(Right((in, out) => { in &> f(h) |>> out })))
-  }
-
-  /**
-   * Accepts a SockJS connection using the given inbound/outbound channels asynchronously.
-   */
-  @deprecated("Use SockJS.tryAccept instead", "0.3")
-  def async[A](f: RequestHeader => Future[(Iteratee[A, _], Enumerator[A])])(implicit formatter: MessageFormatter[A]): SockJS[A, A] = {
-    tryAccept(f.andThen(_.map(Right.apply)))
-  }
-
-  /**
-   * Creates a SockJS handler that will either reject the connection with the given result, or will be handled by the given
-   * inbound and outbound channels, asynchronously
-   */
-  def tryAccept[A](f: RequestHeader => Future[Either[Result, (Iteratee[A, _], Enumerator[A])]])(implicit formatter: MessageFormatter[A]): SockJS[A, A] = {
-    SockJS[A, A](f.andThen(_.map { resultOrSocket =>
-      resultOrSocket.right.map {
-        case (readIn, writeOut) => (e, i) => { e |>> readIn; writeOut |>> i }
-      }
-    }))
+    * Creates an action that will either accept the SockJS connection, using the given flow to handle the in and out stream, or
+    * return a result to reject the request.
+    */
+  def acceptOrResult[In, Out](f: RequestHeader => Future[Either[Result, Flow[In, Out, _]]])(implicit transformer: MessageFlowTransformer[In, Out]): SockJS = {
+    SockJS { request =>
+      f(request).map(_.right.map(transformer.transform))
+    }
   }
 
   /**
@@ -86,53 +177,134 @@ object SockJS {
    */
   type HandlerProps = ActorRef => Props
 
+}
+
+trait SockJSOps {
+  import SockJS._
+
+  type Repr
+
   /**
-   * Create a SockJS handler that will pass messages to/from the actor created by the given props.
-   *
-   * Given a request and an actor ref to send messages to, the function passed should return the props for an actor
-   * to create to handle this SockJS connection.
-   *
-   * For example:
-   *
-   * {{{
-   *   def sockjs = SockJS.acceptWithActor[JsValue, JsValue] { req => out =>
-   *     MySockJSActor.props(out)
-   *   }
-   * }}}
-   */
-  def acceptWithActor[In, Out](f: RequestHeader => HandlerProps)(implicit in: MessageFormatter[In], out: MessageFormatter[Out], app: play.api.Application, outMessageType: ClassTag[Out]): SockJS[In, Out] = {
+    * Accepts a SockJS connection using the given inbound/outbound channels.
+    */
+  @deprecated("Use accept with an Akka streams flow instead", "0.5.0")
+  def using[A](f: RequestHeader => (Iteratee[A, _], Enumerator[A]))(implicit transformer: MessageFlowTransformer[A, A]): Repr = {
+    tryAccept[A](f.andThen(handler => Future.successful(Right(handler))))
+  }
+
+  /**
+    * Creates a SockJS handler that will adapt the incoming stream and send it back out.
+    */
+  @deprecated("Use accept with an Akka streams flow instead", "0.5.0")
+  def adapter[A](f: RequestHeader => Enumeratee[A, A])(implicit transformer: MessageFlowTransformer[A, A]): Repr = {
+    using(f.andThen { enumeratee =>
+      val (iteratee, enumerator) = Concurrent.joined[A]
+      (enumeratee &> iteratee, enumerator)
+    })
+  }
+
+  /**
+    * Creates a SockJS handler that will either reject the connection with the given result, or will be handled by the given
+    * inbound and outbound channels, asynchronously
+    */
+  @deprecated("Use acceptOrResult with an Akka streams flow instead", "0.5.0")
+  def tryAccept[A](f: RequestHeader => Future[Either[Result, (Iteratee[A, _], Enumerator[A])]])(implicit transformer: MessageFlowTransformer[A, A]): Repr = {
+    acceptOrResult[A, A](f.andThen(_.map(_.right.map {
+      case (iteratee, enumerator) =>
+        // Play 2.4 and earlier only closed the WebSocket if the enumerator specifically fed EOF. So, you could
+        // return an empty enumerator, and it would never close the socket. Converting an empty enumerator to a
+        // publisher however will close the socket, so, we need to ensure the enumerator only completes if EOF
+        // is sent.
+        val enumeratorCompletion = Promise[Enumerator[A]]()
+        val nonCompletingEnumerator = onEOF(enumerator, () => {
+          enumeratorCompletion.success(Enumerator.empty)
+        }) >>> Enumerator.flatten(enumeratorCompletion.future)
+        val publisher = Streams.enumeratorToPublisher(nonCompletingEnumerator)
+        val (subscriber, _) = Streams.iterateeToSubscriber(iteratee)
+        Flow.wrap(Sink(subscriber), Source(publisher))(Keep.none)
+    })))
+  }
+
+  /**
+    * Accepts a SockJS using the given flow.
+    */
+  def accept[In, Out](f: RequestHeader => Flow[In, Out, _])(implicit transformer: MessageFlowTransformer[In, Out]): Repr = {
+    acceptOrResult(f.andThen(flow => Future.successful(Right(flow))))
+  }
+
+  /**
+    * Creates an action that will either accept the SockJS connection, using the given flow to handle the in and out stream, or
+    * return a result to reject the request.
+    */
+  def acceptOrResult[In, Out](f: RequestHeader => Future[Either[Result, Flow[In, Out, _]]])(implicit transformer: MessageFlowTransformer[In, Out]): Repr
+
+  /**
+    * Create a SockJS handler that will pass messages to/from the actor created by the given props.
+    *
+    * Given a request and an actor ref to send messages to, the function passed should return the props for an actor
+    * to create to handle this SockJS connection.
+    *
+    * For example:
+    *
+    * {{{
+    *   def sockjs = SockJS.acceptWithActor[JsValue, JsValue] { req => out =>
+    *     MySockJSActor.props(out)
+    *   }
+    * }}}
+    */
+  @deprecated("Use accept with a flow that wraps a Sink.actorRef and Source.actorRef, or play.api.libs.Streams.actorFlow", "0.5.0")
+  def acceptWithActor[In, Out](f: RequestHeader => HandlerProps)(implicit transformer: MessageFlowTransformer[In, Out],
+                                                                 app: Application, mat: Materializer): Repr = {
     tryAcceptWithActor(req => Future.successful(Right(f(req))))
   }
 
   /**
-   * Create a SockJS handler that will pass messages to/from the actor created by the given props asynchronously.
-   *
-   * Given a request, this method should return a future of either:
-   *
-   * - A result to reject the WebSocket with, or
-   * - A function that will take the sending actor, and create the props that describe the actor to handle this SockJS connection
-   *
-   * For example:
-   *
-   * {{{
-   *   def subscribe = SockJS.acceptWithActor[JsValue, JsValue] { req =>
-   *     val isAuthenticated: Future[Boolean] = authenticate(req)
-   *     val isAuthenticated.map {
-   *       case false => Left(Forbidden)
-   *       case true => Right(MySockJSActor.props)
-   *     }
-   *   }
-   * }}}
-   */
-  def tryAcceptWithActor[In, Out](f: RequestHeader => Future[Either[Result, HandlerProps]])(implicit in: MessageFormatter[In], out: MessageFormatter[Out], app: play.api.Application, outMessageType: ClassTag[Out]): SockJS[In, Out] = {
-    SockJS[In, Out] { request =>
-      f(request).map { resultOrProps =>
-        resultOrProps.right.map { props =>
-          (enumerator, iteratee) =>
-            SockJSExtension(play.api.libs.concurrent.Akka.system).actor !
-              SockJSActor.Connect(request.id, enumerator, iteratee, props)
-        }
-      }
+    * Create a SockJS handler that will pass messages to/from the actor created by the given props asynchronously.
+    *
+    * Given a request, this method should return a future of either:
+    *
+    * - A result to reject the WebSocket with, or
+    * - A function that will take the sending actor, and create the props that describe the actor to handle this SockJS connection
+    *
+    * For example:
+    *
+    * {{{
+    *   def subscribe = SockJS.acceptWithActor[JsValue, JsValue] { req =>
+    *     val isAuthenticated: Future[Boolean] = authenticate(req)
+    *     val isAuthenticated.map {
+    *       case false => Left(Forbidden)
+    *       case true => Right(MySockJSActor.props)
+    *     }
+    *   }
+    * }}}
+    */
+  @deprecated("Use accept with a flow that wraps a Sink.actorRef and Source.actorRef, or play.api.libs.Streams.actorFlow", "0.5.0")
+  def tryAcceptWithActor[In, Out](f: RequestHeader => Future[Either[Result, HandlerProps]])(implicit transformer: MessageFlowTransformer[In, Out],
+                                                                                            app: Application, mat: Materializer): Repr = {
+
+    implicit val system = Akka.system
+
+    acceptOrResult(f.andThen(_.map(_.right.map { props =>
+      ActorFlow.actorRef(props)
+    })))
+  }
+
+  /**
+    * Like Enumeratee.onEOF, however enumeratee.onEOF always gets fed an EOF (by the enumerator if nothing else).
+    */
+  private def onEOF[E](enumerator: Enumerator[E], action: () => Unit): Enumerator[E] = new Enumerator[E] {
+    def apply[A](i: Iteratee[E, A]) = enumerator(wrap(i))
+
+    def wrap[A](i: Iteratee[E, A]): Iteratee[E, A] = new Iteratee[E, A] {
+      def fold[B](folder: (Step[E, A]) => Future[B])(implicit ec: ExecutionContext) = i.fold {
+        case Step.Cont(k) => folder(Step.Cont {
+          case eof @ Input.EOF =>
+            action()
+            wrap(k(eof))
+          case other => wrap(k(other))
+        })
+        case other => folder(other)
+      }(ec)
     }
   }
 }

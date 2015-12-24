@@ -8,8 +8,8 @@ import play.api.libs.concurrent.Akka
 import play.api.mvc._
 
 import play.sockjs.core._
+import play.sockjs.core.actors.SockJSExtension
 import play.sockjs.api.SockJSSettings.CookieCalculator
-import play.sockjs.core.actors.SockJSActor.SockJSExtension
 import play.api.Logger
 
 /**
@@ -76,7 +76,7 @@ object SockJSServer {
  *                       client GC received messages. Defaults to 128Kb.
  */
 case class SockJSSettings(
-    scriptSRC: RequestHeader => String = _ => "//cdn.jsdelivr.net/sockjs/0.3.4/sockjs.min.js",
+    scriptSRC: RequestHeader => String = _ => "//cdn.jsdelivr.net/sockjs/1.0.3/sockjs.min.js",
     websocket: Boolean = true,
     cookies: Option[CookieCalculator] = None,
     heartbeat: FiniteDuration = 25 seconds,

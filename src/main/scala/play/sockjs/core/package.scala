@@ -26,7 +26,7 @@ package object core {
 
     def enableCORS(req: RequestHeader) = {
       val headers = req.headers.get(ORIGIN) match {
-        case Some(origin) if origin != "null" =>
+        case Some(origin) =>
           List(ACCESS_CONTROL_ALLOW_ORIGIN -> origin, ACCESS_CONTROL_ALLOW_CREDENTIALS -> "true")
         case _ =>
           List(ACCESS_CONTROL_ALLOW_ORIGIN -> "*")

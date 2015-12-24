@@ -4,8 +4,10 @@ import scala.util.control.Exception._
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
+import akka.util.ByteString
 import akka.actor.ActorRef
 import akka.pattern.ask
+import akka.stream.scaladsl.Source
 
 import play.core.parsers.FormUrlEncodedParser
 import play.api.mvc._
@@ -13,7 +15,7 @@ import play.api.mvc.BodyParsers._
 import play.api.mvc.Results._
 import play.api.libs.json._
 import play.api.libs.iteratee._
-import play.api.http.Writeable
+import play.api.http.{HttpEntity, Writeable}
 import play.core.Execution.Implicits.internalContext
 
 import play.sockjs.api._
@@ -40,8 +42,6 @@ private[sockjs] object Transport {
     case _ => None
   }
 
-  case class Res[T](body: Enumerator[T], cors: Boolean = false)(implicit val writeable: Writeable[T])
-
   /**
    * The session the client is bound to
    */
@@ -51,7 +51,7 @@ private[sockjs] object Transport {
      * Bind this session to the SessionMaster. The enumerator provided must be used
      * to write messages to the client
      */
-    def bind[A](f: Enumerator[Frame] => Res[A]): Future[Result]
+    def bind[A](f: Source[Frame, _] => Source[A, _])(implicit writeable: Writeable[A]): Future[Result]
 
   }
 
@@ -70,7 +70,7 @@ private[sockjs] object Transport {
       }
       // Request body should be parsed as raw and forced to be a UTF-8 string, otherwise
       // if no charset header is specified Play will default to ISO-8859-1, messing up unicode encoding
-      ((req.contentType.getOrElse(""), new String(req.body.asBytes().getOrElse(Array()), "UTF-8")) match {
+      ((req.contentType.getOrElse(""), new String(req.body.asBytes().map(_.toArray).getOrElse(Array.empty), "UTF-8")) match {
         case ("application/x-www-form-urlencoded", data) => parseFormUrlEncoded(data)
         case (_, txt) if !txt.isEmpty => parsePlainText(txt)
         case _ => Left("Payload expected.")
@@ -104,17 +104,20 @@ private[sockjs] object Transport {
     SockJSTransport { sockjs =>
       Action.async { req =>
         f(req, new Session {
-          def bind[A](f: Enumerator[Frame] => Res[A]): Future[Result] = {
+          def bind[A](f: Source[Frame, _] => Source[A, _])(implicit writeable: Writeable[A]): Future[Result] = {
             (sessionMaster ? SessionMaster.Get(sessionID)).flatMap {
               case SessionMaster.SessionOpened(session) => session.bind(req, sockjs)
               case SessionMaster.SessionResumed(session) => Future.successful(Right(session))
             }.flatMap(_.right.map(_.connect(heartbeat, sessionTimeout, quota.getOrElse(streamingQuota)).map {
-              case actors.Session.Connected(enumerator) =>
-                val res = f(enumerator)
-                val status =
-                  if (req.version.contains("1.0")) Ok.feed(res.body)(res.writeable)
-                  else Ok.chunked(res.body)(res.writeable)
-                (if (res.cors) status.enableCORS(req) else status)
+              case actors.Session.Connected(source) =>
+                val response =
+                  if (req.version.contains("1.0")) {
+                    Ok.sendEntity(HttpEntity.Streamed(
+                      f(source).map(writeable.transform),
+                      None,
+                      writeable.contentType))
+                  } else Ok.chunked(f(source))(writeable)
+                response
                   .notcached
                   .withCookies(cookies.map(f => List(f(req))).getOrElse(Nil):_*)
             }).fold(result => Future.successful(result), identity))

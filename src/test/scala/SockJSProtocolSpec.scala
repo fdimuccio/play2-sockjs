@@ -9,14 +9,10 @@ import org.specs2.matcher._
 import play.api.GlobalSettings
 import play.api.mvc._
 import play.api.libs.json._
-import play.api.libs.iteratee._
-import play.api.libs.concurrent._
 
 import play.api.test._
 import play.api.test.Helpers._
-import scala.concurrent.Promise
 import scala.concurrent.Future
-import scala.util.parsing.json.JSONArray
 
 //Here goes the tests for sockjs protocol
 class SockJSProtocolSpec extends Specification with JsonMatchers  {
@@ -27,15 +23,15 @@ class SockJSProtocolSpec extends Specification with JsonMatchers  {
   val cookieBaseURL = "/cookie_needed_echo"
 
   trait FakeRouter extends GlobalSettings {
-    val echoController = new controllers.Echo(baseURL)
-    val closedController = new controllers.Closed(closeBaseURL)
-    val wsoffController = new controllers.DisabledWebSocketEcho(wsOffBaseURL)
-    val cookieNeededController = new controllers.CookieNeededEchoController(cookieBaseURL)
+    val echoController = new controllers.Echo().withPrefix(baseURL)
+    val closedController = new controllers.Closed().withPrefix(closeBaseURL)
+    val wsoffController = new controllers.DisabledWebSocketEcho().withPrefix(wsOffBaseURL)
+    val cookieNeededController = new controllers.CookieNeededEchoController().withPrefix(cookieBaseURL)
     override def onRouteRequest(req: RequestHeader): Option[Handler] = req.path match {
-      case url if url.startsWith(baseURL)       => echoController.routes.lift(req)
-      case url if url.startsWith(closeBaseURL)  => closedController.routes.lift(req)
-      case url if url.startsWith(wsOffBaseURL)  => wsoffController.routes.lift(req)
-      case url if url.startsWith(cookieBaseURL) => cookieNeededController.routes.lift(req)
+      case url if url.startsWith(baseURL)       => echoController.handlerFor(req)
+      case url if url.startsWith(closeBaseURL)  => closedController.handlerFor(req)
+      case url if url.startsWith(wsOffBaseURL)  => wsoffController.handlerFor(req)
+      case url if url.startsWith(cookieBaseURL) => cookieNeededController.handlerFor(req)
       case _ => super.onRouteRequest(req)
     }
   }
@@ -48,14 +44,18 @@ class SockJSProtocolSpec extends Specification with JsonMatchers  {
     def verify404 = status(result) must equalTo(NOT_FOUND)
     def verify405 = {
       status(result) must equalTo(METHOD_NOT_ALLOWED)
-      header(CONTENT_TYPE, result) must beNone
+      contentType(result) must beNone
       header(ALLOW, result) must beSome
       contentAsBytes(result) must beEmpty
     }
     def verifyNoCookie = header(SET_COOKIE, result) must beNone
-    def verifyCORS(origin: Option[String]) = {
-      header(ACCESS_CONTROL_ALLOW_ORIGIN, result) must beSome(origin.filter(_ != "null").getOrElse("*"))
-      header(ACCESS_CONTROL_ALLOW_CREDENTIALS, result) must beSome("true")
+    def verifyCORS(origin: Option[String]) = origin match {
+      case Some(value) =>
+        header(ACCESS_CONTROL_ALLOW_ORIGIN, result) must beSome(value)
+        header(ACCESS_CONTROL_ALLOW_CREDENTIALS, result) must beSome("true")
+      case _ =>
+        header(ACCESS_CONTROL_ALLOW_ORIGIN, result) must beSome("*")
+        header(ACCESS_CONTROL_ALLOW_CREDENTIALS, result) must beNone
     }
     def verifyNotCached = {
       header(CACHE_CONTROL, result) must beSome("no-store, no-cache, must-revalidate, max-age=0")
@@ -67,7 +67,8 @@ class SockJSProtocolSpec extends Specification with JsonMatchers  {
   def testIFrame(url: String) = {
     val Some(result) = route(FakeRequest(GET, url))
     result.verify200
-    header(CONTENT_TYPE, result) must beSome("text/html; charset=UTF-8")
+    contentType(result) must beSome("text/html")
+    charset(result) must beSome("UTF-8")
     header(CACHE_CONTROL, result).getOrElse("") must contain("public")
     header(CACHE_CONTROL, result).getOrElse("") must find("""max-age=[1-9][0-9]{6}""".r)
     //header(EXPIRES, result) must beSome TODO
@@ -120,7 +121,8 @@ class SockJSProtocolSpec extends Specification with JsonMatchers  {
       for (url <- List(baseURL, baseURL + "/")) yield {
         val Some(result) = route(FakeRequest(GET, url))
         result.verify200
-        header(CONTENT_TYPE, result) must beSome("text/plain; charset=UTF-8")
+        contentType(result) must beSome("text/plain")
+        charset(result) must beSome("UTF-8")
         contentAsString(result) must contain("Welcome to SockJS!\n")
         result.verifyNoCookie
       }
@@ -165,7 +167,7 @@ class SockJSProtocolSpec extends Specification with JsonMatchers  {
       val json = contentAsString(result)
       json must /("websocket" -> true)
       json must /("cookie_needed" -> true) or /("cookie_needed" -> false)
-      json must /("origins" -> JSONArray(List("*:*")))
+      json must /("origins" -> """["*:*"]""")
       val entropy = Json.parse(json) \ "entropy"
       (entropy.asOpt[Int] orElse entropy.asOpt[Long]) must beSome
     }
@@ -182,13 +184,6 @@ class SockJSProtocolSpec extends Specification with JsonMatchers  {
 
     "respond correctly to info request with OPTIONS method" in new WithApplication(FakeApp) {
       testOptions(baseURL + "/info", "OPTIONS, GET")
-    }
-
-    "respond with * for cors when issuing request for null Origin" in new WithApplication(FakeApp) {
-      val Some(result) = route(FakeRequest("OPTIONS", baseURL + "/info").withHeaders(ORIGIN -> "null"))
-      result.verify204
-      contentAsString(result) must beEmpty
-      header(ACCESS_CONTROL_ALLOW_ORIGIN, result) must beSome("*")
     }
 
     "respond with disabled websocket" in new WithApplication(FakeApp) {

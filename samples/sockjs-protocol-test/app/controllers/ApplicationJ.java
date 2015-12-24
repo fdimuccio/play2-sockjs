@@ -1,6 +1,5 @@
 package controllers;
 
-import play.libs.F;
 import play.mvc.*;
 
 import play.sockjs.*;
@@ -9,11 +8,7 @@ public class ApplicationJ extends Controller {
 
     static class SockJSEcho extends SockJS {
         public void onReady(SockJS.In in, final SockJS.Out out) {
-            in.onMessage(new F.Callback<String>() {
-                public void invoke(String s) {
-                    out.write(s);
-                };
-            });
+            in.onMessage(s -> out.write(s));
         };
     };
 

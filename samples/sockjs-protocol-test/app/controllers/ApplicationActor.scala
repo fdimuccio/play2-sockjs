@@ -1,16 +1,14 @@
 package controllers
 
-import play.api.libs.iteratee._
-
 import akka.actor._
 
 import play.sockjs.api._
-import play.sockjs.core.iteratee.IterateeX
 
 object ApplicationActor {
 
-  import scala.concurrent.ExecutionContext.Implicits.global
   import play.api.Play.current
+  import play.api.libs.concurrent.Akka.system
+  implicit val mat = play.api.Play.current.materializer
 
   object Settings {
     val default = SockJSSettings(streamingQuota = 4096)

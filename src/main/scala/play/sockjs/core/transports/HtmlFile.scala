@@ -3,7 +3,8 @@ package transports
 
 import scala.concurrent.Future
 
-import play.api.libs.iteratee._
+import akka.stream.scaladsl._
+
 import play.api.mvc._
 import play.api.http._
 import play.api.libs.json._
@@ -15,7 +16,7 @@ private[sockjs] object HtmlFile extends HeaderNames with Results {
 
   def transport = Transport.Streaming { (req, session) =>
     req.getQueryString("c").orElse(req.getQueryString("callback")).map { callback =>
-      if (!callback.matches("[^a-zA-Z0-9-_.]")) session.bind { enumerator =>
+      if (callback.matches("[a-zA-Z0-9-_.]*")) session.bind { source =>
         val tpl =
           """
             |<!doctype html>
@@ -32,15 +33,15 @@ private[sockjs] object HtmlFile extends HeaderNames with Results {
             |  </script>
           """.stripMargin
         val prelude = tpl + Array.fill(1024 - tpl.length + 14)(' ').mkString + "\r\n\r\n"
-        Transport.Res(Enumerator(prelude) >>> (enumerator &> Enumeratee.map { (frame: Frame) =>
-          s"<script>\np(${JsString(frame.text)});\n</script>\r\n"
-        }(play.api.libs.iteratee.Execution.trampoline)))
+        Source.single(prelude).concat(source.map { frame =>
+          s"<script>\np(${JsString(frame.encode)});\n</script>\r\n"
+        })
       } else Future.successful(InternalServerError("invalid \"callback\" parameter"))
     }.getOrElse(Future.successful(InternalServerError("\"callback\" parameter required")))
   }
 
   implicit def writeableOf_HtmlFileTransport: Writeable[String] = Writeable[String] (
     txt => Codec.utf_8.encode(txt),
-    Some("text/html; charset=UTF-8"))(play.api.libs.iteratee.Execution.trampoline)
+    Some("text/html; charset=UTF-8"))
 
 }
