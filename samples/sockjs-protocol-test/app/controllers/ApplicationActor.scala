@@ -22,7 +22,7 @@ object ApplicationActor {
     }
   }
 
-  class Closed extends Actor {
+  class Closed(out: ActorRef) extends Actor {
     context.stop(self)
     def receive = {
       case _ =>
@@ -47,5 +47,5 @@ object ApplicationActor {
   /**
    * server immediately closes the session
    */
-  val closed = SockJSRouter(Settings.default).acceptWithActor[String, String](req => out => Props(classOf[Closed]))
+  val closed = SockJSRouter(Settings.default).acceptWithActor[String, String](req => out => Props(classOf[Closed], out))
 }

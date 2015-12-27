@@ -3,6 +3,7 @@ package actors
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
+import scala.collection.immutable.Seq
 
 import akka.stream.scaladsl._
 import akka.util._
@@ -10,12 +11,13 @@ import akka.actor._
 import akka.pattern.pipe
 import akka.pattern.ask
 import akka.stream.{ActorMaterializer, Materializer, OverflowStrategy}
-import akka.stream.stage.{Context, PushStage}
+import akka.stream.stage.{TerminationDirective, SyncDirective, Context, PushStage}
 
 import play.api.mvc._
 
 import play.sockjs.api._
 import play.sockjs.api.Frame._
+import play.sockjs.core.streams._
 
 //TODO: session master should become a registry of streams where each session is a stream.
 //      Each stream is composed by two graph, one that is runnable (source -> sink)
@@ -57,7 +59,7 @@ private[sockjs] object SessionMaster {
               .map(frame => actor ! Session.Write(frame))
               .to(Sink.onComplete(_ => actor ! Session.CloseSession)),
           source =
-            Source.actorRef(256, OverflowStrategy.dropNew)
+            Source.actorRef[String](256, OverflowStrategy.dropNew)
         )(Keep.right)
 
         val channel = flow.joinMat(handler)(Keep.right).run()
@@ -189,10 +191,10 @@ private[sockjs] class Session(implicit mat: Materializer) extends Actor {
       // the session has been bounded
       context.become(disconnected(session.get))
 
-    case ConnectionAborted =>
+    case ConnectionClosed(aborted) =>
       session.foreach(_ ! Status.Success(()))
       scheduleTimeout()
-      context.become(closed)
+      context.become(closed(aborted))
 
     case Write(frame) =>
       buffer.enqueue(frame)
@@ -236,10 +238,10 @@ private[sockjs] class Session(implicit mat: Materializer) extends Actor {
       scheduleTimeout()
       context.become(disconnected(session))
 
-    case ConnectionAborted =>
+    case ConnectionClosed(aborted) =>
       session ! Status.Success(())
       scheduleTimeout()
-      context.become(closed)
+      context.become(closed(aborted))
 
     case CloseSession =>
       self ! Write(CloseFrame.GoAway)
@@ -271,12 +273,14 @@ private[sockjs] class Session(implicit mat: Materializer) extends Actor {
 
     case CloseSession =>
       session ! Status.Success(())
-      context.become(closed)
+      context.become(closed(false))
 
   }
 
-  def closed: Receive = {
-    case Connect(_, _, _) => sender ! Connected(Source.single(CloseFrame.GoAway))
+  def closed(aborted: Boolean): Receive = {
+    case Connect(_, _, _) =>
+      val frame = if (aborted) CloseFrame.ConnectionInterrupted else CloseFrame.GoAway
+      sender ! Connected(Source.single(frame))
     case Push => sender ! Error
     case SessionTimeout => context.stop(self)
   }
@@ -299,7 +303,7 @@ private[sockjs] object Connection {
 
   case object ConnectionCont
   case object ConnectionDone
-  case object ConnectionAborted
+  case class ConnectionClosed(aborted: Boolean)
 
   case class ChannelUnbound(error: Option[String])
 
@@ -309,7 +313,6 @@ private[sockjs] class Connection(client: ActorRef, heartbeat: FiniteDuration, li
 
   import Session._
   import Connection._
-  import context.dispatcher
 
   private[this] var done = false
   private[this] var quota = limit
@@ -321,14 +324,7 @@ private[sockjs] class Connection(client: ActorRef, heartbeat: FiniteDuration, li
 
   val source =
     Source(publisher)
-      .transform(() => new PushStage[Frame, Frame] {
-        def onPush(elem: Frame, ctx: Context[Frame]) = {
-          ctx.push(elem)
-        }
-        override def postStop(): Unit = {
-          self ! ChannelUnbound(None)
-        }
-      })
+      .via(FlowX.onPostStop(() => self ! ChannelUnbound(None)))
 
   client ! Connected(source)
 
@@ -342,7 +338,7 @@ private[sockjs] class Connection(client: ActorRef, heartbeat: FiniteDuration, li
       frame match {
         case frame: CloseFrame =>
           done = true
-          context.parent ! ConnectionAborted
+          context.parent ! ConnectionClosed(false)
         case _ if quota > 0 =>
           context.parent ! ConnectionCont
         case _ =>
@@ -352,7 +348,7 @@ private[sockjs] class Connection(client: ActorRef, heartbeat: FiniteDuration, li
       if (done) channel ! Status.Success(())
 
     case ChannelUnbound(error) =>
-      if (!done) context.parent ! ConnectionAborted
+      if (!done) context.parent ! ConnectionClosed(true)
       context.stop(self)
 
     case ReceiveTimeout =>

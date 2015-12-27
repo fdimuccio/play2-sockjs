@@ -2,6 +2,7 @@ package play.sockjs.api
 
 import scala.collection.immutable.Seq
 
+import play.api.http.websocket.CloseCodes
 import play.api.libs.json._
 
 /**
@@ -99,7 +100,16 @@ object Frame {
   object CloseFrame {
     val GoAway = CloseFrame(3000, "Go away!")
     val AnotherConnectionStillOpen = CloseFrame(2010, "Another connection still open")
-    val ConnectionInterrupted = CloseFrame(1002, "Connection interrupted!")
+    val ConnectionInterrupted = CloseFrame(1002, "Connection interrupted")
+  }
+
+  /**
+    * Special frame to signal the underlying flow to close the connection abruptly.
+    * This frame doesn't contain any payload, an exception will be thrown if
+    * encode is called.
+    */
+  case object CloseAbruptly extends Frame {
+    def encode = throw SockJSCloseException(CloseFrame(CloseCodes.ConnectionAbort, "Connection aborted due to a fatal error"))
   }
 }
 

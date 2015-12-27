@@ -106,9 +106,7 @@ object SockJS extends SockJSOps {
       */
     implicit val stringFrameFlowTransformer: MessageFlowTransformer[String, String] = {
       new MessageFlowTransformer[String, String] {
-        def transform(flow: Flow[String, String, _]) = {
-          Flow[String].map(MessageFrame.apply)
-        }
+        def transform(flow: Flow[String, String, _]) = flow map MessageFrame.apply
       }
     }
 

@@ -3,8 +3,8 @@ package play.sockjs.core
 import scala.util.control.Exception._
 import scala.concurrent.Future
 import scala.concurrent.duration._
+import scala.collection.immutable.Seq
 
-import akka.util.ByteString
 import akka.actor.ActorRef
 import akka.pattern.ask
 import akka.stream.scaladsl.Source
@@ -14,7 +14,6 @@ import play.api.mvc._
 import play.api.mvc.BodyParsers._
 import play.api.mvc.Results._
 import play.api.libs.json._
-import play.api.libs.iteratee._
 import play.api.http.{HttpEntity, Writeable}
 import play.core.Execution.Implicits.internalContext
 

@@ -1,10 +1,11 @@
 package controllers
 
+import akka.stream.scaladsl._
+
 import play.api.libs.iteratee._
 
-import scala.concurrent.ExecutionContext.Implicits.global
-
 import play.sockjs.api._
+import streams._
 
 object Application {
 
@@ -17,20 +18,20 @@ object Application {
   /**
    * responds with identical data as received
    */
-  val echo = SockJSRouter(Settings.default).using(req => Concurrent.joined[String])
+  val echo = SockJSRouter(Settings.default).accept(req => FlowX.echo)
 
   /**
    * identical to echo, but with websockets disabled
    */
-  val disabledWebSocketEcho = SockJSRouter(Settings.nowebsocket).using(req => Concurrent.joined[String])
+  val disabledWebSocketEcho = SockJSRouter(Settings.nowebsocket).accept(req => FlowX.echo)
 
   /**
    * identical to echo, but with JSESSIONID cookies sent
    */
-  val cookieNeededEcho = SockJSRouter(Settings.withjsessionid).using(req => Concurrent.joined[String])
+  val cookieNeededEcho = SockJSRouter(Settings.withjsessionid).accept(req => FlowX.echo)
 
   /**
    * server immediately closes the session
    */
-  val closed = SockJSRouter(Settings.default).using(req => (Iteratee.ignore[String], Enumerator.eof[String]))
+  val closed = SockJSRouter(Settings.default).accept(req => FlowX.closed)
 }
