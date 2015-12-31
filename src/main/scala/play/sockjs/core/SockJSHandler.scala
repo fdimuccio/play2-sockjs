@@ -5,21 +5,6 @@ import play.api.mvc._
 import play.sockjs.api._
 
 /**
- * Helper for SockJS request handler
+ * SockJS request handler
  */
-sealed trait SockJSHandler
-
-/**
- * Helper for a plain SockJS HTTP endpoint
- */
-case class SockJSAction[A](action: Action[A]) extends SockJSHandler
-
-/**
- * Helper for a SockJS transport
- */
-case class SockJSTransport(f: SockJS => Handler) extends SockJSHandler
-
-/**
- * Helper for a SockJS websocket transport
- */
-case class SockJSWebSocket[A](f: RequestHeader => SockJSTransport) extends SockJSHandler
+private[sockjs] case class SockJSHandler(f: (RequestHeader, SockJS) => Handler) extends Handler

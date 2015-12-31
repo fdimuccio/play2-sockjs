@@ -1,62 +1,45 @@
 package play.sockjs.api
 
+import akka.stream.Materializer
+
 import scala.concurrent.duration._
 
-import akka.actor.ActorSystem
-
-import play.api.libs.concurrent.Akka
 import play.api.mvc._
 
 import play.sockjs.core._
-import play.sockjs.core.actors.SockJSExtension
 import play.sockjs.api.SockJSSettings.CookieCalculator
-import play.api.Logger
 
 /**
- * ScokJS server.
+ * SockJS server.
  *
- * @param actorSystem The [[akka.actor.ActorSystem]] that will be used to create
- *                    the [[play.sockjs.core.actors.SessionMaster]] to handle SockJS sessions.
+ * @param materializer The [[akka.stream.Materializer]] that will be used to run
+ *                    the underlying SockJS streams.
  * @param settings The [[play.sockjs.api.SockJSSettings]] used to setup this server.
- * @param name The name of the newly created [[play.sockjs.core.actors.SessionMaster]] actor for this server, if needed.
  */
-case class SockJSServer(actorSystem: ActorSystem, settings: SockJSSettings, name: Option[String]) {
+case class SockJSServer(materializer: Materializer, settings: SockJSSettings) {
 
   def reconfigure(f: SockJSSettings => SockJSSettings): SockJSServer = copy(settings = f(settings))
 
-  private[sockjs] def dispatcher(prefix: String) = {
-    new Dispatcher(SockJSExtension(actorSystem).sessionMaster(name), settings)
-  }
-
+  private[sockjs] def dispatcher(prefix: String) = new Dispatcher(new Transport(materializer, settings))
 }
 
 object SockJSServer {
 
   /**
-   * Returns a SockJS server with default settings
+   * Returns a SockJS server with default settings and application default materializer
    */
   def default = SockJSServer(SockJSSettings.default)
 
   /**
-   * Returns a SockJS server with specified settings
+   * Returns a SockJS server with specified settings and application default materializer
    *
    * @param settings The [[play.sockjs.api.SockJSSettings]] used to setup this server.
    */
   def apply(settings: SockJSSettings): SockJSServer = {
     SockJSServer(
-      play.api.Play.maybeApplication.map(Akka.system(_)).getOrElse(sys.error("Play application not started!")),
+      play.api.Play.maybeApplication.map(_.materializer).getOrElse(sys.error("Play application not started!")),
       settings)
   }
-
-  /**
-   * Returns a SockJS server with specified actorSystem and settings
-   *
-   * @param actorSystem The [[akka.actor.ActorSystem]] that will be used to create
-   *                    the [[play.sockjs.core.actors.SessionMaster]] to handle SockJS sessions.
-   * @param settings The [[play.sockjs.api.SockJSSettings]] used to setup this server.
-   */
-  def apply(actorSystem: ActorSystem, settings: SockJSSettings): SockJSServer = SockJSServer(actorSystem, settings, None)
-
 }
 
 /**

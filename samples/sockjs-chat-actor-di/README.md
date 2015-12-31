@@ -1,1 +1,1 @@
-Sample app to show new actor api and dependency injection.  
+Sample app to show new actor api and dependency injection.

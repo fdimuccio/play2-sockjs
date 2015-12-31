@@ -6,7 +6,7 @@ import play.api.http.websocket.CloseCodes
 import play.api.libs.json._
 
 /**
- * Frame accepted by SockJS clients
+ * SockJS frames
  */
 sealed abstract class Frame {
   def encode: String
@@ -38,7 +38,7 @@ object Frame {
   /**
    * Array of json-encoded messages. For example: a["message"].
    */
-  final case class MessageFrame(data: Seq[String]) extends Frame {
+  final case class MessageFrame(data: Vector[String]) extends Frame {
     def ++(frame: MessageFrame) = copy(data = data ++ frame.data)
     lazy val encode = {
       /**
@@ -82,7 +82,7 @@ object Frame {
   }
 
   object MessageFrame {
-    def apply(data: String): MessageFrame = MessageFrame(Seq(data))
+    def apply(data: String): MessageFrame = MessageFrame(Vector(data))
   }
 
   /**

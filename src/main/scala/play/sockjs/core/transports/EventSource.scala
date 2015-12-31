@@ -9,10 +9,10 @@ import play.api.mvc._
 /**
  * EventSource transport
  */
-private[sockjs] object EventSource extends HeaderNames with Results {
+private[sockjs] class EventSource(transport: Transport) extends HeaderNames with Results {
 
-  def transport = Transport.Streaming { (req, session) =>
-    session.bind { source =>
+  def streaming = transport.streaming { req =>
+    req.bind { source =>
       // Here I should have used play.api.libs.EventSource, but I couldn't since
       // sockjs protocol tests expect "\r\n" as data terminator, and play.api.libs.EventSource
       // uses just "\n" (and that's correct, blame sockjs tests)

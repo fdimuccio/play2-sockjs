@@ -1,17 +1,13 @@
 package controllers
 
-import play.api._
 import play.api.mvc._
 
 import play.api.libs.json._
-import play.api.libs.iteratee._
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
 
 import models._
 
-import akka.actor._
 import scala.concurrent.Future
-import scala.concurrent.duration._
 
 import play.sockjs.api._
 
@@ -29,7 +25,7 @@ object Application extends Controller {
    */
   def chatRoom(username: Option[String]) = Action { implicit request =>
     username.filterNot(_.isEmpty).map { username =>
-      Ok(views.html.chatRoom(username)).withCookies(Cookie("username", username, httpOnly = false))
+      Ok(views.html.chatRoom(username))
     }.getOrElse {
       Redirect(routes.Application.index).flashing(
         "error" -> "Please choose a valid username."
@@ -37,9 +33,9 @@ object Application extends Controller {
     }
   }
 
-  val chat = SockJSRouter(_.websocket(true)).tryAccept[JsValue] { request =>
-    request.cookies.get("username").map { cookie =>
-      ChatRoom.join(cookie.value).map(Right(_))
+  val chat = SockJSRouter(_.websocket(true)).acceptOrResult[JsValue, JsValue] { request =>
+    request.getQueryString("username").map { username =>
+      ChatRoom.join(username).map(Right(_))
     }.getOrElse {
       Future.successful(Left(BadRequest(Json.obj("error" -> "unknown username"))))
     }

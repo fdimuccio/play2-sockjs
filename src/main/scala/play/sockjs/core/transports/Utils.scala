@@ -12,25 +12,25 @@ import play.api.libs.json._
 /**
  * SockJS utils endpoint
  */
-object Utils extends HeaderNames with Results {
+class Utils(transport: Transport) extends HeaderNames with Results {
 
   /**
    * greeting
    */
-  def greet = SockJSAction(Action {
+  def greet = Action {
     Ok("Welcome to SockJS!\n").as("text/plain; charset=UTF-8")
-  })
+  }
 
   /**
    * iframe page (needed by iframe transports)
    */
-  def iframe(script: RequestHeader => String) = SockJSAction(Action { req =>
+  def iframe = Action { req =>
     val content = """|<!DOCTYPE html>
                      |<html>
                      |<head>
                      |  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
                      |  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-                     |  <script src="""".stripMargin+script(req)+""""></script>
+                     |  <script src="""".stripMargin+transport.cfg.scriptSRC(req)+""""></script>
                      |  <script>
                      |    document.domain = document.domain;
                      |    SockJS.bootstrap_iframe();
@@ -47,21 +47,21 @@ object Utils extends HeaderNames with Results {
       .cached(31536000) // 31536000 seconds, that is one year, as sockjs 0.3.3 specs
       .withHeaders(ETAG -> digest)
       .as("text/html; charset=UTF-8")
-  })
+  }
 
   /**
    * info functionality
    */
-  def info(websocket: Boolean, cookies: Boolean) = SockJSAction(Action { implicit req =>
+  def info = Action { implicit req =>
     if (req.method == "OPTIONS") OptionsResult("OPTIONS", "GET")
     else Ok(Json.obj(
-      "websocket" -> websocket,
-      "cookie_needed" -> cookies,
+      "websocket" -> transport.cfg.websocket,
+      "cookie_needed" -> transport.cfg.cookies.isDefined,
       "origins" -> Json.arr("*:*"),
       "entropy" -> Random.nextInt(Int.MaxValue)
     )).enableCORS(req)
       .notcached
       .as("application/json; charset=UTF-8")
-  })
+  }
 
 }

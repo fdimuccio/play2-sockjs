@@ -6,14 +6,12 @@ import scala.concurrent.duration._
 import play.api.mvc._
 
 import play.api.libs.json._
-import play.api.Play.current
 
 import play.sockjs.api._
 
-import lib._
 import models._
 
-class Application(chatRoom: ChatRoom) extends SockJSController {
+class Application(chatRoom: ChatRoom) extends Controller with SockJSRouter {
   
   /**
    * Just display the home page.
@@ -27,25 +25,25 @@ class Application(chatRoom: ChatRoom) extends SockJSController {
    */
   def chatRoom(username: Option[String]) = Action { implicit request =>
     username.filterNot(_.isEmpty).map { username =>
-      Ok(views.html.chatRoom(username)).withCookies(Cookie("username", username, httpOnly = false))
+      Ok(views.html.chatRoom(username))
     }.getOrElse {
-      Redirect(routes.Application.index).flashing(
+      Redirect(controllers.routes.Application.index).flashing(
         "error" -> "Please choose a valid username."
       )
     }
   }
 
   /**
-   * Sample settings
-   */
-  override def settings = SockJSSettings(websocket = false, heartbeat = 55 seconds)
+    * SockJS server with sample settings
+    */
+  override def server = SockJSServer(SockJSSettings(websocket = false, heartbeat = 55 seconds))
 
-  def sockjs = SockJS.tryAcceptWithActor[JsValue, JsValue] { request =>
-    Future.successful(request.cookies.get("username").map { cookie =>
-      Right(chatRoom.join(cookie.value))
-    }.getOrElse(Left(BadRequest)))
+  def sockjs = SockJS.acceptOrResult[JsValue, JsValue] { request =>
+    request.getQueryString("username").map { username =>
+      Future.successful(Right(chatRoom.join(username)))
+    }.getOrElse {
+      Future.successful(Left(BadRequest(Json.obj("error" -> "unknown username"))))
+    }
   }
 
 }
-
-object Application extends ManagedSockJSRouter[Application]

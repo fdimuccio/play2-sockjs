@@ -27,12 +27,16 @@ public class ApplicationActorJ extends Controller {
 	}
 	
 	public static class Closed extends UntypedActor {
+
+        final ActorRef out;
 		
-	    public Closed(ActorRef out) {}
+	    public Closed(ActorRef out) {
+            this.out = out;
+        }
 	    
 	    @Override
 	    public void preStart() throws Exception {
-	    	self().tell(PoisonPill.getInstance(), self());	
+            out.tell(PoisonPill.getInstance(), self());
 	    }
 
 		@Override

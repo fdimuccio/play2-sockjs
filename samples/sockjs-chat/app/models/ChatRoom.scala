@@ -1,13 +1,15 @@
 package models
 
-import akka.actor._
 import scala.concurrent.duration._
+
+import akka.actor._
+import akka.stream.OverflowStrategy
 
 import play.api._
 import play.api.libs.json._
-import play.api.libs.iteratee._
 import play.api.libs.concurrent._
 
+import akka.stream.scaladsl._
 import akka.util.Timeout
 import akka.pattern.ask
 
@@ -19,14 +21,14 @@ object Robot {
   def apply(chatRoom: ActorRef) {
     
     // Create an Iteratee that logs all messages to the console.
-    val loggerIteratee = Iteratee.foreach[JsValue](event => Logger("robot").info(event.toString))
+    val loggerSink = Sink.foreach[JsValue](event => Logger("robot").info(event.toString))
     
     implicit val timeout = Timeout(1 second)
     // Make the robot join the room
     chatRoom ? (Join("Robot")) map {
       case Connected(robotChannel) => 
         // Apply this Enumerator on the logger.
-        robotChannel |>> loggerIteratee
+        robotChannel.to(loggerSink).run()(play.api.Play.current.materializer)
     }
     
     // Make the robot talk every 30 seconds
@@ -53,32 +55,32 @@ object ChatRoom {
     roomActor
   }
 
-  def join(username:String):scala.concurrent.Future[(Iteratee[JsValue,_],Enumerator[JsValue])] = {
+  def join(username:String):scala.concurrent.Future[Flow[JsValue, JsValue, _]] = {
 
     (default ? Join(username)).map {
       
-      case Connected(enumerator) => 
+      case Connected(source) =>
       
-        // Create an Iteratee to consume the feed
-        val iteratee = Iteratee.foreach[JsValue] { event =>
+        // Create a Sink to consume the feed
+        val sink = Flow[JsValue].map { event =>
           default ! Talk(username, (event \ "text").as[String])
-        }.map { _ =>
+        }.to(Sink.onComplete { _ =>
           default ! Quit(username)
-        }
+        })
 
-        (iteratee,enumerator)
+        Flow.wrap(sink, source)(Keep.none)
         
       case CannotConnect(error) => 
       
         // Connection error
 
-        // A finished Iteratee sending EOF
-        val iteratee = Done[JsValue,Unit]((),Input.EOF)
+        // A Sink that ignores incoming data
+        val sink = Sink.ignore
 
         // Send an error and close the socket
-        val enumerator =  Enumerator[JsValue](JsObject(Seq("error" -> JsString(error)))).andThen(Enumerator.enumInput(Input.EOF))
+        val source = Source.single(JsObject(Seq("error" -> JsString(error))))
         
-        (iteratee,enumerator)
+        Flow.wrap(sink, source)(Keep.none)
          
     }
 
@@ -89,7 +91,11 @@ object ChatRoom {
 class ChatRoom extends Actor {
   
   var members = Set.empty[String]
-  val (chatEnumerator, chatChannel) = Concurrent.broadcast[JsValue]
+
+  val (channel, publisher) =
+    Source.actorRef[JsValue](512, OverflowStrategy.dropNew)
+      .toMat(Sink.fanoutPublisher(256, 512))(Keep.both)
+      .run()(play.api.Play.current.materializer)
 
   def receive = {
     
@@ -98,7 +104,7 @@ class ChatRoom extends Actor {
         sender ! CannotConnect("This username is already used")
       } else {
         members = members + username
-        sender ! Connected(chatEnumerator)
+        sender ! Connected(Source.single(Json.obj("members" -> members)) concat Source(publisher))
         self ! NotifyJoin(username)
       }
     }
@@ -129,7 +135,7 @@ class ChatRoom extends Actor {
         )
       )
     )
-    chatChannel.push(msg)
+    channel ! msg
   }
   
 }
@@ -139,5 +145,5 @@ case class Quit(username: String)
 case class Talk(username: String, text: String)
 case class NotifyJoin(username: String)
 
-case class Connected(enumerator:Enumerator[JsValue])
+case class Connected(source: Source[JsValue, _])
 case class CannotConnect(msg: String)

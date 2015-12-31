@@ -3,8 +3,8 @@
 # ~~~~
 
 # Home page
-GET     /                           @controllers.Application.index
-GET     /room                       @controllers.Application.chatRoom(username: Option[String] ?= None)
+GET     /                           controllers.Application.index
+GET     /room                       controllers.Application.chatRoom(username: Option[String] ?= None)
 ->      /room/chat                  controllers.Application
 
 # Map static resources from the /public folder to the /assets URL path

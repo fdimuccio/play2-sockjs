@@ -12,11 +12,11 @@ import play.api.libs.json._
 /**
  * HTMLfile transport
  */
-private[sockjs] object HtmlFile extends HeaderNames with Results {
+private[sockjs] class HtmlFile(transport: Transport) extends HeaderNames with Results {
 
-  def transport = Transport.Streaming { (req, session) =>
+  def streaming = transport.streaming { req =>
     req.getQueryString("c").orElse(req.getQueryString("callback")).map { callback =>
-      if (callback.matches("[a-zA-Z0-9-_.]*")) session.bind { source =>
+      if (callback.matches("[a-zA-Z0-9-_.]*")) req.bind { source =>
         val tpl =
           """
             |<!doctype html>
@@ -40,7 +40,7 @@ private[sockjs] object HtmlFile extends HeaderNames with Results {
     }.getOrElse(Future.successful(InternalServerError("\"callback\" parameter required")))
   }
 
-  implicit def writeableOf_HtmlFileTransport: Writeable[String] = Writeable[String] (
+  implicit val writeableOf_HtmlFileTransport: Writeable[String] = Writeable[String] (
     txt => Codec.utf_8.encode(txt),
     Some("text/html; charset=UTF-8"))
 

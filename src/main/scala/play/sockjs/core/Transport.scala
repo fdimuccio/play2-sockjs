@@ -1,62 +1,44 @@
 package play.sockjs.core
 
+import java.util.concurrent.ConcurrentHashMap
+
 import scala.util.control.Exception._
 import scala.concurrent.Future
-import scala.concurrent.duration._
 import scala.collection.immutable.Seq
 
-import akka.actor.ActorRef
-import akka.pattern.ask
-import akka.stream.scaladsl.Source
+import akka.stream.Materializer
+import akka.stream.scaladsl.{Keep, Source}
 
 import play.core.parsers.FormUrlEncodedParser
 import play.api.mvc._
 import play.api.mvc.BodyParsers._
-import play.api.mvc.Results._
 import play.api.libs.json._
-import play.api.http.{HttpEntity, Writeable}
-import play.core.Execution.Implicits.internalContext
+import play.api.http.{HeaderNames, HttpEntity, Writeable}
 
 import play.sockjs.api._
-import play.sockjs.core.actors._
 
 /**
- * SockJS transport helper
+ * SockJS transports builder
  */
-private[sockjs] case class Transport(f: ActorRef => (String, SockJSSettings) => SockJSHandler) {
+private[sockjs] class Transport(materializer: Materializer, settings: SockJSSettings) extends HeaderNames with Results {
+  import Transport._
+  import settings._
 
-  def apply(sessionID: String)(implicit sessionMaster: ActorRef, settings: SockJSSettings) = {
-    f(sessionMaster)(sessionID, settings)
-  }
+  private[this] val playInternalEC = play.core.Execution.internalContext
+  private[this] val trampolineEC = play.api.libs.iteratee.Execution.trampoline
 
-}
-
-private[sockjs] object Transport {
-
-  implicit val defaultTimeout = akka.util.Timeout(5 seconds) //TODO: make it configurable?
-
-  val P = """/([^/.]+)/([^/.]+)/([^/.]+)""".r
-  def unapply(path: String): Option[(String, String)] = path match {
-    case P(serverID, sessionID, transport) => Some(sessionID -> transport)
-    case _ => None
-  }
+  private[this] val sessions = new ConcurrentHashMap[String, Any]()
 
   /**
-   * The session the client is bound to
-   */
-  trait Session {
+    * Settings
+    */
+  def cfg: SockJSSettings = settings
 
-    /**
-     * Bind this session to the SessionMaster. The enumerator provided must be used
-     * to write messages to the client
-     */
-    def bind[A](f: Source[Frame, _] => Source[A, _])(implicit writeable: Writeable[A]): Future[Result]
-
-  }
-
-  def Send(f: RequestHeader => Result) = Transport { sessionMaster => (sessionID, settings) =>
-    import settings._
-    SockJSAction(Action.async(parse.raw(Int.MaxValue)) { implicit req =>
+  /**
+    * Endpoint that connects to the `send` method of SockJS client
+    */
+  def send(f: RequestHeader => Result): String => Handler = sessionID =>
+    Action.async(parse.raw(Int.MaxValue)) { implicit req =>
       def parsePlainText(txt: String) = {
         (allCatch either Json.parse(txt)).left.map(_ => "Broken JSON encoding.")
       }
@@ -77,38 +59,64 @@ private[sockjs] object Transport {
         error => Future.successful(InternalServerError(error)),
         json => json.validate[Seq[String]].fold(
           invalid => Future.successful(InternalServerError("Payload expected.")),
-          payload => (sessionMaster ? SessionMaster.Send(sessionID, payload)).map {
-            case SessionMaster.Ack => f(req).withCookies(cookies.map(f => List(f(req))).getOrElse(Nil):_*)
-            case SessionMaster.Error => NotFound
+          payload => sessions.get(sessionID) match {
+            case session: streams.Session => session.push(payload).map { accepted =>
+              if (accepted) f(req).withCookies(cookies.map(f => List(f(req))).getOrElse(Nil):_*)
+              else NotFound //FIXME: proper error message
+            }(playInternalEC)
+            case _ => Future.successful(NotFound)
           }))
-    })
-  }
+    }
 
   /**
-   * HTTP polling transport
-   */
-  val Polling = Http(Some(1L)) _
+    * HTTP polling transport builder.
+    */
+  val polling = http(Some(1L)) _
 
   /**
-   * HTTP streaming transport
-   */
-  val Streaming = Http(None) _
+    * HTTP streaming transport builder.
+    */
+  val streaming = http(None) _
 
   /**
-   * HTTP transport that emulate websockets. Provides method to bind this
-   * transport session to the SessionMaster.
-   */
-  def Http(quota: Option[Long])(f: (RequestHeader, Session) => Future[Result]) = Transport { sessionMaster => (sessionID, settings) =>
-    import settings._
-    SockJSTransport { sockjs =>
+    * HTTP generic transport builder.
+    */
+  private def http(quota: Option[Long])(f: SockJSRequest => Future[Result]): String => SockJSHandler =
+    sessionID => SockJSHandler { (_, sockjs) =>
       Action.async { req =>
-        f(req, new Session {
-          def bind[A](f: Source[Frame, _] => Source[A, _])(implicit writeable: Writeable[A]): Future[Result] = {
-            (sessionMaster ? SessionMaster.Get(sessionID)).flatMap {
-              case SessionMaster.SessionOpened(session) => session.bind(req, sockjs)
-              case SessionMaster.SessionResumed(session) => Future.successful(Right(session))
-            }.flatMap(_.right.map(_.connect(heartbeat, sessionTimeout, quota.getOrElse(streamingQuota)).map {
-              case actors.Session.Connected(source) =>
+        f(new SockJSRequest(req) {
+          def bind[A](f: Source[Frame, _] => Source[A, _])(implicit writeable: Writeable[A]) = {
+            (sessions.putIfAbsent(sessionID, InProgress) match {
+
+              // There is already a session being build with the provided sessionID
+              case InProgress =>
+                Future.successful(Right(Source.single(Frame.CloseFrame.AnotherConnectionStillOpen)))
+
+              // Session resumed
+              case session: streams.Session =>
+                Future.successful(Right(session.source))
+
+              // Session must be created
+              case _ =>
+                sockjs(req).map(_.right.map { handler =>
+                  val (session, binding) =
+                    handler.joinMat(
+                      streams.Session.flow(
+                        heartbeat,
+                        sessionTimeout,
+                        quota.getOrElse(streamingQuota),
+                        256, // TODO: get it from configuration
+                        500 // TODO: get it from configuration
+                      )
+                    )(Keep.right).run()(materializer)
+                  sessions.put(sessionID, session)
+                  binding.onComplete { case _ => sessions.remove(sessionID)}(trampolineEC)
+                  session.source
+                })(playInternalEC)
+
+            }).map {
+
+              case Right(source) =>
                 val response =
                   if (req.version.contains("1.0")) {
                     Ok.sendEntity(HttpEntity.Streamed(
@@ -118,12 +126,43 @@ private[sockjs] object Transport {
                   } else Ok.chunked(f(source))(writeable)
                 response
                   .notcached
-                  .withCookies(cookies.map(f => List(f(req))).getOrElse(Nil):_*)
-            }).fold(result => Future.successful(result), identity))
+                  .withCookies(cfg.cookies.map(f => List(f(req))).getOrElse(Nil):_*)
+
+              case Left(result) => result
+
+            }(playInternalEC)
           }
         })
       }
     }
+
+  /**
+    * WebSocket transport builder.
+    */
+  def websocket(f: SockJS => Handler): SockJSHandler = SockJSHandler { (req, sockjs) =>
+    (if (cfg.websocket) {
+      if (req.method == "GET") {
+        if (req.headers.get(UPGRADE).exists(_.equalsIgnoreCase("websocket"))) {
+          if (req.headers.get(CONNECTION).exists(_.toLowerCase.contains("upgrade"))) {
+            Right(f(sockjs))
+          } else Left(BadRequest("\"Connection\" must be \"Upgrade\"."))
+        } else Left(BadRequest("'Can \"Upgrade\" only to \"WebSocket\".'"))
+      } else Left(MethodNotAllowed.withHeaders(ALLOW -> "GET"))
+    } else Left(NotFound))
+      .fold(Action(_), identity)
+  }
+}
+
+private[sockjs] object Transport {
+
+  val P = """/([^/.]+)/([^/.]+)/([^/.]+)""".r
+  def unapply(path: String): Option[(String, String)] = path match {
+    case P(serverID, sessionID, transport) => Some(sessionID -> transport)
+    case _ => None
   }
 
+  /**
+    * Signal that a session is buing build
+    */
+  private case object InProgress
 }

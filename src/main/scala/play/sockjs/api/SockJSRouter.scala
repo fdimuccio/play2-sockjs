@@ -33,9 +33,8 @@ trait SockJSRouter extends Router {
     override def applyOrElse[A <: RequestHeader, B >: Handler](rh: A, default: A => B): B = {
       if (rh.path.startsWith(prefix)) {
         (rh.method, rh.path.drop(prefix.length)) match {
-          case dispatcher(SockJSAction(handler)) => handler
-          case dispatcher(SockJSTransport(transport)) => transport(sockjs)
-          case dispatcher(SockJSWebSocket(transport)) => transport(rh).f(sockjs)
+          case dispatcher(SockJSHandler(handler)) => handler(rh, sockjs)
+          case dispatcher(handler: Handler) => handler
           case _ => Action(NotFound)
         }
       } else default(rh)

@@ -8,12 +8,11 @@ object ApplicationBuild extends Build {
   val appName         = "sockjs-chat"
   val appVersion      = "1.0"
 
-  val main = Project(appName, file(".")).enablePlugins(play.PlayScala).settings(
-    scalaVersion := "2.11.7",
-    version := appVersion,
-    resolvers += "Maven2 Local" at new File(Path.userHome, ".m2/repository/snapshots").toURI.toURL.toExternalForm,
-    resolvers += Resolver.sonatypeRepo("snapshots"),
-    libraryDependencies += "com.github.fdimuccio" %% "play2-sockjs" % "0.5.0-SNAPSHOT"
-  )
+  val main = Project(appName, file("."))
+    .enablePlugins(play.sbt.PlayScala)
+    .settings(
+      scalaVersion := "2.11.7",
+      version := appVersion
+    ).dependsOn(ProjectRef(file("../.."), "play2-sockjs"))
 
 }

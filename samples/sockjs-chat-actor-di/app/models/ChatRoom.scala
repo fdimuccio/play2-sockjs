@@ -1,19 +1,19 @@
 package models
 
-import akka.actor._
 import scala.concurrent.duration._
+
+import akka.actor._
+import akka.stream._
+import akka.stream.scaladsl._
 
 import play.api._
 import play.api.libs.json._
-
-import play.api.libs.concurrent.Execution.Implicits._
-
-import play.sockjs.api._
+import play.api.libs.streams._
 
 /**
  * ChatRoom service
  */
-class ChatRoom(akka: ActorSystem) {
+class ChatRoom(akka: ActorSystem, materializer: Materializer) {
 
   private val room = {
     val roomActor = akka.actorOf(Props[ChatRoomActor])
@@ -21,7 +21,8 @@ class ChatRoom(akka: ActorSystem) {
     roomActor
   }
 
-  def join(username: String): SockJS.HandlerProps = out => Props(new ChatRoomMember(username, room, out))
+  def join(username: String): Flow[JsValue, JsValue, _] =
+    ActorFlow.actorRef(out => Props(new ChatRoomMember(username, room, out)))(akka, materializer)
 
 }
 
@@ -29,6 +30,8 @@ class ChatRoom(akka: ActorSystem) {
  * Robot actor, will send "I'm still alive" every 30 seconds
  */
 class Robot(room: ActorRef) extends Actor {
+
+  import context.dispatcher
 
   room ! Join("Robot", self)
 
@@ -50,13 +53,16 @@ class Robot(room: ActorRef) extends Actor {
  */
 class ChatRoomMember(username: String, room: ActorRef, out: ActorRef) extends Actor {
 
+  context.watch(out)
+
   room ! Join(username, out)
 
   private var connected = false
 
   def receive = {
 
-    case Connected =>
+    case Connected(welcome) =>
+      out ! welcome
       connected = true
 
     case CannotConnect(error) =>
@@ -65,6 +71,9 @@ class ChatRoomMember(username: String, room: ActorRef, out: ActorRef) extends Ac
 
     case json: JsValue if connected =>
       room ! Talk(username, (json \ "text").as[String])
+
+    case akka.actor.Terminated(`out`) =>
+      context.stop(self)
   }
 
   override def postStop() {
@@ -90,7 +99,7 @@ class ChatRoomActor extends Actor {
         sender ! CannotConnect("This username is already used")
       } else {
         members = members + (username -> out)
-        sender ! Connected
+        sender ! Connected(Json.obj("members" -> members.keys))
         self ! NotifyJoin(username)
       }
     }
@@ -131,5 +140,5 @@ case class Quit(username: String)
 case class Talk(username: String, text: String)
 case class NotifyJoin(username: String)
 
-case object Connected
+case class Connected(welcome: JsValue)
 case class CannotConnect(msg: String)

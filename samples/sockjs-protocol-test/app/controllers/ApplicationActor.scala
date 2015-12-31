@@ -23,7 +23,7 @@ object ApplicationActor {
   }
 
   class Closed(out: ActorRef) extends Actor {
-    context.stop(self)
+    out ! PoisonPill
     def receive = {
       case _ =>
     }
