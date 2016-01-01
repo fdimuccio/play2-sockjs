@@ -22,7 +22,7 @@ class ChatRoom(akka: ActorSystem, materializer: Materializer) {
   }
 
   def join(username: String): Flow[JsValue, JsValue, _] =
-    ActorFlow.actorRef(out => Props(new ChatRoomMember(username, room, out)))(akka, materializer)
+    ActorFlow.actorRef(out => Props(new ChatRoomMember(username, room, out)), 256)(akka, materializer)
 
 }
 
@@ -40,8 +40,8 @@ class Robot(room: ActorRef) extends Actor {
   }
 
   context.system.scheduler.schedule(
-    30 seconds,
-    30 seconds,
+    30.seconds,
+    30.seconds,
     room,
     Talk("Robot", "I'm still alive")
   )

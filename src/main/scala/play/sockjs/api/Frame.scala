@@ -1,16 +1,20 @@
 package play.sockjs.api
 
-import scala.collection.immutable.Seq
+import akka.util.ByteString
 
 import play.api.http.websocket.CloseCodes
-import play.api.libs.json._
+
+import play.sockjs.core.json.JsonByteStringEncoder._
 
 /**
  * SockJS frames
  */
 sealed abstract class Frame {
-  def encode: String
-  lazy val size: Long = encode.length
+
+  /**
+    * Encode this frame as specified by SockJS specs.
+    */
+  def encode: ByteString
 }
 
 object Frame {
@@ -23,16 +27,16 @@ object Frame {
    * messages in the future on that url.
    */
   private[sockjs] case object OpenFrame extends Frame {
-    def encode = "o"
+    val encode = ByteString("o")
   }
 
   /**
    * Heartbeat frame. Most loadbalancers have arbitrary timeouts on connections.
    * In order to keep connections from breaking, the server must send a heartbeat frame
-   * every now and then. The typical delay is 25 seconds and should be configurable.
+   * every now and then. The typical delay is 25 seconds.
    */
   case object HeartbeatFrame extends Frame {
-    def encode = "h"
+    val encode = ByteString("h")
   }
 
   /**
@@ -42,26 +46,28 @@ object Frame {
     def ++(frame: MessageFrame) = copy(data = data ++ frame.data)
     lazy val encode = {
       /**
-       * SockJS requires a special JSON codec - it requires that many other characters,
-       * over and above what is required by the JSON spec are escaped.
-       * To satisfy this we escape any character that escapable with short escapes and
-       * any other non ASCII character we unicode escape it
-       *
-       * By default, Jackson does not escape unicode characters in JSON strings
-       * This should be ok, since a valid JSON string can contain unescaped JSON
-       * characters.
-       * However, SockJS requires that many unicode chars are escaped. This may
-       * be due to browsers barfing over certain unescaped characters
-       *
-       * So... when encoding strings we make sure all unicode chars are escaped
-       * according to this regexp rule [\x00-\x1f\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufff0-\uffff]
-       *
-       * This code adapted from http://wiki.fasterxml.com/JacksonSampleQuoteChars
-       *
-       * Refs:
-       *  - https://github.com/netty/netty/pull/1615/files#L29R71
-       *  - https://github.com/eclipse/vert.x/blob/master/vertx-core/src/main/java/org/vertx/java/core/sockjs/impl/JsonCodec.java#L32
-       */
+        * SockJS requires a special JSON codec - it requires that many other characters,
+        * over and above what is required by the JSON spec are escaped.
+        * To satisfy this we escape any character that escapable with short escapes and
+        * any other non ASCII character we unicode escape it
+        *
+        * By default, Jackson does not escape unicode characters in JSON strings
+        * This should be ok, since a valid JSON string can contain unescaped JSON
+        * characters.
+        * However, SockJS requires that many unicode chars are escaped. This may
+        * be due to browsers barfing over certain unescaped characters
+        *
+        * So... when encoding strings we make sure all unicode chars are escaped
+        * according to this regexp rule [\x00-\x1f\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufff0-\uffff]
+        *
+        * This code adapted from http://wiki.fasterxml.com/JacksonSampleQuoteChars
+        *
+        * Refs:
+        *  - https://github.com/netty/netty/pull/1615/files#L29R71
+        *  - https://github.com/eclipse/vert.x/blob/master/vertx-core/src/main/java/org/vertx/java/core/sockjs/impl/JsonCodec.java#L32
+        *
+        * NOTE: this method is not used anymore, but it is kept for reference
+        */
       def escape(message: String): String = {
         val buffer = new StringBuilder(message.length)
         message.foreach { ch =>
@@ -77,11 +83,13 @@ object Frame {
         }
         buffer.result()
       }
-      s"a${escape(Json.stringify(Json.toJson(data)))}"
+      MessageFrame.prelude ++ encodeMessageFrame(this)
     }
   }
 
   object MessageFrame {
+    private val prelude = ByteString("a")
+
     def apply(data: String): MessageFrame = MessageFrame(Vector(data))
   }
 
@@ -94,10 +102,12 @@ object Frame {
    * @param reason
    */
   final case class CloseFrame(code: Int, reason: String) extends Frame {
-    lazy val encode = s"c${Json.stringify(Json.arr(code, reason))}"
+    lazy val encode = CloseFrame.prelude ++ encodeCloseFrame(this)
   }
 
   object CloseFrame {
+    private val prelude = ByteString("c")
+
     val GoAway = CloseFrame(3000, "Go away!")
     val AnotherConnectionStillOpen = CloseFrame(2010, "Another connection still open")
     val ConnectionInterrupted = CloseFrame(1002, "Connection interrupted")

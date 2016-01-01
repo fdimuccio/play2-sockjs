@@ -6,14 +6,14 @@ import akka.stream.scaladsl.Source
 
 import play.sockjs.api.Frame
 
-private[streams] object SessionPublisher {
+private[streams] object ConnectionPublisher {
 
-  def apply(subscriber: ActorRef): Source[Frame, ActorRef] = {
-    Source.actorPublisher[Frame](Props(new SessionPublisher(subscriber)))
+  def apply(subscriber: ActorRef): Source[Frame, _] = {
+    Source.actorPublisher[Frame](Props(new ConnectionPublisher(subscriber)))
   }
 }
 
-private[streams] class SessionPublisher(subscriber: ActorRef) extends ActorPublisher[Frame] {
+private[streams] class ConnectionPublisher(subscriber: ActorRef) extends ActorPublisher[Frame] {
 
   context.watch(subscriber)
 

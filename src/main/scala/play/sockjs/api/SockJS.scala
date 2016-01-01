@@ -26,6 +26,11 @@ import play.sockjs.api.Frame._
 trait SockJS extends Handler {
 
   /**
+    * SockJS settings for this handler
+    */
+  def settings: SockJSSettings
+
+  /**
     * Execute the SockJS handler.
     *
     * The return value is either a result to reject the SockJS connection with,
@@ -40,14 +45,7 @@ trait SockJS extends Handler {
 
 
 object SockJS extends SockJSOps {
-
   type Repr = SockJS
-
-  def apply(f: RequestHeader => Future[Either[Result, Flow[String, Frame, _]]]): SockJS = {
-    new SockJS {
-      def apply(request: RequestHeader) = f(request)
-    }
-  }
 
   /**
     * Transforms SockJS message flows into flows of another type.
@@ -159,22 +157,36 @@ object SockJS extends SockJSOps {
 
   }
 
+  def apply(settings: SockJSSettings): Builder = new Builder(settings)
+
   /**
     * Creates an action that will either accept the SockJS connection, using the given flow to handle the in and out stream, or
     * return a result to reject the request.
     */
   def acceptOrResult[In, Out](f: RequestHeader => Future[Either[Result, Flow[In, Out, _]]])(implicit transformer: MessageFlowTransformer[In, Out]): SockJS = {
-    SockJS { request =>
-      f(request).map(_.right.map(transformer.transform))
+    apply(SockJSSettings.default).acceptOrResult(f)
+  }
+
+  private[SockJS] class Builder(settings: SockJSSettings) extends SockJSOps { self =>
+    type Repr = SockJS
+
+    /**
+      * Creates an action that will either accept the SockJS connection, using the given flow to handle the in and out stream, or
+      * return a result to reject the request.
+      */
+    def acceptOrResult[In, Out](f: RequestHeader => Future[Either[Result, Flow[In, Out, _]]])(implicit transformer: MessageFlowTransformer[In, Out]): SockJS = {
+      new SockJS {
+        def settings = self.settings
+        def apply(request: RequestHeader) = f(request).map(_.right.map(transformer.transform))
+      }
     }
   }
 
   /**
-   * A function that, given an actor to send upstream messages to, returns actor props to create an actor to handle
-   * the SockJS connection
-   */
+    * A function that, given an actor to send upstream messages to, returns actor props to create an actor to handle
+    * the SockJS connection
+    */
   type HandlerProps = ActorRef => Props
-
 }
 
 trait SockJSOps {

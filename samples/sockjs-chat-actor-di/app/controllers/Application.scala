@@ -3,6 +3,8 @@ package controllers
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
+import akka.stream.Materializer
+
 import play.api.mvc._
 
 import play.api.libs.json._
@@ -11,7 +13,8 @@ import play.sockjs.api._
 
 import models._
 
-class Application(chatRoom: ChatRoom) extends Controller with SockJSRouter {
+class Application(chatRoom: ChatRoom, mat: Materializer) extends Controller with SockJSRouter {
+  import Application._
   
   /**
    * Just display the home page.
@@ -33,17 +36,21 @@ class Application(chatRoom: ChatRoom) extends Controller with SockJSRouter {
     }
   }
 
-  /**
-    * SockJS server with sample settings
-    */
-  override def server = SockJSServer(SockJSSettings(websocket = false, heartbeat = 55 seconds))
+  def materializer = mat
 
-  def sockjs = SockJS.acceptOrResult[JsValue, JsValue] { request =>
+  /**
+    * SockJS handler
+    */
+  val sockjs = SockJS(settings).acceptOrResult[JsValue, JsValue] { request =>
     request.getQueryString("username").map { username =>
       Future.successful(Right(chatRoom.join(username)))
     }.getOrElse {
       Future.successful(Left(BadRequest(Json.obj("error" -> "unknown username"))))
     }
   }
+}
 
+object Application {
+
+  val settings = SockJSSettings(websocket = false, heartbeat = 55.seconds)
 }

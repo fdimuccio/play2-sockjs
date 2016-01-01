@@ -7,17 +7,18 @@ import akka.stream.scaladsl._
 import akka.stream.OverflowStrategy
 
 import play.api.Play.current
+import play.api.mvc.{RequestHeader, Result}
 import play.api.libs.concurrent.Akka
 import play.api.libs.streams.ActorFlow
 import play.core.j.JavaHelpers
 import play.mvc.Http.{Context => JContext}
 
-import play.sockjs.api.Frame
+import play.sockjs.api.{SockJSSettings, Frame}
 import play.sockjs.api.SockJS._
 
 object JavaSockJS extends JavaHelpers {
 
-  def sockjsWrapper(retrieveSockJS: => play.sockjs.SockJS): play.sockjs.api.SockJS =  play.sockjs.api.SockJS { request =>
+  def sockjsWrapper(retrieveSockJS: => play.sockjs.SockJS) = (request: RequestHeader) => {
 
     val javaContext = createJavaContext(request)
 

@@ -5,15 +5,16 @@ import scala.concurrent.duration._
 
 import akka.actor._
 import akka.stream.actor._
-import akka.stream.scaladsl.Sink
+import akka.stream.scaladsl.{Source, Sink}
 
 import play.sockjs.api.Frame
 import play.sockjs.core.FrameBuffer
 
 private[streams] object SessionSubscriber {
 
-  def apply(maxBufferSize: Int, timeout: FiniteDuration, quota: Long, binding: Promise[Unit]): Sink[Frame, ActorRef] = {
+  def apply(maxBufferSize: Int, timeout: FiniteDuration, quota: Long, binding: Promise[Unit]): Sink[Frame, Source[Frame, _]] = {
     Sink.actorSubscriber[Frame](Props(new SessionSubscriber(maxBufferSize, timeout, quota, binding)))
+      .mapMaterializedValue(ref => ConnectionPublisher(ref))
   }
 
   case class Connect(actorRef: ActorRef)
@@ -73,7 +74,7 @@ private[streams] class SessionSubscriber(maxBufferSize: Int, timeout: FiniteDura
     case ActorSubscriberMessage.OnNext(frame: Frame) =>
       if (buffer.isEmpty && demand > 0) {
         connection ! frame
-        val remaining = quota - frame.size
+        val remaining = quota - frame.encode.size
         if (remaining < 1) {
           connection ! Status.Success(())
           context.become(disconnecting(connection))
@@ -102,7 +103,7 @@ private[streams] class SessionSubscriber(maxBufferSize: Int, timeout: FiniteDura
       while(requested > 0 && remaining > 0 && buffer.nonEmpty) {
         val frame = buffer.dequeue()
         connection ! frame
-        remaining -= frame.size
+        remaining -= frame.encode.size
         requested -= 1
       }
       if (buffer.isEmpty && eof) {

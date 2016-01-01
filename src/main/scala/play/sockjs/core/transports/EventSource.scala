@@ -2,6 +2,7 @@ package play.sockjs.core
 package transports
 
 import akka.stream.scaladsl._
+import akka.util.ByteString
 
 import play.api.http._
 import play.api.mvc._
@@ -10,25 +11,18 @@ import play.api.mvc._
  * EventSource transport
  */
 private[sockjs] class EventSource(transport: Transport) extends HeaderNames with Results {
+  import EventSource._
 
   def streaming = transport.streaming { req =>
-    req.bind { source =>
-      // Here I should have used play.api.libs.EventSource, but I couldn't since
-      // sockjs protocol tests expect "\r\n" as data terminator, and play.api.libs.EventSource
-      // uses just "\n" (and that's correct, blame sockjs tests)
-      Source.single("\r\n").concat(source.map { frame =>
-        val sb = new StringBuilder
-        for (line <- frame.encode.split("(\r?\n)|\r")) {
-          sb.append("data: ").append(line).append("\r\n")
-        }
-        sb.append("\r\n")
-        sb.toString()
+    req.bind("text/event-stream") { source =>
+      Source.single(crlf).concat(source.map { frame =>
+        data ++ frame.encode ++ crlf ++ crlf
       })
     }
   }
+}
 
-  implicit val writeableOf_EventSourceTransport: Writeable[String] = Writeable[String] (
-    txt => Codec.utf_8.encode(txt),
-    Some("text/event-stream"))
-
+private[sockjs] object EventSource {
+  private val data = ByteString("data: ")
+  private val crlf = ByteString("\r\n")
 }

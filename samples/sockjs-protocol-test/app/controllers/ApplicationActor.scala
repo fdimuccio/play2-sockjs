@@ -2,12 +2,13 @@ package controllers
 
 import akka.actor._
 
+import play.api.libs.streams.ActorFlow
+
 import play.sockjs.api._
 
 object ApplicationActor {
 
-  import play.api.Play.current
-  import play.api.libs.concurrent.Akka.system
+  implicit val as = play.api.Play.current.actorSystem
   implicit val mat = play.api.Play.current.materializer
 
   object Settings {
@@ -16,36 +17,40 @@ object ApplicationActor {
     val withjsessionid = default.cookies(SockJSSettings.CookieCalculator.jsessionid)
   }
 
-  class Echo(out: ActorRef) extends Actor {
-    def receive = {
-      case message => out ! message
-    }
+  object Echo {
+    def apply() = ActorFlow.actorRef[String, String](out => Props(new Actor {
+      def receive = {
+        case message => out ! message
+      }
+    }))
   }
 
-  class Closed(out: ActorRef) extends Actor {
-    out ! PoisonPill
-    def receive = {
-      case _ =>
-    }
+  object Closed {
+    def apply() = ActorFlow.actorRef[String, Frame](out => Props(new Actor {
+      out ! PoisonPill
+      def receive = {
+        case _ =>
+      }
+    }))
   }
 
   /**
    * responds with identical data as received
    */
-  val echo = SockJSRouter(Settings.default).acceptWithActor[String, String](req => out => Props(classOf[Echo], out))
+  val echo = SockJSRouter(Settings.default).accept(req => Echo())
 
   /**
    * identical to echo, but with websockets disabled
    */
-  val disabledWebSocketEcho = SockJSRouter(Settings.nowebsocket).acceptWithActor[String, String](req => out => Props(classOf[Echo], out))
+  val disabledWebSocketEcho = SockJSRouter(Settings.nowebsocket).accept(req => Echo())
 
   /**
    * identical to echo, but with JSESSIONID cookies sent
    */
-  val cookieNeededEcho = SockJSRouter(Settings.withjsessionid).acceptWithActor[String, String](req => out => Props(classOf[Echo], out))
+  val cookieNeededEcho = SockJSRouter(Settings.withjsessionid).accept(req => Echo())
 
   /**
    * server immediately closes the session
    */
-  val closed = SockJSRouter(Settings.default).acceptWithActor[String, String](req => out => Props(classOf[Closed], out))
+  val closed = SockJSRouter(Settings.default).accept(req => Closed())
 }

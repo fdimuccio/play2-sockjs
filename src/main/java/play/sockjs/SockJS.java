@@ -72,6 +72,8 @@ public abstract class SockJS {
         long heartbeat() default 25000;
         long sessionTimeout() default 5000;
         long streamingQuota() default 128*1024;
+        int sendBufferSize() default 256;
+        int sessionBufferSize() default 64*1024;
     }
 
     /**

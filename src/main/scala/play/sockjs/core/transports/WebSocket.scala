@@ -27,17 +27,18 @@ private[sockjs] class WebSocket(transport: Transport) extends HeaderNames with R
   def sockjs = transport.websocket { sockjs =>
     PlayWebSocket.acceptOrResult { req =>
       sockjs(req).map(_.right.map { flow =>
-        AkkaStreams.bypassWith[String, Seq[String], Frame](
-          Flow[String].map { data =>
-            if (data.nonEmpty) {
-              (allCatch opt Json.parse(data)).map(_.validate[Seq[String]].fold(
-                invalid => Right(CloseAbruptly),
-                valid => Left(valid)
-              )).getOrElse(Right(CloseAbruptly))
-            } else Left(Seq.empty[String])
+        AkkaStreams.bypassWith[Message, Seq[String], Frame](
+          Flow[Message].collect {
+            case TextMessage(data) =>
+              if (data.nonEmpty) {
+                (allCatch opt Json.parse(data)).map(_.validate[Seq[String]].fold(
+                  invalid => Right(CloseAbruptly),
+                  valid => Left(valid)
+                )).getOrElse(Right(CloseAbruptly))
+              } else Left(Seq.empty[String])
           }
         )(Flow[Seq[String]].mapConcat[String](identity) via flow)
-          .via(Protocol(transport.cfg.heartbeat, _.encode))
+          .via(Protocol(sockjs.settings.heartbeat, f => BinaryMessage(f.encode)))
       })
     }
   }
@@ -51,7 +52,7 @@ private[sockjs] class WebSocket(transport: Transport) extends HeaderNames with R
         Flow[Message]
           .collect { case TextMessage(data) => data }
           .via(flow)
-          .via(Protocol(transport.cfg.heartbeat, identity))
+          .via(Protocol(sockjs.settings.heartbeat, identity))
           .mapConcat[Message] {
             case Frame.MessageFrame(data) => data.map(TextMessage.apply)
             case Frame.CloseFrame(code, reason) => Seq(CloseMessage(Some(code), reason))

@@ -69,42 +69,54 @@ public abstract class SockJSRouter extends play.sockjs.core.j.JavaRouter {
         final long heartbeatMillis;
         final long sessionTimeoutMillis;
         final long streamingQuotaBytes;
+        final int sendBufferSize;
+        final int sessionBufferSize;
 
         private Builder() {
-            this(ScriptLocation.DefaultCdn.class, CookieCalculator.None.class, true, 25000, 5000, 128*1024);
+            this(ScriptLocation.DefaultCdn.class, CookieCalculator.None.class, true, 25000, 5000, 128*1024, 256, 64*1024);
         }
 
-        private Builder(Class<? extends ScriptLocation> script, Class<? extends CookieCalculator> cookies, boolean websocket, long heartbeatMillis, long sessionTimeoutMillis, long streamingQuotaBytes) {
+        private Builder(Class<? extends ScriptLocation> script, Class<? extends CookieCalculator> cookies, boolean websocket, long heartbeatMillis, long sessionTimeoutMillis, long streamingQuotaBytes, int sendBufferSize, int sessionBufferSize) {
             this.script = script;
             this.cookies = cookies;
             this.websocket = websocket;
             this.heartbeatMillis = heartbeatMillis;
             this.sessionTimeoutMillis = sessionTimeoutMillis;
             this.streamingQuotaBytes = streamingQuotaBytes;
+            this.sendBufferSize = sendBufferSize;
+            this.sessionBufferSize = sessionBufferSize;
         }
 
         public Builder withScript(Class<? extends ScriptLocation> script) {
-            return new Builder(script, cookies, websocket, heartbeatMillis, sessionTimeoutMillis, streamingQuotaBytes);
+            return new Builder(script, cookies, websocket, heartbeatMillis, sessionTimeoutMillis, streamingQuotaBytes, sendBufferSize, sessionBufferSize);
         };
 
         public Builder withCookies(Class<? extends CookieCalculator> cookies) {
-            return new Builder(script, cookies, websocket, heartbeatMillis, sessionTimeoutMillis, streamingQuotaBytes);
+            return new Builder(script, cookies, websocket, heartbeatMillis, sessionTimeoutMillis, streamingQuotaBytes, sendBufferSize, sessionBufferSize);
         }
 
         public Builder withWebSocket(boolean enabled) {
-            return new Builder(script, cookies, enabled, heartbeatMillis, sessionTimeoutMillis, streamingQuotaBytes);
+            return new Builder(script, cookies, enabled, heartbeatMillis, sessionTimeoutMillis, streamingQuotaBytes, sendBufferSize, sessionBufferSize);
         }
 
         public Builder withHeartbeat(long millis) {
-            return new Builder(script, cookies, websocket, millis, sessionTimeoutMillis, streamingQuotaBytes);
+            return new Builder(script, cookies, websocket, millis, sessionTimeoutMillis, streamingQuotaBytes, sendBufferSize, sessionBufferSize);
         }
 
         public Builder withSessionTimeout(long millis) {
-            return new Builder(script, cookies, websocket, heartbeatMillis, millis, streamingQuotaBytes);
+            return new Builder(script, cookies, websocket, heartbeatMillis, millis, streamingQuotaBytes, sendBufferSize, sessionBufferSize);
         }
 
         public Builder withStreamingQuota(long bytes) {
-            return new Builder(script, cookies, websocket, heartbeatMillis, sessionTimeoutMillis, bytes);
+            return new Builder(script, cookies, websocket, heartbeatMillis, sessionTimeoutMillis, bytes, sendBufferSize, sessionBufferSize);
+        }
+
+        public Builder withSendBufferSize(int size) {
+            return new Builder(script, cookies, websocket, heartbeatMillis, sessionTimeoutMillis, streamingQuotaBytes, size, sessionBufferSize);
+        }
+
+        public Builder withSessionBufferSize(int size) {
+            return new Builder(script, cookies, websocket, heartbeatMillis, sessionTimeoutMillis, streamingQuotaBytes, sendBufferSize, size);
         }
 
         protected Optional<SockJS.Settings> asSettings() {
@@ -132,6 +144,14 @@ public abstract class SockJSRouter extends play.sockjs.core.j.JavaRouter {
                 @Override
                 public long streamingQuota() {
                     return streamingQuotaBytes;
+                }
+                @Override
+                public int sendBufferSize() {
+                    return sendBufferSize;
+                }
+                @Override
+                public int sessionBufferSize() {
+                    return sessionBufferSize;
                 }
                 @Override
                 public Class<? extends Annotation> annotationType() {

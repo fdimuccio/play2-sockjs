@@ -1,9 +1,10 @@
 package play.sockjs.api
 
-import akka.stream.scaladsl.Flow
-
 import scala.runtime.AbstractPartialFunction
 import scala.concurrent.Future
+
+import akka.stream.Materializer
+import akka.stream.scaladsl.Flow
 
 import play.api.routing.Router
 import play.api.mvc._
@@ -14,9 +15,9 @@ import play.sockjs.core._
 
 trait SockJSRouter extends Router {
 
-  def server: SockJSServer = SockJSServer.default
+  implicit def materializer: Materializer
 
-  private lazy val dispatcher = server.dispatcher(prefix)
+  private lazy val dispatcher = new Dispatcher(new Transport(materializer))
 
   private var prefix: String = ""
 
@@ -28,7 +29,7 @@ trait SockJSRouter extends Router {
 
   def documentation: Seq[(String, String, String)] = Seq.empty
 
-  def routes = new AbstractPartialFunction[RequestHeader, Handler] {
+  final def routes = new AbstractPartialFunction[RequestHeader, Handler] {
 
     override def applyOrElse[A <: RequestHeader, B >: Handler](rh: A, default: A => B): B = {
       if (rh.path.startsWith(prefix)) {
@@ -67,25 +68,20 @@ object SockJSRouter extends SockJSOps {
     * return a result to reject the request.
     */
   def acceptOrResult[In, Out](f: (RequestHeader) => Future[Either[Result, Flow[In, Out, _]]])(implicit transformer: MessageFlowTransformer[In, Out]): SockJSRouter = {
-    Builder().acceptOrResult(f)
+    apply(SockJSSettings.default).acceptOrResult(f)
   }
 
   /**
-   * Creates a SockJS router with default server and given settings
+   * Creates a SockJS router with application materializer and given settings
    */
-  def apply(settings: SockJSSettings): Builder = Builder(SockJSServer(settings = settings))
+  def apply(settings: SockJSSettings): Builder = Builder(play.api.Play.current.materializer, settings)
 
   /**
-   * Creates a SockJS router with default server and a function to modify the default settings
+   * Creates a SockJS router with the given materializer and the given settings
    */
-  def apply(f: SockJSSettings => SockJSSettings): Builder = Builder(SockJSServer.default.reconfigure(f))
+  def apply(materializer: Materializer, settings: SockJSSettings): Builder = Builder(materializer, settings)
 
-  /**
-   * Creates a SockJS router with the given server
-   */
-  def apply(server: SockJSServer): Builder = Builder(server)
-
-  case class Builder private[SockJSRouter](server: SockJSServer = SockJSServer.default) extends SockJSOps {
+  case class Builder private[SockJSRouter](materializer: Materializer, settings: SockJSSettings) extends SockJSOps {
 
     type Repr = SockJSRouter
 
@@ -94,14 +90,14 @@ object SockJSRouter extends SockJSOps {
       * return a result to reject the request.
       */
     def acceptOrResult[In, Out](f: (RequestHeader) => Future[Either[Result, Flow[In, Out, _]]])(implicit transformer: MessageFlowTransformer[In, Out]): SockJSRouter = {
-      SockJSRouter(server, SockJS.acceptOrResult(f))
+      SockJSRouter(materializer, SockJS(settings).acceptOrResult(f))
     }
   }
 
-  private[sockjs] def apply(server: SockJSServer, sockjs: SockJS): SockJSRouter = {
-    val (_server, _sockjs) = (server, sockjs)
+  private[sockjs] def apply(materializer: Materializer, sockjs: SockJS): SockJSRouter = {
+    val (_materializer, _sockjs) = (materializer, sockjs)
     new SockJSRouter {
-      override val server = _server
+      def materializer = _materializer
       def sockjs = _sockjs
     }
   }

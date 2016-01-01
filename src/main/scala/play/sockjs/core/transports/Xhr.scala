@@ -2,6 +2,7 @@ package play.sockjs.core
 package transports
 
 import akka.stream.scaladsl._
+import akka.util.ByteString
 
 import play.api.mvc._
 import play.api.http._
@@ -27,8 +28,8 @@ private[sockjs] class Xhr(transport: Transport) extends HeaderNames with Results
    * handler for xhr polling transport
    */
   def polling = transport.polling { req =>
-    req.bind { source =>
-      source.map(_.encode + "\n")
+    req.bind("application/javascript; charset=UTF-8") { source =>
+      source.map(_.encode ++ newLine)
     }.map(_.enableCORS(req))(play.api.libs.iteratee.Execution.trampoline)
   }
 
@@ -36,17 +37,13 @@ private[sockjs] class Xhr(transport: Transport) extends HeaderNames with Results
    * handler for xhr_streaming transport
    */
   def streaming = transport.streaming { req =>
-    req.bind { source =>
-      Source.single(prelude).concat(source.map(_.encode + "\n"))
+    req.bind("application/javascript; charset=UTF-8") { source =>
+      Source.single(prelude).concat(source.map(_.encode ++ newLine))
     }.map(_.enableCORS(req))(play.api.libs.iteratee.Execution.trampoline)
   }
-
-  implicit val writeableOf_XhrTransport: Writeable[String] = Writeable[String] (
-    txt => Codec.utf_8.encode(txt),
-    Some("application/javascript; charset=UTF-8"))
-
 }
 
 private[sockjs] object Xhr {
-  private val prelude = Array.fill(2048)('h').mkString + '\n'
+  private val prelude = ByteString(Array.fill(2048)('h').mkString + '\n')
+  private val newLine = ByteString('\n')
 }

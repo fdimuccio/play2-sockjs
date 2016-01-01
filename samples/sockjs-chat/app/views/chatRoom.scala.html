@@ -28,7 +28,7 @@
     
         $(function() {
             var protocols = [] // all protocols
-            var chatSocket = new SockJS("/room/chat?username=@username", null, {debug: true, protocols_whitelist: protocols})
+            var chatSocket = new SockJS("/room/chat?username=@username", null, {debug: true, transports: protocols})
 
             var sendMessage = function() {
                 chatSocket.send(JSON.stringify(
