@@ -6,8 +6,6 @@ import com.softwaremill.macwire._
 
 class ChatRoomApplicationLoader extends ApplicationLoader {
   def load(context: Context) = {
-    // make sure logging is configured
-    Logger.configure(context.environment)
     new ChatRoomComponents(context).application
   }
 }

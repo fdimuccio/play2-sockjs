@@ -71,20 +71,16 @@ object ShellPrompt {
     ("git status -sb" lines_! devnull headOption)
       getOrElse "-" stripPrefix "## ")
 
-  val buildShellPrompt = {
-    (state: State) =>
-    {
-      val currProject = Project.extract(state).currentProject.id
-      "%s:%s:%s> ".format(
-        currProject, currBranch, BuildSettings.buildVersion)
-    }
+  val buildShellPrompt = (state: State) => {
+    val currProject = Project.extract(state).currentProject.id
+    "%s:%s:%s> ".format(currProject, currBranch, BuildSettings.buildVersion)
   }
 }
 
 object Play2SockJSBuild extends Build {
   import BuildSettings._
 
-  val play2Version = "2.5.0-M1"
+  val play2Version = "2.5.0-M2"
 
   lazy val play2SockJS = Project(
     "play2-sockjs",

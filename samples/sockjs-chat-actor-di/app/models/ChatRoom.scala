@@ -61,8 +61,8 @@ class ChatRoomMember(username: String, room: ActorRef, out: ActorRef) extends Ac
 
   def receive = {
 
-    case Connected(welcome) =>
-      out ! welcome
+    case Connected(motd) =>
+      out ! motd
       connected = true
 
     case CannotConnect(error) =>
@@ -99,7 +99,9 @@ class ChatRoomActor extends Actor {
         sender ! CannotConnect("This username is already used")
       } else {
         members = members + (username -> out)
-        sender ! Connected(Json.obj("members" -> members.keys))
+        sender ! Connected(Json.obj(
+          "members" -> members.keys,
+          "message" -> s"$username welcome to sockjs-chat!"))
         self ! NotifyJoin(username)
       }
     }

@@ -60,7 +60,7 @@ object JavaSockJS extends JavaHelpers {
             javaSockJS.onReady(socketIn, socketOut)
           }
 
-          Flow.wrap(sink, source)(Keep.none)
+          Flow.fromSinkAndSource(sink, source)
         }
       )
     })

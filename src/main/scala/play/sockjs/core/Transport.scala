@@ -18,10 +18,12 @@ import play.api.http.{HttpChunk, HeaderNames, HttpEntity}
 
 import play.sockjs.api._
 
+import scala.util.control.NonFatal
+
 /**
  * SockJS transports builder
  */
-private[sockjs] class Transport(materializer: Materializer) extends HeaderNames with Results {
+private[sockjs] final class Transport(materializer: Materializer) extends HeaderNames with Results {
   import Transport._
 
   private[this] val playInternalEC = play.core.Execution.internalContext
@@ -49,7 +51,7 @@ private[sockjs] class Transport(materializer: Materializer) extends HeaderNames 
         // if no charset header is specified Play will default to ISO-8859-1, messing up unicode encoding
         ((req.contentType.getOrElse(""), req.body.asBytes().getOrElse(ByteString.empty)) match {
           case ("application/x-www-form-urlencoded", data) => parseFormUrlEncoded(data)
-          case (_, data) if data.nonEmpty => tryParse(Json.parse(data.toArray))
+          case (_, data) if data.nonEmpty => tryParse(Json.parse(data.iterator.asInputStream))
           case _ => Left("Payload expected.")
         }).fold(
           error => Future.successful(InternalServerError(error)),
@@ -68,17 +70,17 @@ private[sockjs] class Transport(materializer: Materializer) extends HeaderNames 
   /**
     * HTTP polling transport builder.
     */
-  val polling = http(1) _
+  val polling = http(streaming = false) _
 
   /**
     * HTTP streaming transport builder.
     */
-  val streaming = http(-1) _
+  val streaming = http(streaming = true) _
 
   /**
     * HTTP generic transport builder.
     */
-  private def http(quota: Long)(f: SockJSRequest => Future[Result]): String => SockJSHandler =
+  private def http(streaming: Boolean)(f: SockJSRequest => Future[Result]): String => SockJSHandler =
     sessionID => SockJSHandler { (_, sockjs) =>
       val cfg = sockjs.settings
       import cfg._
@@ -87,7 +89,7 @@ private[sockjs] class Transport(materializer: Materializer) extends HeaderNames 
           def bind(ctype: String)(f: Source[Frame, _] => Source[ByteString, _]) = {
             (sessions.putIfAbsent(sessionID, InProgress) match {
 
-              // There is already a session being build with the provided sessionID
+              // There is already a session being initialized with the provided sessionID
               case InProgress =>
                 Future.successful(Right(Source.single(Frame.CloseFrame.AnotherConnectionStillOpen)))
 
@@ -97,13 +99,19 @@ private[sockjs] class Transport(materializer: Materializer) extends HeaderNames 
 
               // New session
               case _ =>
-                sockjs(req).map(_.right.map { handler =>
+                val handler =
+                  try sockjs(req)
+                  catch {
+                    case NonFatal(e) => Future.failed(e)
+                  }
+
+                handler.map(_.right.map { flow =>
                   val (session, binding) =
-                    handler.joinMat(
+                    flow.joinMat(
                       streams.Session.flow(
                         heartbeat,
                         sessionTimeout,
-                        if (quota > 0) quota else streamingQuota,
+                        if (streaming) streamingQuota else 1,
                         sendBufferSize,
                         sessionBufferSize
                       )
@@ -111,7 +119,12 @@ private[sockjs] class Transport(materializer: Materializer) extends HeaderNames 
                   sessions.put(sessionID, session)
                   binding.onComplete { case _ => sessions.remove(sessionID) }(trampolineEC)
                   session.source
-                })(playInternalEC)
+                })(playInternalEC).recover {
+
+                  case NonFatal(e) =>
+                    sessions.remove(sessionID)
+                    Right(Source.single(Frame.CloseFrame.ConnectionInterrupted))
+                }(trampolineEC)
 
             }).map {
 
@@ -123,7 +136,7 @@ private[sockjs] class Transport(materializer: Materializer) extends HeaderNames 
 
               case Left(result) => result
 
-            }(playInternalEC)
+            }(trampolineEC)
           }
         })
       }
@@ -150,7 +163,7 @@ private[sockjs] object Transport {
 
   val P = """/([^/.]+)/([^/.]+)/([^/.]+)""".r
   def unapply(path: String): Option[(String, String)] = path match {
-    case P(serverID, sessionID, transport) => Some(sessionID -> transport)
+    case P(serverID, sessionID, transport) => Some(transport -> sessionID)
     case _ => None
   }
 

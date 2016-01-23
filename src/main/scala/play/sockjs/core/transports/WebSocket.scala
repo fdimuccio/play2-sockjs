@@ -38,7 +38,8 @@ private[sockjs] class WebSocket(transport: Transport) extends HeaderNames with R
               } else Left(Seq.empty[String])
           }
         )(Flow[Seq[String]].mapConcat[String](identity) via flow)
-          .via(Protocol(sockjs.settings.heartbeat, f => BinaryMessage(f.encode)))
+          .via(Protocol(sockjs.settings.heartbeat))
+          .map(f => TextMessage(f.encode.utf8String))
       })
     }
   }
@@ -52,7 +53,7 @@ private[sockjs] class WebSocket(transport: Transport) extends HeaderNames with R
         Flow[Message]
           .collect { case TextMessage(data) => data }
           .via(flow)
-          .via(Protocol(sockjs.settings.heartbeat, identity))
+          .via(Protocol(sockjs.settings.heartbeat))
           .mapConcat[Message] {
             case Frame.MessageFrame(data) => data.map(TextMessage.apply)
             case Frame.CloseFrame(code, reason) => Seq(CloseMessage(Some(code), reason))

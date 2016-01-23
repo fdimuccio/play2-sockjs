@@ -7,7 +7,7 @@ import play.sockjs.core.transports._
 /**
  * The dispatcher that will handle SockJS request.
  */
-class Dispatcher(transport: Transport) {
+private[sockjs] final class Dispatcher(transport: Transport) {
 
   import Dispatcher._
 
@@ -22,20 +22,20 @@ class Dispatcher(transport: Transport) {
     case ("GET", MaybeSlash()) => utils.greet
     case ("GET", IframePage()) => utils.iframe
     case ("GET" | "OPTIONS", "/info") => utils.info
-    case (_, Transport(_, "websocket")) => websocket.sockjs
-    case ("POST", Transport(sessionID, "xhr_send")) => xhr.send(sessionID)
-    case ("POST", Transport(sessionID, "xhr")) => xhr.polling(sessionID)
-    case ("POST", Transport(sessionID, "xhr_streaming")) => xhr.streaming(sessionID)
-    case ("OPTIONS", Transport(_, "xhr_send" | "xhr" | "xhr_streaming")) => xhr.options
-    case ("GET", Transport(sessionID, "eventsource")) => eventsource.streaming(sessionID)
-    case ("GET", Transport(sessionID, "htmlfile")) => htmlfile.streaming(sessionID)
-    case ("GET", Transport(sessionID, "jsonp")) => jsonp.polling(sessionID)
-    case ("POST", Transport(sessionID, "jsonp_send")) => jsonp.send(sessionID)
+    case (_, Transport("websocket", _)) => websocket.sockjs
+    case ("POST", Transport("xhr_send", sessionID)) => xhr.send(sessionID)
+    case ("POST", Transport("xhr", sessionID)) => xhr.polling(sessionID)
+    case ("POST", Transport("xhr_streaming", sessionID)) => xhr.streaming(sessionID)
+    case ("OPTIONS", Transport("xhr_send" | "xhr" | "xhr_streaming", _)) => xhr.options
+    case ("GET", Transport("eventsource", sessionID)) => eventsource.streaming(sessionID)
+    case ("GET", Transport("htmlfile", sessionID)) => htmlfile.streaming(sessionID)
+    case ("GET", Transport("jsonp", sessionID)) => jsonp.polling(sessionID)
+    case ("POST", Transport("jsonp_send", sessionID)) => jsonp.send(sessionID)
     case (_, "/websocket") => websocket.raw
   }
 }
 
-object Dispatcher {
+private[sockjs] object Dispatcher {
 
   // -- Path extractors
 

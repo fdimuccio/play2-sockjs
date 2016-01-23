@@ -3,7 +3,7 @@ package models
 import scala.concurrent.duration._
 
 import akka.actor._
-import akka.stream.OverflowStrategy
+import akka.stream.{Materializer, Attributes, OverflowStrategy}
 
 import play.api._
 import play.api.libs.json._
@@ -47,7 +47,7 @@ object ChatRoom {
   implicit val timeout = Timeout(1 second)
   
   lazy val default = {
-    val roomActor = Akka.system.actorOf(Props[ChatRoom])
+    val roomActor = Akka.system.actorOf(Props(new ChatRoom(play.api.Play.materializer)))
     
     // Create a bot user (just for fun)
     Robot(roomActor)
@@ -68,7 +68,7 @@ object ChatRoom {
           default ! Quit(username)
         })
 
-        Flow.wrap(sink, source)(Keep.none)
+        Flow.fromSinkAndSource(sink, source)
         
       case CannotConnect(error) => 
       
@@ -80,7 +80,7 @@ object ChatRoom {
         // Send an error and close the socket
         val source = Source.single(JsObject(Seq("error" -> JsString(error))))
         
-        Flow.wrap(sink, source)(Keep.none)
+        Flow.fromSinkAndSource(sink, source)
          
     }
 
@@ -88,14 +88,14 @@ object ChatRoom {
   
 }
 
-class ChatRoom extends Actor {
+class ChatRoom(materializer: Materializer) extends Actor {
   
   var members = Set.empty[String]
 
   val (channel, publisher) =
     Source.actorRef[JsValue](512, OverflowStrategy.dropNew)
-      .toMat(Sink.fanoutPublisher(256, 512))(Keep.both)
-      .run()(play.api.Play.current.materializer)
+      .toMat(Sink.asPublisher(true).withAttributes(Attributes.inputBuffer(256, 512)))(Keep.both)
+      .run()(materializer)
 
   def receive = {
     
@@ -104,7 +104,10 @@ class ChatRoom extends Actor {
         sender ! CannotConnect("This username is already used")
       } else {
         members = members + username
-        sender ! Connected(Source.single(Json.obj("members" -> members)) concat Source(publisher))
+        val motd = Json.obj(
+          "members" -> members,
+          "message" -> s"$username welcome to sockjs-chat!")
+        sender ! Connected(Source.single(motd) concat Source.fromPublisher(publisher))
         self ! NotifyJoin(username)
       }
     }

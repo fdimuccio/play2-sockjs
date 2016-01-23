@@ -1,12 +1,15 @@
 package play.sockjs.core.streams
 
-import akka.stream.OverflowStrategy
-import akka.stream.scaladsl._
-import play.sockjs.api.Frame
-
 import scala.collection.immutable.Seq
-import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Future, Promise}
+import scala.concurrent.duration._
+import scala.util.{Failure, Success, Try}
+
+import akka.stream.OverflowStrategy
+import akka.stream.stage.{Context, PushStage}
+import akka.stream.scaladsl._
+
+import play.sockjs.api.Frame
 
 private[core] trait Session {
 
@@ -26,24 +29,32 @@ private[core] object Session {
 
     val binding = Promise[Unit]()
 
-    //TODO: change to queue when akka-streams-2.0 is available
+    //TODO: Remove the completion stage when Source.queue will support completion
     val source =
-      Source.actorRef[Seq[String]](sendBufferSize, OverflowStrategy.dropNew)
+      Source.queue[AnyRef](sendBufferSize, OverflowStrategy.backpressure, 30.seconds)
+        .transform(() => new PushStage[AnyRef, Seq[String]] {
+          def onPush(elem: AnyRef, ctx: Context[Seq[String]]) = elem match {
+            case t: Try[_] => t match {
+              case Success(_) => ctx.finish()
+              case Failure(th) => ctx.fail(th)
+            }
+            case el: Seq[_] => ctx.push(el.asInstanceOf[Seq[String]])
+          }
+        })
         .mapConcat[String](identity)
 
     val sink =
       Flow[Frame]
-        .via(Protocol(heartbeat, identity))
+        .via(Protocol(heartbeat))
         .toMat(SessionSubscriber(sessionBufferSize, timeout, quota, binding))(Keep.right)
 
-    Flow.wrap(sink, source) { (subscriber, publisher) =>
+    Flow.fromSinkAndSourceMat(sink, source) { (subscriber, publisher) =>
       (new Session {
-        def push(data: Seq[String]): Future[Boolean] = {
-          publisher ! data
-          Future.successful(true)
-        }
+        def push(data: Seq[String]): Future[Boolean] = publisher.offer(data)
         def source: Source[Frame, _] = subscriber
-      }, binding.future)
+      }, binding.future.andThen {
+        case r => publisher.offer(r)
+      }(play.api.libs.iteratee.Execution.trampoline))
     }
   }
 }

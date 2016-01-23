@@ -33,7 +33,7 @@ object Application extends Controller {
     }
   }
 
-  val chat = SockJSRouter(_.websocket(true)).acceptOrResult[JsValue, JsValue] { request =>
+  val chat = SockJSRouter(SockJSSettings(websocket = false)).acceptOrResult[JsValue, JsValue] { request =>
     request.getQueryString("username").map { username =>
       ChatRoom.join(username).map(Right(_))
     }.getOrElse {

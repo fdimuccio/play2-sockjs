@@ -12,7 +12,7 @@ import scala.collection.mutable
 private[sockjs] class FrameBuffer {
 
   private[this] val queue = mutable.Queue[Frame]()
-  private[this] var last: Frame = _
+  private[this] var tail: Frame = _
   private[this] var length: Int = 0
 
   def isEmpty: Boolean = size == 0
@@ -27,27 +27,27 @@ private[sockjs] class FrameBuffer {
   /**
     * Enqueue the given frame.
     *
-    * If the last enqueued frame is a MessageFrame, they will be squashed together.
+    * Merge two contiguous MessageFrame in one single Frame
     */
   def enqueue(frame: Frame) {
-    (last, frame) match {
-      case (null, f) => last = f
-      case (f1: Frame.MessageFrame, f2: Frame.MessageFrame) => last = f1 ++ f2
-      case (f1, f2) => queue.enqueue(f1); last = f2
+    (tail, frame) match {
+      case (null, f) => tail = f
+      case (f1: Frame.MessageFrame, f2: Frame.MessageFrame) => tail = f1 ++ f2
+      case (f1, f2) => queue.enqueue(f1); tail = f2
     }
-    length += size(frame)
+    length += weight(frame)
   }
 
   def dequeue(): Frame = {
     val frame =
       if (queue.nonEmpty) queue.dequeue()
-      else if (!isEmpty) {val cur = last; last = null; cur}
+      else if (!isEmpty) {val cur = tail; tail = null; cur}
       else throw new NoSuchElementException("queue empty")
-    length -= size(frame)
+    length -= weight(frame)
     frame
   }
 
-  private def size(frame: Frame) = frame match {
+  private def weight(frame: Frame) = frame match {
     case Frame.MessageFrame(data) => data.size * java.lang.Character.BYTES
     case _ => 1
   }

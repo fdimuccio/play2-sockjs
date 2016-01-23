@@ -14,7 +14,7 @@ sealed abstract class Frame {
   /**
     * Encode this frame as specified by SockJS specs.
     */
-  def encode: ByteString
+  private[sockjs] def encode: ByteString
 }
 
 object Frame {
@@ -27,7 +27,7 @@ object Frame {
    * messages in the future on that url.
    */
   private[sockjs] case object OpenFrame extends Frame {
-    val encode = ByteString("o")
+    private[sockjs] val encode = ByteString("o")
   }
 
   /**
@@ -36,7 +36,7 @@ object Frame {
    * every now and then. The typical delay is 25 seconds.
    */
   case object HeartbeatFrame extends Frame {
-    val encode = ByteString("h")
+    private[sockjs] val encode = ByteString("h")
   }
 
   /**
@@ -44,7 +44,7 @@ object Frame {
    */
   final case class MessageFrame(data: Vector[String]) extends Frame {
     def ++(frame: MessageFrame) = copy(data = data ++ frame.data)
-    lazy val encode = {
+    private[sockjs] lazy val encode = {
       /**
         * SockJS requires a special JSON codec - it requires that many other characters,
         * over and above what is required by the JSON spec are escaped.
@@ -102,7 +102,7 @@ object Frame {
    * @param reason
    */
   final case class CloseFrame(code: Int, reason: String) extends Frame {
-    lazy val encode = CloseFrame.prelude ++ encodeCloseFrame(this)
+    private[sockjs] lazy val encode = CloseFrame.prelude ++ encodeCloseFrame(this)
   }
 
   object CloseFrame {
@@ -119,7 +119,7 @@ object Frame {
     * encode is called.
     */
   case object CloseAbruptly extends Frame {
-    def encode = throw SockJSCloseException(CloseFrame(CloseCodes.ConnectionAbort, "Connection aborted due to a fatal error"))
+    private[sockjs] def encode = throw SockJSCloseException(CloseFrame(CloseCodes.ConnectionAbort, "Connection aborted due to a fatal error"))
   }
 }
 

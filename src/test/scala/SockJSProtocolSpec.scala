@@ -22,11 +22,12 @@ class SockJSProtocolSpec extends Specification with JsonMatchers  {
   val wsOffBaseURL = "/disabled_websocket_echo"
   val cookieBaseURL = "/cookie_needed_echo"
 
-  trait FakeRouter extends GlobalSettings {
-    val echoController = new controllers.Echo().withPrefix(baseURL)
-    val closedController = new controllers.Closed().withPrefix(closeBaseURL)
-    val wsoffController = new controllers.DisabledWebSocketEcho().withPrefix(wsOffBaseURL)
-    val cookieNeededController = new controllers.CookieNeededEchoController().withPrefix(cookieBaseURL)
+  class FakeRouter extends GlobalSettings {
+    import controllers._
+    lazy val echoController = Application.echo.withPrefix(baseURL)
+    lazy val closedController = Application.closed.withPrefix(closeBaseURL)
+    lazy val wsoffController = Application.disabledWebSocketEcho.withPrefix(wsOffBaseURL)
+    lazy val cookieNeededController = Application.jsessionEcho.withPrefix(cookieBaseURL)
     override def onRouteRequest(req: RequestHeader): Option[Handler] = req.path match {
       case url if url.startsWith(baseURL)       => echoController.handlerFor(req)
       case url if url.startsWith(closeBaseURL)  => closedController.handlerFor(req)
@@ -36,7 +37,7 @@ class SockJSProtocolSpec extends Specification with JsonMatchers  {
     }
   }
 
-  def FakeApp = FakeApplication(withGlobal = Some(new GlobalSettings with FakeRouter))
+  def FakeApp = FakeApplication(withGlobal = Some(new FakeRouter))
 
   implicit class Verifier(val result: Future[Result]) {
     def verify200 = status(result) must equalTo(OK)

@@ -231,7 +231,7 @@ trait SockJSOps {
         }) >>> Enumerator.flatten(enumeratorCompletion.future)
         val publisher = Streams.enumeratorToPublisher(nonCompletingEnumerator)
         val (subscriber, _) = Streams.iterateeToSubscriber(iteratee)
-        Flow.wrap(Sink(subscriber), Source(publisher))(Keep.none)
+        Flow.fromSinkAndSource(Sink.fromSubscriber(subscriber), Source.fromPublisher(publisher))
     })))
   }
 

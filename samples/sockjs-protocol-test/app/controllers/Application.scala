@@ -11,8 +11,8 @@ object Application {
 
   object Settings {
     val default = SockJSSettings(streamingQuota = 4096)
-    val nowebsocket = default.websocket(false)
-    val withjsessionid = default.cookies(SockJSSettings.CookieCalculator.jsessionid)
+    val noWebSocket = default.websocket(false)
+    val withJSessionId = default.cookies(SockJSSettings.CookieCalculator.jsessionid)
   }
 
   /**
@@ -21,14 +21,14 @@ object Application {
   val echo = SockJSRouter(Settings.default).accept(req => FlowX.echo)
 
   /**
-   * identical to echo, but with websockets disabled
+   * same as echo, but with websockets disabled
    */
-  val disabledWebSocketEcho = SockJSRouter(Settings.nowebsocket).accept(req => FlowX.echo)
+  val disabledWebSocketEcho = SockJSRouter(Settings.noWebSocket).accept(req => FlowX.echo)
 
   /**
-   * identical to echo, but with JSESSIONID cookies sent
+   * same as echo, but with JSESSIONID cookies sent
    */
-  val cookieNeededEcho = SockJSRouter(Settings.withjsessionid).accept(req => FlowX.echo)
+  val cookieNeededEcho = SockJSRouter(Settings.withJSessionId).accept(req => FlowX.echo)
 
   /**
    * server immediately closes the session

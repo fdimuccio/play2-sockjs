@@ -10,12 +10,12 @@ import scala.concurrent.duration.FiniteDuration
 
 private[core] object Protocol {
 
-  def apply[T](heartbeat: FiniteDuration, encoder: Frame => T): Flow[Frame, T, _] = {
-    Flow[Frame].transform(() => new DetachedStage[Frame, T] {
+  def apply[T](heartbeat: FiniteDuration): Flow[Frame, Frame, _] = {
+    Flow[Frame].transform(() => new DetachedStage[Frame, Frame] {
       var buffer = Vector[Frame](Frame.OpenFrame)
       var closed = false
 
-      def onPush(frame: Frame, ctx: DetachedContext[T]) = {
+      def onPush(frame: Frame, ctx: DetachedContext[Frame]) = {
         if (buffer.nonEmpty || !ctx.isHoldingDownstream) {
           buffer :+= frame
           ctx.holdUpstream()
@@ -24,13 +24,13 @@ private[core] object Protocol {
             ctx.finish()
           case close: CloseFrame =>
             closed = true
-            ctx.holdUpstreamAndPush(encoder(close))
+            ctx.holdUpstreamAndPush(close)
           case other =>
-            ctx.pushAndPull(encoder(other))
+            ctx.pushAndPull(other)
         }
       }
 
-      def onPull(ctx: DetachedContext[T]) = {
+      def onPull(ctx: DetachedContext[Frame]) = {
         if (closed) ctx.finish()
         else if (buffer.nonEmpty) {
           val (frame, rest) = buffer.splitAt(1)
@@ -39,18 +39,18 @@ private[core] object Protocol {
             case CloseAbruptly =>
               ctx.finish()
             case close: CloseFrame =>
-              ctx.pushAndFinish(encoder(close))
+              ctx.pushAndFinish(close)
             case other =>
-              if (ctx.isHoldingUpstream) ctx.pushAndPull(encoder(other))
-              else ctx.push(encoder(other))
+              if (ctx.isHoldingUpstream) ctx.pushAndPull(other)
+              else ctx.push(other)
           }
         } else ctx.holdDownstream()
       }
 
-      override def onUpstreamFinish(ctx: DetachedContext[T]) = {
+      override def onUpstreamFinish(ctx: DetachedContext[Frame]) = {
         buffer :+= Frame.CloseFrame.GoAway
         ctx.absorbTermination()
       }
-    })//TODO:.via(Flow.keepAlive(heartbeat))
+    }).keepAlive(heartbeat, () => Frame.HeartbeatFrame)
   }
 }
