@@ -18,9 +18,9 @@ private[core] trait Session {
   def source: Source[Frame, _]
 }
 
-private[core] object Session {
+private[core] object SessionFlow {
 
-  def flow(
+  def apply(
       heartbeat: FiniteDuration,
       timeout: FiniteDuration,
       quota: Long,
@@ -45,7 +45,7 @@ private[core] object Session {
 
     val sink =
       Flow[Frame]
-        .via(Protocol(heartbeat))
+        .via(ProtocolFlow(heartbeat))
         .toMat(SessionSubscriber(sessionBufferSize, timeout, quota, binding))(Keep.right)
 
     Flow.fromSinkAndSourceMat(sink, source) { (subscriber, publisher) =>

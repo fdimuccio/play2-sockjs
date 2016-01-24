@@ -2,6 +2,7 @@ package play.sockjs.core
 
 import java.util.concurrent.ConcurrentHashMap
 
+import scala.util.control.NonFatal
 import scala.util.control.Exception._
 import scala.concurrent.Future
 import scala.collection.immutable.Seq
@@ -16,9 +17,8 @@ import play.api.mvc.BodyParsers._
 import play.api.libs.json._
 import play.api.http.{HttpChunk, HeaderNames, HttpEntity}
 
+import play.sockjs.core.streams.SessionFlow
 import play.sockjs.api._
-
-import scala.util.control.NonFatal
 
 /**
  * SockJS transports builder
@@ -108,7 +108,7 @@ private[sockjs] final class Transport(materializer: Materializer) extends Header
                 handler.map(_.right.map { flow =>
                   val (session, binding) =
                     flow.joinMat(
-                      streams.Session.flow(
+                      SessionFlow(
                         heartbeat,
                         sessionTimeout,
                         if (streaming) streamingQuota else 1,

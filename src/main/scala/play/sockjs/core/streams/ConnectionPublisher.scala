@@ -23,8 +23,8 @@ private[streams] class ConnectionPublisher(subscriber: ActorRef) extends ActorPu
       subscriber ! SessionSubscriber.Connect(self)
 
     case SessionSubscriber.Connected =>
-      context.become(connected)
       subscriber ! SessionSubscriber.RequestNext(totalDemand)
+      context.become(connected)
 
     case SessionSubscriber.CantConnect(frame) =>
       onNext(frame)
@@ -46,13 +46,13 @@ private[streams] class ConnectionPublisher(subscriber: ActorRef) extends ActorPu
       subscriber ! SessionSubscriber.AbortConnection(self)
       context.stop(self)
 
-    case Terminated(`subscriber`) =>
-      onCompleteThenStop() //TODO: onErrorThenStop(???)
-
     case Status.Success(_) =>
       onCompleteThenStop()
 
     case Status.Failure(ex) =>
       onErrorThenStop(ex)
+
+    case Terminated(`subscriber`) =>
+      onCompleteThenStop() //TODO: onErrorThenStop(???)
   }
 }

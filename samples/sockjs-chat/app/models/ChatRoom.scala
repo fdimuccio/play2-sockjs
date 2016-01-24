@@ -93,7 +93,7 @@ class ChatRoom(materializer: Materializer) extends Actor {
   var members = Set.empty[String]
 
   val (channel, publisher) =
-    Source.actorRef[JsValue](512, OverflowStrategy.dropNew)
+    Source.actorRef[JsValue](1024, OverflowStrategy.dropNew)
       .toMat(Sink.asPublisher(true).withAttributes(Attributes.inputBuffer(256, 512)))(Keep.both)
       .run()(materializer)
 
@@ -128,16 +128,11 @@ class ChatRoom(materializer: Materializer) extends Actor {
   }
   
   def notifyAll(kind: String, user: String, text: String) {
-    val msg = JsObject(
-      Seq(
-        "kind" -> JsString(kind),
-        "user" -> JsString(user),
-        "message" -> JsString(text),
-        "members" -> JsArray(
-          members.toList.map(JsString)
-        )
-      )
-    )
+    val msg = Json.obj(
+      "kind" -> kind,
+      "user" -> user,
+      "message" -> text,
+      "members" -> members.toList.map(JsString))
     channel ! msg
   }
   
