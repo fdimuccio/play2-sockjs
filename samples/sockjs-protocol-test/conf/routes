@@ -2,28 +2,22 @@
 # This file defines all application routes (Higher priority routes first)
 # ~~~~
 
-# Home page
-->        /echo                                      controllers.Application.echo
-->        /close                                     controllers.Application.closed
-->        /disabled_websocket_echo                   controllers.Application.disabledWebSocketEcho
-->        /cookie_needed_echo                        controllers.Application.cookieNeededEcho
+->        /echo                                      controllers.Application.Echo
+->        /close                                     controllers.Application.Closed
+->        /disabled_websocket_echo                   controllers.Application.EchoWithNoWebsocket
+->        /cookie_needed_echo                        controllers.Application.EchoWithJSessionId
 
-->        /actor/echo                                controllers.ApplicationActor.echo
-->        /actor/close                               controllers.ApplicationActor.closed
-->        /actor/disabled_websocket_echo             controllers.ApplicationActor.disabledWebSocketEcho
-->        /actor/cookie_needed_echo                  controllers.ApplicationActor.cookieNeededEcho
+->        /actor/echo                                controllers.ApplicationActor.Echo
+->        /actor/close                               controllers.ApplicationActor.Closed
+->        /actor/disabled_websocket_echo             controllers.ApplicationActor.EchoWithNoWebsocket
+->        /actor/cookie_needed_echo                  controllers.ApplicationActor.EchoWithJSessionId
 
-->        /java/echo                                 controllers.ApplicationJ.echo
-->        /java/close                                controllers.ApplicationJ.closed
-->        /java/disabled_websocket_echo              controllers.ApplicationJ.disabledWebSocketEcho
-->        /java/cookie_needed_echo                   controllers.ApplicationJ.cookieNeededEcho
+->        /java/echo                                 controllers.j.Echo
+->        /java/close                                controllers.j.Closed
+->        /java/disabled_websocket_echo              controllers.j.EchoWithNoWebsocket
+->        /java/cookie_needed_echo                   controllers.j.EchoWithJSessionId
 
-->        /java_actor/echo                           controllers.ApplicationActorJ.echo
-->        /java_actor/close                          controllers.ApplicationActorJ.closed
-->        /java_actor/disabled_websocket_echo        controllers.ApplicationActorJ.disabledWebSocketEcho
-->        /java_actor/cookie_needed_echo             controllers.ApplicationActorJ.cookieNeededEcho
-
-->        /java8/echo                           controllers.ApplicationJ8.echo
-->        /java8/close                          controllers.ApplicationJ8.closed
-->        /java8/disabled_websocket_echo        controllers.ApplicationJ8.disabledWebSocketEcho
-->        /java8/cookie_needed_echo             controllers.ApplicationJ8.cookieNeededEcho
+->        /java_actor/echo                           controllers.actorj.Echo
+->        /java_actor/close                          controllers.actorj.Closed
+->        /java_actor/disabled_websocket_echo        controllers.actorj.EchoWithNoWebsocket
+->        /java_actor/cookie_needed_echo             controllers.actorj.EchoWithJSessionId

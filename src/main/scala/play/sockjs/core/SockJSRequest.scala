@@ -17,5 +17,5 @@ abstract class SockJSRequest(request: Request[AnyContent]) extends WrappedReques
   /**
     * Bind this request to the given `Source`
     */
-  def bind(ctype: String)(f: Source[Frame, _] => Source[ByteString, _]): Future[Result]
+  def bind(ctype: String)(f: Source[ByteString, _] => Source[ByteString, _]): Future[Result]
 }

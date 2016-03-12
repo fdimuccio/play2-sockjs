@@ -5,13 +5,13 @@ import play.api.mvc._
 import play.api.libs.json._
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
 
-import models._
-
 import scala.concurrent.Future
 
 import play.sockjs.api._
 
-object Application extends Controller {
+import models._
+
+class Application extends SockJSRouter with Controller {
   
   /**
    * Just display the home page.
@@ -27,13 +27,21 @@ object Application extends Controller {
     username.filterNot(_.isEmpty).map { username =>
       Ok(views.html.chatRoom(username))
     }.getOrElse {
-      Redirect(routes.Application.index).flashing(
+      Redirect(controllers.routes.Application.index).flashing(
         "error" -> "Please choose a valid username."
       )
     }
   }
 
-  val chat = SockJSRouter(SockJSSettings(websocket = false)).acceptOrResult[JsValue, JsValue] { request =>
+  /**
+    * Override this method to specify different settings
+    */
+  override protected def settings = SockJSSettings(websocket = false)
+
+  /**
+    * SockJS handler
+    */
+  def sockjs: SockJS = SockJS.acceptOrResult[JsValue, JsValue] { request =>
     request.getQueryString("username").map { username =>
       ChatRoom.join(username).map(Right(_))
     }.getOrElse {

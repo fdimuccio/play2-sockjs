@@ -11,7 +11,7 @@ import play.api.libs.concurrent._
 
 import akka.stream.scaladsl._
 import akka.util.Timeout
-import akka.pattern.ask
+import akka.pattern._
 
 import play.api.Play.current
 import play.api.libs.concurrent.Execution.Implicits._
@@ -62,8 +62,8 @@ object ChatRoom {
       case Connected(source) =>
       
         // Create a Sink to consume the feed
-        val sink = Flow[JsValue].map { event =>
-          default ! Talk(username, (event \ "text").as[String])
+        val sink = Flow[JsValue].mapAsync(1) { event =>
+          default ? Talk(username, (event \ "text").as[String])
         }.to(Sink.onComplete { _ =>
           default ! Quit(username)
         })
@@ -93,7 +93,7 @@ class ChatRoom(materializer: Materializer) extends Actor {
   var members = Set.empty[String]
 
   val (channel, publisher) =
-    Source.actorRef[JsValue](1024, OverflowStrategy.dropNew)
+    Source.queue[JsValue](4096, OverflowStrategy.dropNew)
       .toMat(Sink.asPublisher(true).withAttributes(Attributes.inputBuffer(256, 512)))(Keep.both)
       .run()(materializer)
 
@@ -117,7 +117,7 @@ class ChatRoom(materializer: Materializer) extends Actor {
     }
     
     case Talk(username, text) => {
-      notifyAll("talk", username, text)
+      notifyAll("talk", username, text) pipeTo sender()
     }
     
     case Quit(username) => {
@@ -127,13 +127,13 @@ class ChatRoom(materializer: Materializer) extends Actor {
     
   }
   
-  def notifyAll(kind: String, user: String, text: String) {
+  def notifyAll(kind: String, user: String, text: String) = {
     val msg = Json.obj(
       "kind" -> kind,
       "user" -> user,
       "message" -> text,
       "members" -> members.toList.map(JsString))
-    channel ! msg
+    channel.offer(msg)
   }
   
 }

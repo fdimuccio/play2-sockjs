@@ -28,7 +28,12 @@ public class SockJSRouterTest {
     final String ECHO_PREFIX = "/java_echo";
 
 	protected Application app() {
-		final Router echo = SockJSRouter.whenReady((in, out) -> in.onMessage(out::write)).withPrefix(ECHO_PREFIX);
+		final Router echo = new SockJSRouter() {
+			@Override
+			public SockJS sockjs() {
+				return SockJS.whenReady((in, out) -> in.onMessage(out::write));
+			}
+		}.withPrefix(ECHO_PREFIX);;
 		return fakeApplication(new GlobalSettings() {
             @Override
             public Handler onRouteRequest(Http.RequestHeader request) {

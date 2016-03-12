@@ -7,7 +7,7 @@ import akka.util.ByteString
 import play.api.mvc._
 import play.api.http._
 
-private[sockjs] class Xhr(transport: Transport) extends HeaderNames with Results {
+private[sockjs] class Xhr(server: Server) extends HeaderNames with Results {
   import Xhr._
 
   /**
@@ -20,25 +20,25 @@ private[sockjs] class Xhr(transport: Transport) extends HeaderNames with Results
   /**
    * handler for xhr_send
    */
-  def send = transport.send { req =>
+  def send = server.send { req =>
     NoContent.enableCORS(req).notcached.as("text/plain; charset=UTF-8")
   }
 
   /**
    * handler for xhr polling transport
    */
-  def polling = transport.polling { req =>
+  def polling = server.polling { req =>
     req.bind("application/javascript; charset=UTF-8") { source =>
-      source.map(_.encode ++ newLine)
+      source.map(_ ++ newLine)
     }.map(_.enableCORS(req))(play.api.libs.iteratee.Execution.trampoline)
   }
 
   /**
    * handler for xhr_streaming transport
    */
-  def streaming = transport.streaming { req =>
+  def streaming = server.streaming { req =>
     req.bind("application/javascript; charset=UTF-8") { source =>
-      Source.single(prelude).concat(source.map(_.encode ++ newLine))
+      Source.single(prelude).concat(source.map(_ ++ newLine))
     }.map(_.enableCORS(req))(play.api.libs.iteratee.Execution.trampoline)
   }
 }

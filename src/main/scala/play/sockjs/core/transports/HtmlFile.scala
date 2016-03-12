@@ -14,10 +14,10 @@ import play.sockjs.core.json.JsonByteStringEncoder
 /**
  * HTMLfile transport
  */
-private[sockjs] class HtmlFile(transport: Transport) extends HeaderNames with Results {
+private[sockjs] class HtmlFile(server: Server) extends HeaderNames with Results {
   import HtmlFile._
 
-  def streaming = transport.streaming { req =>
+  def streaming = server.streaming { req =>
     req.getQueryString("c").orElse(req.getQueryString("callback")).map { callback =>
       if (callback.matches("[a-zA-Z0-9-_.]*")) req.bind("text/html; charset=UTF-8") { source =>
         val tpl =
@@ -36,7 +36,7 @@ private[sockjs] class HtmlFile(transport: Transport) extends HeaderNames with Re
           """.stripMargin
         val prelude = tpl + Array.fill(1024 - tpl.length + 14)(' ').mkString + "\r\n\r\n"
         Source.single(ByteString(prelude)).concat(source.map { frame =>
-          scriptS ++ JsonByteStringEncoder.encodeFrame(frame) ++ scriptE
+          scriptS ++ JsonByteStringEncoder.asJsonString(frame) ++ scriptE
         })
       } else Future.successful(InternalServerError("invalid \"callback\" parameter"))
     }.getOrElse(Future.successful(InternalServerError("\"callback\" parameter required")))

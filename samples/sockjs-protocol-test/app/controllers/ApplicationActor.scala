@@ -1,6 +1,9 @@
 package controllers
 
+import javax.inject.Inject
+
 import akka.actor._
+import akka.stream.Materializer
 
 import play.api.libs.streams.ActorFlow
 
@@ -8,49 +11,52 @@ import play.sockjs.api._
 
 object ApplicationActor {
 
-  implicit val as = play.api.Play.current.actorSystem
-  implicit val mat = play.api.Play.current.materializer
-
-  object Settings {
-    val default = SockJSSettings(streamingQuota = 4096)
-    val nowebsocket = default.websocket(false)
-    val withjsessionid = default.cookies(SockJSSettings.CookieCalculator.jsessionid)
+  class EchoHandler @Inject()(implicit as: ActorSystem, mat: Materializer) {
+    def apply() = SockJS.accept { _ =>
+      ActorFlow.actorRef[Frame, Frame](out => Props(new Actor {
+        def receive = {
+          case message => out ! message
+        }
+      }))
+    }
   }
 
-  object Echo {
-    def apply() = ActorFlow.actorRef[String, String](out => Props(new Actor {
-      def receive = {
-        case message => out ! message
-      }
-    }))
-  }
-
-  object Closed {
-    def apply() = ActorFlow.actorRef[String, Frame](out => Props(new Actor {
-      out ! PoisonPill
-      def receive = {
-        case _ =>
-      }
-    }))
+  class ClosedHandler @Inject()(implicit as: ActorSystem, mat: Materializer) {
+    def apply() = SockJS.accept { _ =>
+      ActorFlow.actorRef[Frame, Frame](out => Props(new Actor {
+        out ! PoisonPill
+        def receive = {
+          case _ =>
+        }
+      }))
+    }
   }
 
   /**
    * responds with identical data as received
    */
-  val echo = SockJSRouter(Settings.default).accept(req => Echo())
+  class Echo @Inject() (handler: EchoHandler) extends TestRouter {
+    def sockjs = handler()
+  }
 
   /**
    * identical to echo, but with websockets disabled
    */
-  val disabledWebSocketEcho = SockJSRouter(Settings.nowebsocket).accept(req => Echo())
+  class EchoWithNoWebsocket @Inject() (handler: EchoHandler) extends TestRouter(Settings.noWebSocket) {
+    def sockjs = handler()
+  }
 
   /**
    * identical to echo, but with JSESSIONID cookies sent
    */
-  val cookieNeededEcho = SockJSRouter(Settings.withjsessionid).accept(req => Echo())
+  class EchoWithJSessionId @Inject() (handler: EchoHandler)  extends TestRouter(Settings.withJSessionId) {
+    def sockjs = handler()
+  }
 
   /**
    * server immediately closes the session
    */
-  val closed = SockJSRouter(Settings.default).accept(req => Closed())
+  class Closed @Inject() (handler: ClosedHandler)  extends SockJSRouter {
+    def sockjs = handler()
+  }
 }

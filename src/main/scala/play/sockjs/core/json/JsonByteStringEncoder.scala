@@ -3,55 +3,45 @@ package play.sockjs.core.json
 import akka.util.{ByteStringBuilder, ByteString}
 
 import com.fasterxml.jackson.core.{JsonGenerator, JsonEncoding, JsonFactory}
-import com.fasterxml.jackson.databind.ObjectMapper
 
-import play.sockjs.api.Frame
 import play.sockjs.api.Frame._
+import play.sockjs.api.Frame.Text._
 
 private[sockjs] object JsonByteStringEncoder {
 
-  private val mapper = new ObjectMapper
-  private val jsonFactory = new JsonFactory(mapper)
+  private val jsonFactory = new JsonFactory(play.libs.Json.mapper())
 
-  def encodeFrame(frame: Frame): ByteString = {
-    val (out, gen) = init()
-
-    val bytes = frame.encode.toArray
-    gen.writeUTF8String(bytes, 0, bytes.length)
-    gen.flush()
-
-    out.result()
+  def asJsonString(bytes: ByteString): ByteString = using { (out, gen) =>
+    val arr = bytes.toArray
+    gen.writeUTF8String(arr, 0, arr.length)
   }
 
-  def encodeMessageFrame(frame: MessageFrame): ByteString = {
-    val (out, gen) = init()
+  def asJsonArray(frame: Text): ByteString = using { (out, gen) =>
     gen.enable(JsonGenerator.Feature.ESCAPE_NON_ASCII)
 
-    gen.writeStartArray(frame.data.size)
-    for(data <- frame.data) {
-      gen.writeString(data)
+    val data = frame.data
+    val size = data.size
+    gen.writeStartArray(size)
+    var i = 0
+    while(i < size) {
+      gen.writeString(data(i))
+      i += 1
     }
     gen.writeEndArray()
-    gen.flush()
-
-    out.result()
   }
 
-  def encodeCloseFrame(frame: CloseFrame): ByteString = {
-    val (out, gen) = init()
-
+  def asJsonArray(frame: Close): ByteString = using { (out, gen) =>
     gen.writeStartArray(2)
     gen.writeNumber(frame.code)
     gen.writeString(frame.reason)
     gen.writeEndArray()
-    gen.flush()
-
-    out.result()
   }
 
-  private def init(): (ByteStringBuilder, JsonGenerator) = {
+  private def using(f: (ByteStringBuilder, JsonGenerator) => Unit): ByteString = {
     val out = new ByteStringBuilder
     val gen = jsonFactory.createGenerator(out.asOutputStream, JsonEncoding.UTF8)
-    (out, gen)
+    f(out, gen)
+    gen.flush()
+    out.result()
   }
 }

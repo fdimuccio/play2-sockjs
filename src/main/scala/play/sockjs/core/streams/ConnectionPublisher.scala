@@ -1,58 +1,53 @@
 package play.sockjs.core.streams
 
+import scala.concurrent.duration._
+import scala.util.{Failure, Success}
+
 import akka.actor._
-import akka.stream.actor._
-import akka.stream.scaladsl.Source
+import akka.pattern.ask
+import akka.util.{Timeout, ByteString}
 
-import play.sockjs.api.Frame
+import org.reactivestreams.{Subscription, Subscriber, Publisher}
 
-private[streams] object ConnectionPublisher {
+import play.sockjs.api.Frame._
 
-  def apply(subscriber: ActorRef): Source[Frame, _] = {
-    Source.actorPublisher[Frame](Props(new ConnectionPublisher(subscriber)))
-  }
-}
+private[streams] case class ConnectionPublisher(session: ActorRef) extends Publisher[ByteString] {
+  import SessionSubscriber._
+  private[this] implicit val timeout = Timeout(5.seconds)
 
-private[streams] class ConnectionPublisher(subscriber: ActorRef) extends ActorPublisher[Frame] {
+  def subscribe(s: Subscriber[_ >: ByteString]) = (session ? Subscribe(s)).onComplete {
 
-  context.watch(subscriber)
+    case Success(Subscribed) =>
+      s.onSubscribe(new Subscription {
+        def request(n: Long): Unit = session ! Request(n)
+        def cancel(): Unit = session ! Abort
+      })
 
-  def receive = {
+    case Success(AlreadySubscribed) =>
+      s.onSubscribe(new Subscription {
+        def request(l: Long): Unit = {
+          s.onNext(Close.AnotherConnectionStillOpen.encode)
+          s.onComplete()
+        }
+        def cancel(): Unit = ()
+      })
 
-    case ActorPublisherMessage.Request(_) =>
-      subscriber ! SessionSubscriber.Connect(self)
+    case Success(Closing) =>
+      s.onSubscribe(new Subscription {
+        def request(l: Long): Unit = {
+          s.onNext(Close.GoAway.encode)
+          s.onComplete()
+        }
+        def cancel(): Unit = ()
+      })
 
-    case SessionSubscriber.Connected =>
-      subscriber ! SessionSubscriber.RequestNext(totalDemand)
-      context.become(connected)
-
-    case SessionSubscriber.CantConnect(frame) =>
-      onNext(frame)
-      onCompleteThenStop()
-
-    case Terminated(`subscriber`) =>
-      onCompleteThenStop() //TODO: onErrorThenStop(???)
-  }
-
-  def connected: Receive = {
-
-    case frame: Frame =>
-      onNext(frame)
-
-    case ActorPublisherMessage.Request(n) =>
-      subscriber ! SessionSubscriber.RequestNext(n)
-
-    case ActorPublisherMessage.Cancel =>
-      subscriber ! SessionSubscriber.AbortConnection(self)
-      context.stop(self)
-
-    case Status.Success(_) =>
-      onCompleteThenStop()
-
-    case Status.Failure(ex) =>
-      onErrorThenStop(ex)
-
-    case Terminated(`subscriber`) =>
-      onCompleteThenStop() //TODO: onErrorThenStop(???)
-  }
+    case _ =>
+      s.onSubscribe(new Subscription {
+        def request(l: Long): Unit = {
+          s.onNext(Close.ConnectionInterrupted.encode)
+          s.onComplete()
+        }
+        def cancel(): Unit = ()
+      })
+  }(play.api.libs.iteratee.Execution.trampoline)
 }

@@ -1,5 +1,8 @@
 package controllers
 
+import javax.inject.Inject
+
+import akka.stream.Materializer
 import akka.stream.scaladsl._
 
 import play.api.libs.iteratee._
@@ -9,29 +12,31 @@ import streams._
 
 object Application {
 
-  object Settings {
-    val default = SockJSSettings(streamingQuota = 4096)
-    val noWebSocket = default.websocket(false)
-    val withJSessionId = default.cookies(SockJSSettings.CookieCalculator.jsessionid)
+  /**
+    * responds with identical data as received
+    */
+  class Echo extends TestRouter {
+    def sockjs: SockJS = SockJS.accept(_ => FlowX.echo)
   }
 
   /**
-   * responds with identical data as received
-   */
-  val echo = SockJSRouter(Settings.default).accept(req => FlowX.echo)
+    * same as echo, but with websockets disabled
+    */
+  class EchoWithNoWebsocket extends TestRouter(Settings.noWebSocket) {
+    def sockjs: SockJS = SockJS.accept(_ => FlowX.echo)
+  }
 
   /**
-   * same as echo, but with websockets disabled
-   */
-  val disabledWebSocketEcho = SockJSRouter(Settings.noWebSocket).accept(req => FlowX.echo)
+    * same as echo, but with JSESSIONID cookies sent
+    */
+  class EchoWithJSessionId extends TestRouter(Settings.withJSessionId) {
+    def sockjs: SockJS = SockJS.accept(_ => FlowX.echo)
+  }
 
   /**
-   * same as echo, but with JSESSIONID cookies sent
-   */
-  val cookieNeededEcho = SockJSRouter(Settings.withJSessionId).accept(req => FlowX.echo)
-
-  /**
-   * server immediately closes the session
-   */
-  val closed = SockJSRouter(Settings.default).accept(req => FlowX.closed)
+    * server immediately closes the session
+    */
+  class Closed extends SockJSRouter {
+    def sockjs: SockJS = SockJS.accept(_ => FlowX.closed)
+  }
 }

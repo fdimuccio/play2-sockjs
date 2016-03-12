@@ -1,169 +1,124 @@
 package play.sockjs.core.streams
 
+import akka.stream.stage.GraphStageLogic.StageActor
+
 import scala.concurrent.Promise
 import scala.concurrent.duration._
 
+import akka.{Done, NotUsed}
 import akka.actor._
-import akka.stream.actor._
-import akka.stream.scaladsl.{Source, Sink}
+import akka.stream.{Inlet, Attributes, SinkShape}
+import akka.stream.scaladsl.Source
+import akka.stream.stage.{TimerGraphStageLogic, InHandler, GraphStageLogic, GraphStageWithMaterializedValue}
+import akka.util.ByteString
+
+import org.reactivestreams.{Publisher, Subscriber}
 
 import play.sockjs.api.Frame
-import play.sockjs.core.FrameBuffer
 
 private[streams] object SessionSubscriber {
 
-  def apply(maxBufferSize: Int, timeout: FiniteDuration, quota: Long, binding: Promise[Unit]): Sink[Frame, Source[Frame, _]] = {
-    Sink.actorSubscriber[Frame](Props(new SessionSubscriber(maxBufferSize, timeout, quota, binding)))
-      .mapMaterializedValue(ref => ConnectionPublisher(ref))
-  }
+  // Sent by ConnectionPublisher to subscribe
+  case class Subscribe(subscriber: Subscriber[_ >: ByteString])
+  // Sent to ConnectionPublisher to notify a successful subscription
+  case object Subscribed
+  // Sent to ConnectionPublisher to notify a duplicate subscription
+  case object AlreadySubscribed
+  // Sent to ConnectionPublisher to notify a closing session
+  case object Closing
 
-  case class Connect(actorRef: ActorRef)
-  case object Connected
-  case class CantConnect(frame: Frame.CloseFrame)
-  case class AbortConnection(actorRef: ActorRef)
-  case class RequestNext(n: Long)
+  // Sent by ConnectionPublisher to request elements
+  case class Request(n: Long)
+  // Sent by ConnectionPublisher to cancel subscription
+  case object Abort
+
+  private val SessionTimeoutTimer = "SessionTimeoutTimer"
 }
 
-private[streams] class SessionSubscriber(maxBufferSize: Int, timeout: FiniteDuration, quota: Long, binding: Promise[Unit]) extends ActorSubscriber {
-  import SessionSubscriber._
+private[streams] class SessionSubscriber(timeout: FiniteDuration, quota: Long)
+  extends GraphStageWithMaterializedValue[SinkShape[Frame], (Promise[Done], Source[ByteString, NotUsed])] {
+  val in = Inlet[Frame]("SessionSubscriber.in")
+  def shape: SinkShape[Frame] = SinkShape(in)
 
-  private[this] val buffer = new FrameBuffer
-  private[this] var eof = false
+  def createLogicAndMaterializedValue(inheritedAttributes: Attributes) = {
+    val publisher = Promise[Publisher[ByteString]]()
+    val binding = Promise[Done]()
 
-  protected def requestStrategy: RequestStrategy = new MaxInFlightRequestStrategy(maxBufferSize) {
-    def inFlightInternally: Int = buffer.size
-  }
+    val logic = new TimerGraphStageLogic(shape) {
+      import SessionSubscriber._
+      private[this] var stageActor: StageActor = _
+      private[this] var subscriber: Subscriber[ByteString] = _
+      private[this] var demand = 0L
+      private[this] var remaining = 0L
 
-  context.setReceiveTimeout(timeout)
+      override def preStart(): Unit = {
+        // This is needed in order to unlink the request
+        setKeepGoing(true)
+        stageActor = getStageActor({
+          case (sender, Subscribe(connection)) =>
+            if (subscriber == null) {
+              cancelTimer(SessionTimeoutTimer)
+              remaining = quota
+              demand = 0
+              subscriber = connection.asInstanceOf[Subscriber[ByteString]]
+              sender ! Subscribed
+            } else {
+              sender ! AlreadySubscribed
+            }
 
-  def receive = disconnected
+          case (_, Request(n)) =>
+            demand += n
+            if (isAvailable(in)) send()
+            else if (!hasBeenPulled(in)) pull(in)
 
-  private def disconnected: Receive = {
+          case (_, Abort) =>
+            cancel(in)
+            completeStage()
+        })
+        publisher.success(new ConnectionPublisher(stageActor.ref))
+        scheduleOnce(SessionTimeoutTimer, timeout)
+      }
 
-    // -- from upstream
+      setHandler(in, new InHandler {
+        def onPush(): Unit = {
+          if (subscriber != null)
+            send()
+        }
 
-    case ActorSubscriberMessage.OnNext(frame: Frame) =>
-      buffer.enqueue(frame)
+        override def onUpstreamFinish(): Unit = {
+          stageActor.become({
+            case (sender, Subscribe(_)) => sender ! Closing
+          })
+          if (subscriber != null)
+            subscriber.onComplete()
+          scheduleOnce(SessionTimeoutTimer, timeout)
+        }
 
-    case ActorSubscriberMessage.OnComplete =>
-      if (buffer.isEmpty) {
-        context.setReceiveTimeout(timeout)
-        context.become(terminating)
-      } else eof = true
+        override def onUpstreamFailure(ex: Throwable): Unit = {
+          if (subscriber != null)
+            subscriber.onComplete()
+          binding.failure(ex)
+          failStage(ex)
+        }
+      })
 
-    case ActorSubscriberMessage.OnError(err) =>
-      binding.failure(err)
-      context.stop(self)
-
-    // -- from downstream
-
-    case Connect(ref) =>
-      ref ! Connected
-      context.watch(ref)
-      context.setReceiveTimeout(Duration.Undefined)
-      context.become(connected(ref, 0, quota))
-
-    case ReceiveTimeout =>
-      cancel()
-  }
-
-  private def connected(connection: ActorRef, demand: Long, quota: Long): Receive = {
-
-    // -- from upstream
-
-    case ActorSubscriberMessage.OnNext(frame: Frame) =>
-      if (buffer.isEmpty && demand > 0) {
-        connection ! frame
-        val remaining = quota - frame.encode.size
+      private def send(): Unit = {
+        val encoded = grab(in).encode
+        subscriber.onNext(encoded)
+        demand -= 1
+        remaining -= encoded.size
         if (remaining < 1) {
-          connection ! Status.Success(())
-          context.become(disconnecting(connection))
-        } else context.become(connected(connection, demand - 1, remaining))
-      } else buffer.enqueue(frame)
-
-    case ActorSubscriberMessage.OnComplete =>
-      if (buffer.isEmpty) {
-        connection ! Status.Success(())
-        context.become(terminating)
-      } else eof = true
-
-    case ActorSubscriberMessage.OnError(err) =>
-      connection ! Status.Failure(err)
-      binding.failure(err)
-      context.stop(self)
-
-    // -- from downstream
-
-    case Connect(ref) =>
-      ref ! CantConnect(Frame.CloseFrame.AnotherConnectionStillOpen)
-
-    case RequestNext(n) =>
-      var requested = demand + n
-      var remaining = quota
-      while(requested > 0 && remaining > 0 && buffer.nonEmpty) {
-        val frame = buffer.dequeue()
-        connection ! frame
-        remaining -= frame.encode.size
-        requested -= 1
-      }
-      if (buffer.isEmpty && eof) {
-        connection ! Status.Success(())
-        context.become(terminating)
-      } else if (remaining < 1) {
-        connection ! Status.Success(())
-        context.become(disconnecting(connection))
-      } else {
-        context.become(connected(connection, requested, remaining))
+          subscriber.onComplete()
+          subscriber = null
+          scheduleOnce(SessionTimeoutTimer, timeout)
+        } else if (demand > 0) pull(in)
       }
 
-    case AbortConnection(`connection`) =>
-      context.unwatch(connection)
-      cancel()
+      override protected def onTimer(timerKey: Any) = completeStage()
 
-    case Terminated(`connection`) =>
-      cancel()
-  }
+      override def postStop() = binding.trySuccess(Done)
+    }
 
-  private def disconnecting(connection: ActorRef): Receive = {
-
-    // -- from upstream
-
-    case ActorSubscriberMessage.OnNext(frame: Frame) =>
-      buffer.enqueue(frame)
-
-    case ActorSubscriberMessage.OnComplete =>
-      if (buffer.isEmpty) context.become(terminating)
-      else eof = true
-
-    case ActorSubscriberMessage.OnError(err) =>
-      binding.failure(err)
-      context.stop(self)
-
-    // -- from downstream
-
-    case Connect(ref) =>
-      ref ! CantConnect(Frame.CloseFrame.AnotherConnectionStillOpen)
-
-    case Terminated(`connection`) =>
-      context.setReceiveTimeout(timeout)
-      context.become(disconnected)
-  }
-
-  private def terminating: Receive = {
-
-    // -- from downstream
-
-    case Connect(ref) =>
-      ref ! CantConnect(Frame.CloseFrame.GoAway)
-
-    case Terminated(_) =>
-      context.setReceiveTimeout(timeout)
-
-    case ReceiveTimeout =>
-      context.stop(self)
-  }
-
-  override def postStop(): Unit = {
-    binding.trySuccess(())
+    (logic, (binding, Source.fromFuture(publisher.future).flatMapConcat(Source.fromPublisher)))
   }
 }

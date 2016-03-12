@@ -17,28 +17,27 @@ import play.sockjs.core.streams._
 import play.sockjs.api.Frame
 import play.sockjs.api.Frame._
 
-private[sockjs] class WebSocket(transport: Transport) extends HeaderNames with Results {
+private[sockjs] class WebSocket(server: Server) extends HeaderNames with Results {
+  import server.settings
 
   import play.api.libs.iteratee.Execution.Implicits.trampoline
 
   /**
    * websocket framed transport
    */
-  def sockjs = transport.websocket { sockjs =>
+  def framed = server.websocket { sockjs =>
     PlayWebSocket.acceptOrResult { req =>
       sockjs(req).map(_.right.map { flow =>
-        AkkaStreams.bypassWith[Message, Seq[String], Frame](
+        AkkaStreams.bypassWith[Message, Frame, Frame](
           Flow[Message].collect {
-            case TextMessage(data) =>
-              if (data.nonEmpty) {
-                (allCatch opt Json.parse(data)).map(_.validate[Seq[String]].fold(
-                  invalid => Right(CloseAbruptly),
-                  valid => Left(valid)
-                )).getOrElse(Right(CloseAbruptly))
-              } else Left(Seq.empty[String])
-          }
-        )(Flow[Seq[String]].mapConcat[String](identity) via flow)
-          .via(ProtocolFlow(sockjs.settings.heartbeat))
+            case TextMessage(data) if data.nonEmpty =>
+              (allCatch opt Json.parse(data)).map(_.validate[Vector[String]].fold(
+                invalid => Right(CloseAbruptly),
+                valid => Left(Text(valid))
+              )).getOrElse(Right(CloseAbruptly))
+          })(flow)
+          .via(ProtocolFlow(settings.heartbeat))
+          .via(new FrameBufferStage(settings.sessionBufferSize))
           .map(f => TextMessage(f.encode.utf8String))
       })
     }
@@ -47,16 +46,16 @@ private[sockjs] class WebSocket(transport: Transport) extends HeaderNames with R
   /**
    * websocket unframed transport
    */
-  def raw = transport.websocket { sockjs =>
+  def unframed = server.websocket { sockjs =>
     PlayWebSocket.acceptOrResult { req =>
       sockjs(req).map(_.right.map { flow =>
         Flow[Message]
-          .collect { case TextMessage(data) => data }
+          .collect { case TextMessage(data) => Text(data) }
           .via(flow)
-          .via(ProtocolFlow(sockjs.settings.heartbeat))
+          .via(ProtocolFlow.Stage)
           .mapConcat[Message] {
-            case Frame.MessageFrame(data) => data.map(TextMessage.apply)
-            case Frame.CloseFrame(code, reason) => Seq(CloseMessage(Some(code), reason))
+            case Frame.Text(data) => data.map(TextMessage.apply)
+            case Frame.Close(code, reason) => Seq(CloseMessage(Some(code), reason))
             case _ => Seq.empty[Message]
           }
       })

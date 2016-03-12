@@ -10,26 +10,26 @@ import play.api.http._
 
 import play.sockjs.core.json.JsonByteStringEncoder
 
-private[sockjs] class Jsonp(transport: Transport) extends HeaderNames with Results {
+private[sockjs] class Jsonp(server: Server) extends HeaderNames with Results {
   import Jsonp._
 
   /**
    * handler for jsonp_send
    */
-  def send = transport.send { req =>
+  def send = server.send { req =>
     Ok("ok").as("text/plain; charset=UTF-8").notcached
   }
 
   /**
    * Handler for jsonp polling transport
    */
-  def polling = transport.polling { req =>
+  def polling = server.polling { req =>
     req.getQueryString("c").orElse(req.getQueryString("callback")).map { callback =>
       if (callback.matches("[a-zA-Z0-9-_.]*") && callback.length <= 32)
         req.bind("application/javascript; charset=UTF-8") { source =>
           val prelude = ByteString(s"/**/$callback(")
           source.map { frame =>
-            prelude ++ JsonByteStringEncoder.encodeFrame(frame) ++ crlf
+            prelude ++ JsonByteStringEncoder.asJsonString(frame) ++ crlf
           }
         }.map(_.withHeaders("X-Content-Type-Options" -> "nosniff"))(play.api.libs.iteratee.Execution.trampoline)
       else

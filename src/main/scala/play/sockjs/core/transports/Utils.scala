@@ -12,7 +12,8 @@ import play.api.libs.json._
 /**
  * SockJS utils endpoint
  */
-class Utils(transport: Transport) extends HeaderNames with Results {
+class Utils(server: Server) extends HeaderNames with Results {
+  import server.settings
 
   /**
    * greeting
@@ -31,7 +32,7 @@ class Utils(transport: Transport) extends HeaderNames with Results {
                        |<head>
                        |  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
                        |  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-                       |  <script src="""".stripMargin+sockjs.settings.scriptSRC(req)+""""></script>
+                       |  <script src="""".stripMargin+settings.scriptSRC(req)+""""></script>
                        |  <script>
                        |    document.domain = document.domain;
                        |    SockJS.bootstrap_iframe();
@@ -58,8 +59,8 @@ class Utils(transport: Transport) extends HeaderNames with Results {
     Action { implicit req =>
       if (req.method == "OPTIONS") OptionsResult("OPTIONS", "GET")
       else Ok(Json.obj(
-        "websocket" -> sockjs.settings.websocket,
-        "cookie_needed" -> sockjs.settings.cookies.isDefined,
+        "websocket" -> settings.websocket,
+        "cookie_needed" -> settings.cookies.isDefined,
         "origins" -> Json.arr("*:*"),
         "entropy" -> Random.nextInt(Int.MaxValue)
       )).enableCORS(req)

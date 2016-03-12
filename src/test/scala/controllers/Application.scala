@@ -2,6 +2,8 @@ package controllers
 
 import akka.stream.scaladsl._
 
+import play.api.mvc.{Results, Action}
+
 import play.sockjs.api._
 
 object Application {
@@ -9,34 +11,39 @@ object Application {
   object Settings {
     val default = SockJSSettings(streamingQuota = 4096)
     val noWebSocket = default.websocket(false)
-    val withjsessionid = default.cookies(SockJSSettings.CookieCalculator.jsessionid)
+    val withJSessionid = default.cookies(CookieFunctions.jsessionid)
+  }
+
+  abstract class TestRouter(prefix: String, cfg: SockJSSettings = Settings.default) extends SockJSRouter {
+    withPrefix(prefix)
+    override protected def settings = cfg
   }
 
   /**
     * responds with identical data as received
     */
-  def echo = SockJSRouter(Settings.default).accept { req =>
-    Flow[String]
+  class Echo(prefix: String) extends TestRouter(prefix) {
+    def sockjs: SockJS = SockJS.accept(_ => Flow[Frame])
   }
 
   /**
     * same as echo, but with websockets disabled
     */
-  def disabledWebSocketEcho = SockJSRouter(Settings.noWebSocket).accept { req =>
-    Flow[String]
+  class EchoWithNoWebsocket(prefix: String) extends TestRouter(prefix, Settings.noWebSocket) {
+    def sockjs: SockJS = SockJS.accept(_ => Flow[Frame])
   }
 
   /**
     * same as echo, but with JSESSIONID cookies sent
     */
-  def jsessionEcho = SockJSRouter(Settings.withjsessionid).accept { req =>
-    Flow[String]
+  class EchoWithJSessionId(prefix: String) extends TestRouter(prefix, Settings.withJSessionid) {
+    def sockjs: SockJS = SockJS.accept(_ => Flow[Frame])
   }
 
   /**
     * server immediately closes the session
     */
-  def closed = SockJSRouter(Settings.default).accept { req =>
-    Flow.fromSinkAndSource(Sink.ignore, Source.empty[String])
+  class Closed(prefix: String) extends TestRouter(prefix) {
+    def sockjs: SockJS = SockJS.accept(_ => Flow.fromSinkAndSource(Sink.ignore, Source.empty[Frame]))
   }
 }

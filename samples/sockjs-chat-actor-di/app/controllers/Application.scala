@@ -14,8 +14,7 @@ import play.sockjs.api._
 import models._
 
 class Application(chatRoom: ChatRoom, mat: Materializer) extends Controller with SockJSRouter {
-  import Application._
-  
+
   /**
    * Just display the home page.
    */
@@ -36,21 +35,20 @@ class Application(chatRoom: ChatRoom, mat: Materializer) extends Controller with
     }
   }
 
-  def materializer = mat
+
+  /**
+    * Override this method to specify different settings
+    */
+  override protected def settings = SockJSSettings(websocket = false, heartbeat = 55.seconds)
 
   /**
     * SockJS handler
     */
-  val sockjs = SockJS(settings).acceptOrResult[JsValue, JsValue] { request =>
+  def sockjs = SockJS.acceptOrResult[JsValue, JsValue] { request =>
     request.getQueryString("username").map { username =>
       Future.successful(Right(chatRoom.join(username)))
     }.getOrElse {
       Future.successful(Left(BadRequest(Json.obj("error" -> "unknown username"))))
     }
   }
-}
-
-object Application {
-
-  val settings = SockJSSettings(websocket = false, heartbeat = 55.seconds)
 }

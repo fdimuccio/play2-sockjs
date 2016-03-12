@@ -10,13 +10,13 @@ import play.api.mvc._
 /**
  * EventSource transport
  */
-private[sockjs] class EventSource(transport: Transport) extends HeaderNames with Results {
+private[sockjs] class EventSource(server: Server) extends HeaderNames with Results {
   import EventSource._
 
-  def streaming = transport.streaming { req =>
+  def streaming = server.streaming { req =>
     req.bind("text/event-stream") { source =>
       Source.single(crlf).concat(source.map { frame =>
-        data ++ frame.encode ++ crlf ++ crlf
+        data ++ frame ++ crlf ++ crlf
       })
     }
   }

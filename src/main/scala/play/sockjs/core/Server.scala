@@ -5,9 +5,8 @@ import java.util.concurrent.ConcurrentHashMap
 import scala.util.control.NonFatal
 import scala.util.control.Exception._
 import scala.concurrent.Future
-import scala.collection.immutable.Seq
 
-import akka.stream.Materializer
+import akka.stream.{Fusing, Materializer, QueueOfferResult}
 import akka.stream.scaladsl.{Keep, Source}
 import akka.util.ByteString
 
@@ -15,24 +14,43 @@ import play.core.parsers.FormUrlEncodedParser
 import play.api.mvc._
 import play.api.mvc.BodyParsers._
 import play.api.libs.json._
-import play.api.http.{HttpChunk, HeaderNames, HttpEntity}
-
+import play.api.http.{HeaderNames, HttpChunk, HttpEntity}
 import play.sockjs.core.streams.SessionFlow
 import play.sockjs.api._
+import play.sockjs.api.Frame._
 
 /**
- * SockJS transports builder
+ * SockJS server
  */
-private[sockjs] final class Transport(materializer: Materializer) extends HeaderNames with Results {
-  import Transport._
+private[sockjs] final class Server(val settings: SockJSSettings, materializer: Materializer)
+  extends HeaderNames with Results {
+  import Server._
 
   private[this] val playInternalEC = play.core.Execution.internalContext
   private[this] val trampolineEC = play.api.libs.iteratee.Execution.trampoline
 
+  // Fusing disabled since Queue.source has a bug when reused
+  private[this] def fusedHttpPolling = /*Fusing.aggressive(*/SessionFlow(
+    settings.heartbeat,
+    settings.sessionTimeout,
+    1,
+    settings.sendBufferSize,
+    settings.sessionBufferSize
+  )
+
+  // Fusing disabled since Queue.source has a bug when reused
+  private[this] def fusedHttpStreaming = /*Fusing.aggressive(*/SessionFlow(
+    settings.heartbeat,
+    settings.sessionTimeout,
+    settings.streamingQuota,
+    settings.sendBufferSize,
+    settings.sessionBufferSize
+  )
+
   private[this] val sessions = new ConcurrentHashMap[String, Any]()
 
   /**
-    * Endpoint that connects to the `send` method of SockJS client (xhr_send and jsonp_send)
+    * Used by the `send` method of SockJS client (xhr_send and jsonp_send)
     */
   def send(f: RequestHeader => Result): String => SockJSHandler =
     sessionID => SockJSHandler { (_, sockjs) =>
@@ -55,13 +73,20 @@ private[sockjs] final class Transport(materializer: Materializer) extends Header
           case _ => Left("Payload expected.")
         }).fold(
           error => Future.successful(InternalServerError(error)),
-          json => json.validate[Seq[String]].fold(
+          json => json.validate[Vector[String]].fold(
             invalid => Future.successful(InternalServerError("Payload expected.")),
             payload => sessions.get(sessionID) match {
-              case session: streams.Session => session.push(payload).map { accepted =>
-                if (accepted) f(req).withCookies(sockjs.settings.cookies.map(f => List(f(req))).getOrElse(Nil): _*)
-                else NotFound //FIXME: proper error message
-              }(playInternalEC)
+              case session: streams.Session =>
+                val result =
+                  if (payload.nonEmpty) session.push(Text(payload))
+                  else Future.successful(QueueOfferResult.Enqueued)
+                result.map {
+                  case QueueOfferResult.Enqueued =>
+                    f(req).withCookies(settings.cookies.map(f => List(f(req))).getOrElse(Nil): _*)
+                  case _ =>
+                    NotFound //FIXME: proper error message
+                }(trampolineEC)
+
               case _ => Future.successful(NotFound)
             }))
       }
@@ -82,23 +107,17 @@ private[sockjs] final class Transport(materializer: Materializer) extends Header
     */
   private def http(streaming: Boolean)(f: SockJSRequest => Future[Result]): String => SockJSHandler =
     sessionID => SockJSHandler { (_, sockjs) =>
-      val cfg = sockjs.settings
-      import cfg._
       Action.async { req =>
         f(new SockJSRequest(req) {
-          def bind(ctype: String)(f: Source[Frame, _] => Source[ByteString, _]) = {
-            (sessions.putIfAbsent(sessionID, InProgress) match {
-
-              // There is already a session being initialized with the provided sessionID
-              case InProgress =>
-                Future.successful(Right(Source.single(Frame.CloseFrame.AnotherConnectionStillOpen)))
+          def bind(ctype: String)(f: Source[ByteString, _] => Source[ByteString, _]) = {
+            (sessions.putIfAbsent(sessionID, Initializing) match {
 
               // Session resumed
               case session: streams.Session =>
                 Future.successful(Right(session.source))
 
               // New session
-              case _ =>
+              case null =>
                 val handler =
                   try sockjs(req)
                   catch {
@@ -108,23 +127,25 @@ private[sockjs] final class Transport(materializer: Materializer) extends Header
                 handler.map(_.right.map { flow =>
                   val (session, binding) =
                     flow.joinMat(
-                      SessionFlow(
-                        heartbeat,
-                        sessionTimeout,
-                        if (streaming) streamingQuota else 1,
-                        sendBufferSize,
-                        sessionBufferSize
-                      )
+                      if (streaming) fusedHttpStreaming else fusedHttpPolling
                     )(Keep.right).run()(materializer)
                   sessions.put(sessionID, session)
-                  binding.onComplete { case _ => sessions.remove(sessionID) }(trampolineEC)
+                  //TODO: log failure
+                  binding.onComplete { _ =>
+                    sessions.remove(sessionID)
+                  }(trampolineEC)
                   session.source
                 })(playInternalEC).recover {
 
                   case NonFatal(e) =>
+                    //TODO: log failure
                     sessions.remove(sessionID)
-                    Right(Source.single(Frame.CloseFrame.ConnectionInterrupted))
+                    Right(Source.single(Close.ConnectionInterrupted.encode))
                 }(trampolineEC)
+
+              // There is already a session being initialized with the provided sessionID
+              case Initializing =>
+                Future.successful(Right(Source.single(Close.AnotherConnectionStillOpen.encode)))
 
             }).map {
 
@@ -132,7 +153,7 @@ private[sockjs] final class Transport(materializer: Materializer) extends Header
                 Ok.sendEntity(
                   if (req.version.contains("1.0")) HttpEntity.Streamed(f(source), None, Some(ctype))
                   else HttpEntity.Chunked(f(source).map(HttpChunk.Chunk), Some(ctype))
-                ).notcached.withCookies(cfg.cookies.map(f => List(f(req))).getOrElse(Nil):_*)
+                ).notcached.withCookies(settings.cookies.map(f => List(f(req))).getOrElse(Nil):_*)
 
               case Left(result) => result
 
@@ -146,29 +167,23 @@ private[sockjs] final class Transport(materializer: Materializer) extends Header
     * WebSocket transport builder.
     */
   def websocket(f: SockJS => Handler): SockJSHandler = SockJSHandler { (req, sockjs) =>
-    (if (sockjs.settings.websocket) {
-      if (req.method == "GET") {
-        if (req.headers.get(UPGRADE).exists(_.equalsIgnoreCase("websocket"))) {
-          if (req.headers.get(CONNECTION).exists(_.toLowerCase.contains("upgrade"))) {
-            Right(f(sockjs))
-          } else Left(BadRequest("\"Connection\" must be \"Upgrade\"."))
-        } else Left(BadRequest("'Can \"Upgrade\" only to \"WebSocket\".'"))
-      } else Left(MethodNotAllowed.withHeaders(ALLOW -> "GET"))
-    } else Left(NotFound))
-      .fold(Action(_), identity)
+    if (!settings.websocket)
+      Action(NotFound)
+    else if (req.method != "GET")
+      Action(MethodNotAllowed.withHeaders(ALLOW -> "GET"))
+    else if (!req.headers.get(UPGRADE).exists(_.equalsIgnoreCase("websocket")))
+      Action(BadRequest("'Can \"Upgrade\" only to \"WebSocket\".'"))
+    else if (!req.headers.get(CONNECTION).exists(_.toLowerCase.contains("upgrade")))
+      Action(BadRequest("\"Connection\" must be \"Upgrade\"."))
+    else
+      f(sockjs)
   }
 }
 
-private[sockjs] object Transport {
-
-  val P = """/([^/.]+)/([^/.]+)/([^/.]+)""".r
-  def unapply(path: String): Option[(String, String)] = path match {
-    case P(serverID, sessionID, transport) => Some(transport -> sessionID)
-    case _ => None
-  }
+private[sockjs] object Server {
 
   /**
-    * Needed to signal that a session is being build
+    * Signals that a session is being initialized
     */
-  private case object InProgress
+  private case object Initializing
 }

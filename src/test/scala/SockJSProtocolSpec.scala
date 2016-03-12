@@ -1,12 +1,13 @@
 import java.util.UUID
 
+import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.libs.ws.WS
-import scala.concurrent.ExecutionContext.Implicits.global
+import play.api.routing.Router
 
 import org.specs2.mutable._
 import org.specs2.matcher._
 
-import play.api.GlobalSettings
+import play.api.{Mode, Environment, GlobalSettings}
 import play.api.mvc._
 import play.api.libs.json._
 
@@ -22,22 +23,19 @@ class SockJSProtocolSpec extends Specification with JsonMatchers  {
   val wsOffBaseURL = "/disabled_websocket_echo"
   val cookieBaseURL = "/cookie_needed_echo"
 
-  class FakeRouter extends GlobalSettings {
-    import controllers._
-    lazy val echoController = Application.echo.withPrefix(baseURL)
-    lazy val closedController = Application.closed.withPrefix(closeBaseURL)
-    lazy val wsoffController = Application.disabledWebSocketEcho.withPrefix(wsOffBaseURL)
-    lazy val cookieNeededController = Application.jsessionEcho.withPrefix(cookieBaseURL)
-    override def onRouteRequest(req: RequestHeader): Option[Handler] = req.path match {
-      case url if url.startsWith(baseURL)       => echoController.handlerFor(req)
-      case url if url.startsWith(closeBaseURL)  => closedController.handlerFor(req)
-      case url if url.startsWith(wsOffBaseURL)  => wsoffController.handlerFor(req)
-      case url if url.startsWith(cookieBaseURL) => cookieNeededController.handlerFor(req)
-      case _ => super.onRouteRequest(req)
-    }
-  }
-
-  def FakeApp = FakeApplication(withGlobal = Some(new FakeRouter))
+  def FakeApp = new GuiceApplicationBuilder()
+    .router(new Router {
+      import controllers.Application._
+      val routers = List(
+        new Echo(baseURL),
+        new Closed(closeBaseURL),
+        new EchoWithNoWebsocket(wsOffBaseURL),
+        new EchoWithJSessionId(cookieBaseURL))
+      def withPrefix(prefix: String): Router = this
+      def documentation: Seq[(String, String, String)] = Seq.empty
+      def routes = routers.foldRight(PartialFunction.empty[RequestHeader, Handler])(_.routes.orElse(_))
+    })
+    .build
 
   implicit class Verifier(val result: Future[Result]) {
     def verify200 = status(result) must equalTo(OK)
