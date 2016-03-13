@@ -1,7 +1,9 @@
+name := "sockjs-protocol-test"
+
 version := "0.1"
 
 scalaVersion := "2.11.7"
 
-lazy val root = Project("sockjs-protocol-test", file("."))
-  .enablePlugins(PlayScala)
-  .dependsOn(ProjectRef(file("../.."), "play2-sockjs"))
+enablePlugins(PlayScala)
+
+libraryDependencies += "com.github.fdimuccio" %% "play2-sockjs" % "0.5.0"

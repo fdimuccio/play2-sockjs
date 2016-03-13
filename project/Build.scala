@@ -2,7 +2,7 @@ import sbt._
 import sbt.Keys._
 
 object BuildSettings {
-  val buildVersion = "0.5.0-SNAPSHOT"
+  val buildVersion = "0.5.0"
 
   val buildSettings = Defaults.defaultSettings ++ Seq(
     organization := "com.github.fdimuccio",
