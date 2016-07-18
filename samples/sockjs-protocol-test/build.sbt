@@ -2,8 +2,10 @@ name := "sockjs-protocol-test"
 
 version := "0.1"
 
-scalaVersion := "2.11.7"
+scalaVersion := "2.11.8"
 
 enablePlugins(PlayScala)
 
-libraryDependencies += "com.github.fdimuccio" %% "play2-sockjs" % "0.5.0"
+resolvers += Resolver.sonatypeRepo("snapshots")
+
+libraryDependencies += "com.github.fdimuccio" %% "play2-sockjs" % "0.5.1-SNAPSHOT"

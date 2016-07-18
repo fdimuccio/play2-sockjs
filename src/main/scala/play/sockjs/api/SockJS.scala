@@ -234,7 +234,7 @@ object SockJS {
     *   }
     * }}}
     */
-  @deprecated("Use accept with a flow that wraps a Sink.actorRef and Source.actorRef, or play.api.libs.Streams.actorFlow", "0.5.0")
+  @deprecated("Use accept with a flow that wraps a Sink.actorRef and Source.actorRef, or play.api.libs.ActorFlow.actorRef", "0.5.0")
   def acceptWithActor[In, Out](f: RequestHeader => HandlerProps)(implicit transformer: MessageFlowTransformer[In, Out],
                                                                  app: Application, mat: Materializer): SockJS = {
     tryAcceptWithActor(req => Future.successful(Right(f(req))))
@@ -260,7 +260,7 @@ object SockJS {
     *   }
     * }}}
     */
-  @deprecated("Use accept with a flow that wraps a Sink.actorRef and Source.actorRef, or play.api.libs.Streams.actorFlow", "0.5.0")
+  @deprecated("Use accept with a flow that wraps a Sink.actorRef and Source.actorRef, or play.api.libs.ActorFlow.actorRef", "0.5.0")
   def tryAcceptWithActor[In, Out](f: RequestHeader => Future[Either[Result, HandlerProps]])(implicit transformer: MessageFlowTransformer[In, Out],
                                                                                             app: Application, mat: Materializer): SockJS = {
 

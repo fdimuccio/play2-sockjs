@@ -23,29 +23,8 @@ private[core] object SessionFlow {
   def apply(heartbeat: FiniteDuration, timeout: FiniteDuration, quota: Long,
             sendBufferSize: Int, sessionBufferSize: Int): Flow[Frame, Frame, (Session, Future[Done])] = {
 
-    //TODO: Remove the completion stage when Source.queue will support completion
     val source =
-      Source.queue[AnyRef](sendBufferSize, OverflowStrategy.backpressure)
-        .via(new GraphStage[FlowShape[AnyRef, Frame]] {
-          private[this] val in = Inlet[AnyRef]("SourceTerminationStage.in")
-          private[this] val out = Outlet[Frame]("SourceTerminationStage.out")
-          def shape: FlowShape[AnyRef, Frame] = FlowShape(in, out)
-
-          def createLogic(inheritedAttributes: Attributes) = new GraphStageLogic(shape) {
-            setHandler(in, new InHandler {
-              def onPush(): Unit = grab(in) match {
-                case el: Frame => push(out, el.asInstanceOf[Frame])
-                case t: Try[_] => t match {
-                  case Success(_) => complete(out)
-                  case Failure(th) => fail(out, th)
-                }
-              }
-            })
-            setHandler(out, new OutHandler {
-              def onPull(): Unit = pull(in)
-            })
-          }
-        })
+      Source.queue[Frame](sendBufferSize, OverflowStrategy.backpressure)
 
     val sink =
       Flow[Frame]
@@ -58,7 +37,8 @@ private[core] object SessionFlow {
         def push(data: Frame): Future[QueueOfferResult] = publisher.offer(data)
         def source: Source[ByteString, _] = subscriber
       }, binding.future.andThen {
-        case r => publisher.offer(r)
+        case Success(_) => publisher.complete()
+        case Failure(th) => publisher.fail(th)
       }(play.api.libs.iteratee.Execution.trampoline))
     }
   }

@@ -1,12 +1,10 @@
 package play.sockjs;
 
-import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 import static play.mvc.Http.HeaderNames.SET_COOKIE;
 import static play.mvc.Http.Status.OK;
 import static play.test.Helpers.GET;
 import static play.test.Helpers.contentAsString;
-import static play.test.Helpers.fakeApplication;
 import static play.test.Helpers.fakeRequest;
 import static play.test.Helpers.route;
 import static play.test.Helpers.running;
@@ -14,11 +12,11 @@ import static play.test.Helpers.running;
 import org.junit.Test;
 
 import play.Application;
-import play.GlobalSettings;
-import play.api.mvc.Handler;
+import play.DefaultApplication;
+import play.api.inject.guice.GuiceApplicationBuilder;
 import play.api.routing.Router;
+import play.inject.DelegateInjector;
 import play.libs.Json;
-import play.mvc.Http;
 import play.mvc.Result;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -34,14 +32,9 @@ public class SockJSRouterTest {
 				return SockJS.whenReady((in, out) -> in.onMessage(out::write));
 			}
 		}.withPrefix(ECHO_PREFIX);;
-		return fakeApplication(new GlobalSettings() {
-            @Override
-            public Handler onRouteRequest(Http.RequestHeader request) {
-                return request.path().startsWith(ECHO_PREFIX) ?
-                        echo.handlerFor(request._underlyingHeader()).getOrElse(null) :
-                        super.onRouteRequest(request);
-            }
-        });
+
+		play.api.Application app = new GuiceApplicationBuilder().router(echo).build();
+		return new DefaultApplication(app, new DelegateInjector(app.injector()));
 	}
 
 	@Test

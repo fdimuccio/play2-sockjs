@@ -15,7 +15,6 @@ private[sockjs] class FrameBufferStage(maxBufferSize: Int) extends GraphStage[Fl
   def shape: FlowShape[Frame, Frame] = FlowShape(in, out)
 
   override def createLogic(inheritedAttributes: Attributes) = new GraphStageLogic(shape) {
-
     private[this] val queue = mutable.Queue[Frame]()
     private[this] var tail: Frame = _
     private[this] var size: Int = 0
@@ -29,8 +28,8 @@ private[sockjs] class FrameBufferStage(maxBufferSize: Int) extends GraphStage[Fl
         val frame = grab(in)
         if (isHoldingDownstream) {
           push(out, frame)
-          isHoldingDownstream = false
           pull(in)
+          isHoldingDownstream = false
         } else {
           (tail, frame) match {
             case (Text(d1), Text(d2)) => tail = Text(d1 ++ d2)

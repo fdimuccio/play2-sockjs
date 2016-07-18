@@ -29,23 +29,21 @@ private[sockjs] final class Server(val settings: SockJSSettings, materializer: M
   private[this] val playInternalEC = play.core.Execution.internalContext
   private[this] val trampolineEC = play.api.libs.iteratee.Execution.trampoline
 
-  // Fusing disabled since Queue.source has a bug when reused
-  private[this] def fusedHttpPolling = /*Fusing.aggressive(*/SessionFlow(
+  private[this] def fusedHttpPolling = Fusing.aggressive(SessionFlow(
     settings.heartbeat,
     settings.sessionTimeout,
     1,
     settings.sendBufferSize,
     settings.sessionBufferSize
-  )
+  ))
 
-  // Fusing disabled since Queue.source has a bug when reused
-  private[this] def fusedHttpStreaming = /*Fusing.aggressive(*/SessionFlow(
+  private[this] def fusedHttpStreaming = Fusing.aggressive(SessionFlow(
     settings.heartbeat,
     settings.sessionTimeout,
     settings.streamingQuota,
     settings.sendBufferSize,
     settings.sessionBufferSize
-  )
+  ))
 
   private[this] val sessions = new ConcurrentHashMap[String, Any]()
 

@@ -33,7 +33,7 @@ abstract class JavaRouter extends Router {
     /**
       * SockJS settings for this handler
       */
-    override protected def settings: SockJSSettings = {
+    override protected lazy val settings: SockJSSettings = {
       val cfg = JavaRouter.this.settings
       SockJSSettings(
         scriptSRC = req => cfg.scriptSRC()(new j.RequestHeaderImpl(req)),
@@ -57,7 +57,7 @@ abstract class JavaRouter extends Router {
         sessionBufferSize = cfg.sessionBufferSize())
     }
 
-    def sockjs: SockJS = JavaRouter.this.sockjs match {
+    lazy val sockjs: SockJS = JavaRouter.this.sockjs match {
       case legacy: play.sockjs.LegacySockJS => JavaSockJS.legacySockjsWrapper(legacy)
       case sockjs: play.sockjs.SockJS => JavaSockJS.sockjsWrapper(sockjs)
     }

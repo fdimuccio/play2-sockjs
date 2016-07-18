@@ -2,13 +2,13 @@ import sbt._
 import sbt.Keys._
 
 object BuildSettings {
-  val buildVersion = "0.5.0"
+  val buildVersion = "0.5.1-SNAPSHOT"
 
   val buildSettings = Defaults.defaultSettings ++ Seq(
     organization := "com.github.fdimuccio",
     version := buildVersion,
-    scalaVersion := "2.11.7",
-    crossScalaVersions := Seq("2.11.7", "2.12.0-M3"),
+    scalaVersion := "2.11.8",
+    crossScalaVersions := Seq("2.11.8", "2.12.0-M4"),
     crossVersion := CrossVersion.binary,
     javaOptions in test ++= Seq("-Xmx512m", "-XX:MaxPermSize=512m"),
     javacOptions ++= Seq("-source", "1.8", "-target", "1.8", "-encoding", "UTF-8", "-Xlint:-options"),
@@ -80,7 +80,7 @@ object ShellPrompt {
 object Play2SockJSBuild extends Build {
   import BuildSettings._
 
-  val play2Version = "2.5.0"
+  val play2Version = "2.5.4"
 
   lazy val play2SockJS = Project(
     "play2-sockjs",

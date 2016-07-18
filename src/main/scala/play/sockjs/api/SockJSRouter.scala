@@ -1,16 +1,11 @@
 package play.sockjs.api
 
-import scala.runtime.AbstractPartialFunction
-import scala.concurrent.Future
-
 import akka.stream.Materializer
-import akka.stream.scaladsl.Flow
 
 import play.api.routing.Router
 import play.api.mvc._
 import play.api.mvc.Results._
 
-import play.sockjs.api.SockJS._
 import play.sockjs.core._
 
 trait SockJSRouter extends Router {

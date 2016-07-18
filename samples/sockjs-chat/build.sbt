@@ -6,4 +6,4 @@ scalaVersion := "2.11.7"
 
 enablePlugins(PlayScala)
 
-libraryDependencies += "com.github.fdimuccio" %% "play2-sockjs" % "0.5.0"
+libraryDependencies += "com.github.fdimuccio" %% "play2-sockjs" % "0.5.1-SNAPSHOT"
