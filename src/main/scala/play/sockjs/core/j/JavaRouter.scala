@@ -8,7 +8,7 @@ import play.api.mvc.Cookie
 import play.api.routing.Router
 import play.core.j
 
-abstract class JavaRouter extends Router {
+abstract class JavaRouter extends play.mvc.Controller with Router {
 
   final def withPrefix(prefix: String) = scalaRouter.withPrefix(prefix)
 
@@ -57,9 +57,6 @@ abstract class JavaRouter extends Router {
         sessionBufferSize = cfg.sessionBufferSize())
     }
 
-    lazy val sockjs: SockJS = JavaRouter.this.sockjs match {
-      case legacy: play.sockjs.LegacySockJS => JavaSockJS.legacySockjsWrapper(legacy)
-      case sockjs: play.sockjs.SockJS => JavaSockJS.sockjsWrapper(sockjs)
-    }
+    lazy val sockjs: SockJS = JavaSockJS.run(JavaRouter.this.sockjs)
   }
 }

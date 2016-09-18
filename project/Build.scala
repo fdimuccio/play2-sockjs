@@ -80,7 +80,7 @@ object ShellPrompt {
 object Play2SockJSBuild extends Build {
   import BuildSettings._
 
-  val play2Version = "2.5.4"
+  val play2Version = "2.5.8"
 
   lazy val play2SockJS = Project(
     "play2-sockjs",

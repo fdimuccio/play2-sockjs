@@ -20,9 +20,8 @@ import scala.compat.java8.FutureConverters
 
 object JavaSockJS extends JavaHelpers {
 
-  def legacySockjsWrapper(retrieveSockJS: => play.sockjs.LegacySockJS) = SockJS { request =>
-
-    val javaContext = createJavaContext(request)
+  def run(retrieveSockJS: => play.sockjs.SockJS) = SockJS { request =>
+    implicit val javaContext = createJavaContext(request)
 
     val javaSockJS = try {
       JContext.current.set(javaContext)
@@ -31,9 +30,17 @@ object JavaSockJS extends JavaHelpers {
       JContext.current.remove()
     }
 
+    javaSockJS match {
+      case legacy: play.sockjs.LegacySockJS => JavaSockJS.legacySockjsWrapper(legacy)
+      case sockjs => JavaSockJS.sockjsWrapper(sockjs)
+    }
+  }
+
+  private def legacySockjsWrapper(javaSockJS: play.sockjs.LegacySockJS)(implicit ctx: play.mvc.Http.Context) = {
+
     val reject = Option(javaSockJS.rejectWith())
     Future.successful(reject.map { result =>
-      Left(createResult(javaContext, result))
+      Left(createResult(ctx, result))
     }.getOrElse {
       val app = play.api.Play.privateMaybeApplication.get
       implicit val system = app.actorSystem
@@ -69,8 +76,8 @@ object JavaSockJS extends JavaHelpers {
     })
   }
 
-  def sockjsWrapper(retrieveSockJS: => play.sockjs.SockJS) = SockJS.acceptOrResult[Frame, Frame] { req =>
-    FutureConverters.toScala(retrieveSockJS(new j.RequestHeaderImpl(req))).map { resultOrFlow =>
+  private def sockjsWrapper(sockjs: play.sockjs.SockJS)(implicit ctx: play.mvc.Http.Context) = {
+    FutureConverters.toScala(sockjs(ctx.request())).map { resultOrFlow =>
       if (resultOrFlow.left.isPresent) {
         Left(resultOrFlow.left.get.asScala())
       } else {

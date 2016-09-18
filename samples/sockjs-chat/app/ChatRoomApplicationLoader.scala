@@ -1,8 +1,8 @@
 import play.api.ApplicationLoader.Context
 import router.Routes
-import play.api._
+import play.api.{ApplicationLoader, BuiltInComponentsFromContext}
 import play.api.routing.Router
-import com.softwaremill.macwire._
+import com.softwaremill.macwire.wire
 
 class ChatRoomApplicationLoader extends ApplicationLoader {
   def load(context: Context) = {

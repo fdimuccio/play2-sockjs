@@ -1,18 +1,18 @@
 package controllers
 
+import scala.concurrent.Future
+import scala.concurrent.duration._
+
 import play.api.mvc._
 
 import play.api.libs.json._
-import play.api.libs.concurrent.Execution.Implicits.defaultContext
-
-import scala.concurrent.Future
 
 import play.sockjs.api._
 
 import models._
 
-class Application extends SockJSRouter with Controller {
-  
+class Application(chatRoom: ChatRoom) extends Controller with SockJSRouter {
+
   /**
    * Just display the home page.
    */
@@ -36,14 +36,14 @@ class Application extends SockJSRouter with Controller {
   /**
     * Override this method to specify different settings
     */
-  override protected def settings = SockJSSettings(websocket = false)
+  override protected def settings = SockJSSettings(websocket = false, heartbeat = 55.seconds)
 
   /**
     * SockJS handler
     */
-  def sockjs: SockJS = SockJS.acceptOrResult[JsValue, JsValue] { request =>
+  def sockjs = SockJS.acceptOrResult[JsValue, JsValue] { request =>
     request.getQueryString("username").map { username =>
-      ChatRoom.join(username).map(Right(_))
+      Future.successful(Right(chatRoom.join(username)))
     }.getOrElse {
       Future.successful(Left(BadRequest(Json.obj("error" -> "unknown username"))))
     }
