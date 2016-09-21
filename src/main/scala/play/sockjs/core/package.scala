@@ -36,7 +36,7 @@ package object core {
       }.withHeaders(headers:_*)
     }
 
-    def notcached = result.withHeaders(CACHE_CONTROL -> "no-store, no-cache, must-revalidate, max-age=0")
+    def notcached = result.withHeaders(CACHE_CONTROL -> "no-store, no-cache, no-transform, must-revalidate, max-age=0")
 
     def cached(ttl: Int) = {
       val expires = DateTime.now.plusSeconds(ttl).withZone(DateTimeZone.UTC)

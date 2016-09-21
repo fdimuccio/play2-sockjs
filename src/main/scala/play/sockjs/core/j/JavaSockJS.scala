@@ -6,14 +6,13 @@ import scala.concurrent.Future
 import akka.stream.scaladsl._
 import akka.stream.OverflowStrategy
 
-import play.api.libs.streams.ActorFlow
 import play.core.j.JavaHelpers
-import play.core.j
 import play.mvc.Http.{Context => JContext}
 
 import play.sockjs.api.{Frame, SockJS}
 import play.sockjs.api.Frame._
 import play.sockjs.api.SockJS._
+import play.sockjs.api.libs.ActorFlow
 import play.sockjs.{Frame => JFrame}
 
 import scala.compat.java8.FutureConverters

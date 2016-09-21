@@ -263,8 +263,7 @@ object SockJS {
   @deprecated("Use accept with a flow that wraps a Sink.actorRef and Source.actorRef, or play.api.libs.ActorFlow.actorRef", "0.5.0")
   def tryAcceptWithActor[In, Out](f: RequestHeader => Future[Either[Result, HandlerProps]])(implicit transformer: MessageFlowTransformer[In, Out],
                                                                                             app: Application, mat: Materializer): SockJS = {
-
-    implicit val system = Akka.system
+    implicit val system = app.actorSystem
 
     acceptOrResult(f.andThen(_.map(_.right.map { props =>
       ActorFlow.actorRef(props)

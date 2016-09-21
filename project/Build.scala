@@ -8,7 +8,7 @@ object BuildSettings {
     organization := "com.github.fdimuccio",
     version := buildVersion,
     scalaVersion := "2.11.8",
-    crossScalaVersions := Seq("2.11.8", "2.12.0-M4"),
+    crossScalaVersions := Seq("2.11.8", "2.12.0-M5"),
     crossVersion := CrossVersion.binary,
     javaOptions in test ++= Seq("-Xmx512m", "-XX:MaxPermSize=512m"),
     javacOptions ++= Seq("-source", "1.8", "-target", "1.8", "-encoding", "UTF-8", "-Xlint:-options"),

@@ -3,15 +3,13 @@ package controllers
 import javax.inject.Inject
 
 import akka.actor._
-import akka.stream.Materializer
 
-import play.api.libs.streams.ActorFlow
-
+import play.sockjs.api.libs.ActorFlow
 import play.sockjs.api._
 
 object ApplicationActor {
 
-  class EchoHandler @Inject()(implicit as: ActorSystem, mat: Materializer) {
+  class EchoHandler @Inject()(implicit as: ActorSystem) {
     def apply() = SockJS.accept { _ =>
       ActorFlow.actorRef[Frame, Frame](out => Props(new Actor {
         def receive = {
@@ -21,10 +19,10 @@ object ApplicationActor {
     }
   }
 
-  class ClosedHandler @Inject()(implicit as: ActorSystem, mat: Materializer) {
+  class ClosedHandler @Inject()(implicit as: ActorSystem) {
     def apply() = SockJS.accept { _ =>
       ActorFlow.actorRef[Frame, Frame](out => Props(new Actor {
-        out ! PoisonPill
+        self ! PoisonPill
         def receive = {
           case _ =>
         }

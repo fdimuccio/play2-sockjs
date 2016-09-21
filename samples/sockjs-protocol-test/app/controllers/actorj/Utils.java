@@ -31,7 +31,7 @@ class Utils {
             }
             @Override
             public void preStart() throws Exception {
-                out.tell(PoisonPill.getInstance(), self());
+                self().tell(PoisonPill.getInstance(), self());
             }
             @Override
             public void onReceive(Object arg0) throws Exception {}

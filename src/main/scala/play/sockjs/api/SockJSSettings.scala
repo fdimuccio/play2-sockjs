@@ -30,7 +30,7 @@ import play.api.mvc.{Cookie, RequestHeader}
   *                          flow will backpressure. Defaults to 64Kb.
   */
 case class SockJSSettings(
-    scriptSRC: RequestHeader => String = _ => "//cdn.jsdelivr.net/sockjs/1.0.3/sockjs.min.js",
+    scriptSRC: RequestHeader => String = _ => "//cdn.jsdelivr.net/sockjs/1/sockjs.min.js",
     websocket: Boolean = true,
     cookies: Option[RequestHeader => Cookie] = None,
     heartbeat: FiniteDuration = 25.seconds,

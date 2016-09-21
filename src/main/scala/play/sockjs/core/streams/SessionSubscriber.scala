@@ -54,7 +54,7 @@ private[streams] class SessionSubscriber(timeout: FiniteDuration, quota: Long)
       override def preStart(): Unit = {
         // This is needed in order to unlink the request
         setKeepGoing(true)
-        stageActor = getStageActor({
+        stageActor = getStageActor {
           case (sender, Subscribe(connection)) =>
             if (subscriber == null) {
               cancelTimer(SessionTimeoutTimer)
@@ -74,8 +74,8 @@ private[streams] class SessionSubscriber(timeout: FiniteDuration, quota: Long)
           case (_, Abort) =>
             cancel(in)
             completeStage()
-        })
-        publisher.success(new ConnectionPublisher(stageActor.ref))
+        }
+        publisher.success(ConnectionPublisher(stageActor.ref))
         scheduleOnce(SessionTimeoutTimer, timeout)
       }
 

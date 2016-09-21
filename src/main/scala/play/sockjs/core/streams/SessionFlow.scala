@@ -1,14 +1,12 @@
 package play.sockjs.core.streams
 
-import scala.collection.immutable.Seq
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success}
 
 import akka.Done
 import akka.util.ByteString
 import akka.stream._
-import akka.stream.stage._
 import akka.stream.scaladsl._
 
 import play.sockjs.api.Frame

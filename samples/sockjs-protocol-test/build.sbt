@@ -8,4 +8,6 @@ enablePlugins(PlayScala)
 
 resolvers += Resolver.sonatypeRepo("snapshots")
 
-libraryDependencies += "com.github.fdimuccio" %% "play2-sockjs" % "0.5.1-SNAPSHOT"
+libraryDependencies ++= Seq(
+  "com.github.fdimuccio" %% "play2-sockjs" % "0.5.1-SNAPSHOT"
+)

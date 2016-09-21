@@ -34,7 +34,7 @@ trait SockJSRouter extends Router {
     * Override this method to use a different materializer
     */
   protected def materializer: Materializer = play.api.Play.privateMaybeApplication
-    .getOrElse(sys.error("There is no started application")).materializer
+    .getOrElse(sys.error("No application started")).materializer
 
   /**
     * Override this method to specify different settings
