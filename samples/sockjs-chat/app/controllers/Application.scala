@@ -24,12 +24,12 @@ class Application(chatRoom: ChatRoom) extends Controller with SockJSRouter {
    * Display the chat room page.
    */
   def chatRoom(username: Option[String]) = Action { implicit request =>
-    username.filterNot(_.isEmpty).map { username =>
-      Ok(views.html.chatRoom(username))
-    }.getOrElse {
-      Redirect(controllers.routes.Application.index).flashing(
-        "error" -> "Please choose a valid username."
-      )
+    username match {
+      case Some(value) if !value.isEmpty =>
+        Ok(views.html.chatRoom(value))
+      case _ =>
+        Redirect(controllers.routes.Application.index)
+          .flashing("error" -> "Please choose a valid username.")
     }
   }
 
@@ -42,10 +42,9 @@ class Application(chatRoom: ChatRoom) extends Controller with SockJSRouter {
     * SockJS handler
     */
   def sockjs = SockJS.acceptOrResult[JsValue, JsValue] { request =>
-    request.getQueryString("username").map { username =>
-      Future.successful(Right(chatRoom.join(username)))
-    }.getOrElse {
-      Future.successful(Left(BadRequest(Json.obj("error" -> "unknown username"))))
+    request.getQueryString("username") match {
+      case Some(username) => Future.successful(Right(chatRoom.join(username)))
+      case _ => Future.successful(Left(BadRequest(Json.obj("error" -> "unknown username"))))
     }
   }
 }

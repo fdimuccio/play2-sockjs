@@ -1,4 +1,4 @@
-package play.sockjs.api.libs
+package play.sockjs.api.libs.streams
 
 import akka.actor._
 import akka.stream._

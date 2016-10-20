@@ -1,13 +1,7 @@
 package controllers
 
-import javax.inject.Inject
-
-import akka.stream.Materializer
-import akka.stream.scaladsl._
-
-import play.api.libs.iteratee._
-
 import play.sockjs.api._
+
 import streams._
 
 object Application {

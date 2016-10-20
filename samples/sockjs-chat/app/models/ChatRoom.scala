@@ -8,7 +8,6 @@ import akka.stream.scaladsl._
 
 import play.api._
 import play.api.libs.json._
-import play.api.libs.streams._
 
 /**
  * ChatRoom service
@@ -22,7 +21,7 @@ class ChatRoom(akka: ActorSystem, mat: Materializer) {
   }
 
   def join(username: String): Flow[JsValue, JsValue, _] =
-    ActorFlow.actorRef(out => Props(new ChatRoomMember(username, room, out)), 256)(akka, mat)
+    play.api.libs.streams.ActorFlow.actorRef(out => Props(new ChatRoomMember(username, room, out)), 256)(akka, mat)
 }
 
 /**

@@ -4,8 +4,8 @@ import javax.inject.Inject
 
 import akka.actor._
 
-import play.sockjs.api.libs.ActorFlow
 import play.sockjs.api._
+import play.sockjs.api.libs.streams._
 
 object ApplicationActor {
 

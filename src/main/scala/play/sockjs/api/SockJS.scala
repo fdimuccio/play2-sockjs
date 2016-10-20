@@ -1,7 +1,6 @@
 package play.sockjs.api
 
 import play.api.Application
-import play.api.libs.concurrent.Akka
 
 import scala.concurrent.{Promise, ExecutionContext, Future}
 import scala.util.control.NonFatal
@@ -18,6 +17,7 @@ import play.api.mvc._
 
 import play.core.Execution.Implicits.internalContext
 
+import play.sockjs.api.libs.streams.ActorFlow
 import play.sockjs.api.Frame._
 
 /**

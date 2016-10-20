@@ -1,135 +1,42 @@
 import java.util.UUID
 
-import play.api.inject.guice.GuiceApplicationBuilder
-import play.api.libs.ws.WS
-import play.api.routing.Router
-
-import org.specs2.mutable._
-import org.specs2.matcher._
-
-import play.api.{Mode, Environment, GlobalSettings}
-import play.api.mvc._
-import play.api.libs.json._
-
-import play.api.test._
-import play.api.test.Helpers._
 import scala.concurrent.Future
 
+import org.scalatestplus.play._
+
+import play.api.inject.guice.GuiceApplicationBuilder
+import play.api.libs.ws.WSClient
+import play.api.routing.Router
+import play.api.Application
+import play.api.mvc._
+import play.api.libs.json._
+import play.api.test._
+import play.api.test.Helpers._
+
 //Here goes the tests for sockjs protocol
-class SockJSProtocolSpec extends Specification with JsonMatchers  {
+class SockJSProtocolSpec extends PlaySpec {
 
   val baseURL = "/echo"
   val closeBaseURL = "/close"
   val wsOffBaseURL = "/disabled_websocket_echo"
   val cookieBaseURL = "/cookie_needed_echo"
 
-  def FakeApp = new GuiceApplicationBuilder()
-    .router(new Router {
-      import controllers.Application._
-      val routers = List(
-        new Echo(baseURL),
-        new Closed(closeBaseURL),
-        new EchoWithNoWebsocket(wsOffBaseURL),
-        new EchoWithJSessionId(cookieBaseURL))
-      def withPrefix(prefix: String): Router = this
-      def documentation: Seq[(String, String, String)] = Seq.empty
-      def routes = routers.foldRight(PartialFunction.empty[RequestHeader, Handler])(_.routes.orElse(_))
-    })
-    .build
-
-  implicit class Verifier(val result: Future[Result]) {
-    def verify200 = status(result) must equalTo(OK)
-    def verify204 = status(result) must equalTo(NO_CONTENT)
-    def verify404 = status(result) must equalTo(NOT_FOUND)
-    def verify405 = {
-      status(result) must equalTo(METHOD_NOT_ALLOWED)
-      contentType(result) must beNone
-      header(ALLOW, result) must beSome
-      contentAsBytes(result) must beEmpty
-    }
-    def verifyNoCookie = header(SET_COOKIE, result) must beNone
-    def verifyCORS(origin: Option[String]) = origin match {
-      case Some(value) =>
-        header(ACCESS_CONTROL_ALLOW_ORIGIN, result) must beSome(value)
-        header(ACCESS_CONTROL_ALLOW_CREDENTIALS, result) must beSome("true")
-      case _ =>
-        header(ACCESS_CONTROL_ALLOW_ORIGIN, result) must beSome("*")
-        header(ACCESS_CONTROL_ALLOW_CREDENTIALS, result) must beNone
-    }
-    def verifyNotCached = {
-      header(CACHE_CONTROL, result) must beSome("no-store, no-cache, must-revalidate, max-age=0")
-      header(EXPIRES, result) must beNone
-      header(LAST_MODIFIED, result) must beNone
-    }
-  }
-
-  def testIFrame(url: String) = {
-    val Some(result) = route(FakeRequest(GET, url))
-    result.verify200
-    contentType(result) must beSome("text/html")
-    charset(result) must beSome("UTF-8")
-    header(CACHE_CONTROL, result).getOrElse("") must contain("public")
-    header(CACHE_CONTROL, result).getOrElse("") must find("""max-age=[1-9][0-9]{6}""".r)
-    //header(EXPIRES, result) must beSome TODO
-    header(ETAG, result) must beSome
-    header(LAST_MODIFIED, result) must beNone
-    //TODO: check body
-    result.verifyNoCookie
-  }
-
-  def testOptions(url: String, allowedMethods: String) = {
-    for (origin <- List(None, Some("test"), Some("null")))
-    yield {
-      val req = origin.foldLeft(FakeRequest("OPTIONS", url)) { case (r, header) =>
-        r.withHeaders(ORIGIN -> header)
-      }
-      val Some(result) = route(req)
-      result.verify204
-      header(CACHE_CONTROL, result).getOrElse("") must contain("public")
-      header(CACHE_CONTROL, result).getOrElse("") must find("""max-age=[1-9][0-9]{6}""".r)
-      //header(EXPIRES, result) must beSome TODO
-      header(ACCESS_CONTROL_MAX_AGE, result).map(_.toInt).getOrElse(0) must be_>(1000000)
-      contentAsString(result) must beEmpty
-      result.verifyCORS(origin)
-    }
-  }
-
-  /*
-  def FcontentAsString(of: Result): String = new String(FcontentAsBytes(of), charset(of).getOrElse("utf-8"))
-
-  def FcontentAsBytes(of: Result): Array[Byte] = of match {
-    case r @ SimpleResult(_, bodyEnumerator) => {
-      var readAsBytes = Enumeratee.map[r.BODY_CONTENT](r.writeable.transform(_)).transform(Iteratee.consume[Array[Byte]]())
-      bodyEnumerator(readAsBytes).flatMap(_.run).value1.get
-    }
-
-    case c @ ChunkedResult(code, chunks) =>
-      var buffer = Array.empty[Byte]
-      val reader = Iteratee.fold[Array[Byte], Unit](buffer) { (_, bytes) => buffer ++= bytes }
-      val promised = c.chunks(Enumeratee.map[c.BODY_CONTENT](c.writeable.transform(_)) &>> reader).asInstanceOf[Promise[Iteratee[Array[Byte], Unit]]]
-      promised.future.flatMap(_.run).value1.get
-      buffer
-
-    case AsyncResult(p) => FcontentAsBytes(p.await.get)
-  }
-  */
-
   "SockJS" should {
 
     "greet client" in new WithApplication(FakeApp) {
-      for (url <- List(baseURL, baseURL + "/")) yield {
-        val Some(result) = route(FakeRequest(GET, url))
+      for (url <- List(baseURL, baseURL + "/")) {
+        val Some(result) = route(app, FakeRequest(GET, url))
         result.verify200
-        contentType(result) must beSome("text/plain")
-        charset(result) must beSome("UTF-8")
-        contentAsString(result) must contain("Welcome to SockJS!\n")
+        contentType(result) mustBe Some("text/plain")
+        charset(result) mustBe Some("UTF-8")
+        contentAsString(result) must include("Welcome to SockJS!\n")
         result.verifyNoCookie
       }
     }
 
     "respond 404 notFound" in new WithApplication(FakeApp) {
-      for (suffix <- List("/a", "/a.html", "//", "///", "/a/a", "/a/a/", "/a", "/a/")) yield {
-        val Some(result) = route(FakeRequest(GET, baseURL + suffix))
+      for (suffix <- List("/a", "/a.html", "//", "///", "/a/a", "/a/a/", "/a", "/a/")) {
+        val Some(result) = route(app, FakeRequest(GET, baseURL + suffix))
         result.verify404
       }
     }
@@ -140,18 +47,18 @@ class SockJSProtocolSpec extends Specification with JsonMatchers  {
 
     "respond with iframe to iframe versioned url" in new WithApplication(FakeApp) {
       val urls = List("/iframe-a.html", "/iframe-.html", "/iframe-0.1.2.html", "/iframe-0.1.2abc-dirty.2144.html")
-      for (url <- urls) yield testIFrame(baseURL + url)
+      for (url <- urls) testIFrame(baseURL + url)
     }
 
     "respond with iframe to iframe queried url" in new WithApplication(FakeApp) {
       val urls = List("/iframe-a.html?t=1234", "/iframe-0.1.2.html?t=123414", "/iframe-0.1.2abc-dirty.2144.html?t=qweqweq123")
-      for (url <- urls) yield testIFrame(baseURL + url)
+      for (url <- urls) testIFrame(baseURL + url)
     }
 
     "respond with 404 notFound to malformed iframe request" in new WithApplication(FakeApp) {
       val urls = List("/iframe.htm", "/iframe", "/IFRAME.HTML", "/IFRAME", "/iframe.HTML", "/iframe.xml", "/iframe-/.html")
-      for (url <- urls) yield {
-        val Some(result) = route(FakeRequest(GET, baseURL + url))
+      for (url <- urls) {
+        val Some(result) = route(app, FakeRequest(GET, baseURL + url))
         result.verify404
       }
     }
@@ -159,26 +66,25 @@ class SockJSProtocolSpec extends Specification with JsonMatchers  {
     //TODO: iframe test cacheability
 
     "respond with correct json to info request" in new WithApplication(FakeApp) {
-      val Some(result) = route(FakeRequest(GET, baseURL + "/info"))
+      val Some(result) = route(app, FakeRequest(GET, baseURL + "/info"))
       result.verifyNoCookie
       //result.verifyNotCached
       //result.verifyCORS
-      val json = contentAsString(result)
-      json must /("websocket" -> true)
-      json must /("cookie_needed" -> true) or /("cookie_needed" -> false)
-      json must /("origins" -> """["*:*"]""")
-      val entropy = Json.parse(json) \ "entropy"
-      (entropy.asOpt[Int] orElse entropy.asOpt[Long]) must beSome
+      val json = contentAsJson(result)
+      (json \ "websocket").validate[Boolean] mustBe JsSuccess(true)
+      (json \ "cookie_needed").validate[Boolean] must (be(JsSuccess(true)) or be(JsSuccess(false)))
+      (json \ "origins").validate[List[String]] mustBe JsSuccess(List("*:*"))
+      (json \ "entropy").validate[Long] mustBe a[JsSuccess[_]]
     }
 
     "respond with good entropy to info request" in new WithApplication(FakeApp) {
-      val Some(result1) = route(FakeRequest(GET, baseURL + "/info"))
-      val entropy1 = Json.parse(contentAsString(result1)) \ "entropy"
-      val Some(result2) = route(FakeRequest(GET, baseURL + "/info"))
-      val entropy2 = Json.parse(contentAsString(result2)) \ "entropy"
-      (entropy1.asOpt[Int] orElse entropy1.asOpt[Long]) must beSome
-      (entropy2.asOpt[Int] orElse entropy2.asOpt[Long]) must beSome
-      entropy1 mustNotEqual entropy2
+      val Some(result1) = route(app, FakeRequest(GET, baseURL + "/info"))
+      val entropy1 = contentAsJson(result1) \ "entropy"
+      val Some(result2) = route(app, FakeRequest(GET, baseURL + "/info"))
+      val entropy2 = contentAsJson(result2) \ "entropy"
+      entropy1.validate[Long] mustBe a[JsSuccess[_]]
+      entropy2.validate[Long] mustBe a[JsSuccess[_]]
+      entropy1 must not equal entropy2
     }
 
     "respond correctly to info request with OPTIONS method" in new WithApplication(FakeApp) {
@@ -186,62 +92,66 @@ class SockJSProtocolSpec extends Specification with JsonMatchers  {
     }
 
     "respond with disabled websocket" in new WithApplication(FakeApp) {
-      val Some(result) = route(FakeRequest(GET, wsOffBaseURL + "/info"))
+      val Some(result) = route(app, FakeRequest(GET, wsOffBaseURL + "/info"))
       result.verify200
-      val json = contentAsString(result)
-      json must /("websocket" -> false)
+      val json = contentAsJson(result)
+      (json \ "websocket").as[Boolean] mustBe false
     }
 
     "pass simple session test" in new WithServer(FakeApp, 3333) {
+      val ws = app.injector.instanceOf[WSClient]
+
       val transURL = "http://localhost:3333" + baseURL + "/000/" + UUID.randomUUID().toString
 
-      val r1 = Helpers.await(WS.url(transURL + "/xhr").post(""))
-      r1.status must equalTo(OK)
-      r1.body must equalTo("o\n")
+      val r1 = await(ws.url(transURL + "/xhr").post(""))
+      r1.status mustBe OK
+      r1.body mustBe "o\n"
 
       val payload = "[\"a\"]"
-      val r2 = Helpers.await(WS.url(transURL + "/xhr_send").post(payload))
-      r2.status must equalTo(NO_CONTENT)
-      r2.body must beEmpty
+      val r2 = await(ws.url(transURL + "/xhr_send").post(payload))
+      r2.status mustBe NO_CONTENT
+      r2.body mustBe empty
 
-      val r3 = Helpers.await(WS.url(transURL + "/xhr").post(""))
-      r3.status must equalTo(OK)
-      r3.body must equalTo("a[\"a\"]\n")
+      val r3 = await(ws.url(transURL + "/xhr").post(""))
+      r3.status mustBe OK
+      r3.body mustBe "a[\"a\"]\n"
 
-      val r4 = Helpers.await(WS.url("http://localhost:3333" + baseURL + "/000/bad_session/xhr_send").post(payload))
-      r4.status must equalTo(NOT_FOUND)
+      val r4 = await(ws.url("http://localhost:3333" + baseURL + "/000/bad_session/xhr_send").post(payload))
+      r4.status mustBe NOT_FOUND
 
       // waiting for session timeout
       Thread.sleep(5100)
 
-      val r5 = Helpers.await(WS.url(transURL + "/xhr").post(""))
-      r5.status must equalTo(OK)
-      r5.body must equalTo("o\n")
+      val r5 = await(ws.url(transURL + "/xhr").post(""))
+      r5.status mustBe OK
+      r5.body mustBe "o\n"
 
-      val r6 = WS.url(transURL + "/xhr").post("")
-      val r7 = Helpers.await(WS.url(transURL + "/xhr").post(""))
-      r7.status must equalTo(OK)
-      r7.body must equalTo("c[2010,\"Another connection still open\"]\n")
+      val r6 = ws.url(transURL + "/xhr").post("")
+      val r7 = await(ws.url(transURL + "/xhr").post(""))
+      r7.status mustBe OK
+      r7.body mustBe "c[2010,\"Another connection still open\"]\n"
 
-      WS.url(transURL + "/xhr_send").post(payload)
-      Helpers.await(r6).body must equalTo("a[\"a\"]\n")
+      ws.url(transURL + "/xhr_send").post(payload)
+      await(r6).body mustBe "a[\"a\"]\n"
 
     }
 
     "respond to a closed session with close frame till session timeout" in new WithServer(FakeApp, 3333) {
+      val ws = app.injector.instanceOf[WSClient]
+
       val transURL = "http://localhost:3333" + closeBaseURL + "/000/" + UUID.randomUUID().toString
 
-      val r1 = Helpers.await(WS.url(transURL + "/xhr").post(""))
-      r1.status must equalTo(OK)
-      r1.body must equalTo("o\n")
+      val r1 = await(ws.url(transURL + "/xhr").post(""))
+      r1.status mustBe OK
+      r1.body mustBe "o\n"
 
-      val r2 = Helpers.await(WS.url(transURL + "/xhr").post(""))
-      r2.status must equalTo(OK)
-      r2.body must equalTo("c[3000,\"Go away!\"]\n")
+      val r2 = await(ws.url(transURL + "/xhr").post(""))
+      r2.status mustBe OK
+      r2.body mustBe "c[3000,\"Go away!\"]\n"
 
-      val r3 = Helpers.await(WS.url(transURL + "/xhr").post(""))
-      r3.status must equalTo(OK)
-      r3.body must equalTo("c[3000,\"Go away!\"]\n")
+      val r3 = await(ws.url(transURL + "/xhr").post(""))
+      r3.status mustBe OK
+      r3.body mustBe "c[3000,\"Go away!\"]\n"
     }
 
     //TODO websocket tests
@@ -307,4 +217,93 @@ class SockJSProtocolSpec extends Specification with JsonMatchers  {
 
   }
 
+  def FakeApp = new GuiceApplicationBuilder()
+    .router(new Router {
+      import controllers.Application._
+      val routers = List(
+        new Echo(baseURL),
+        new Closed(closeBaseURL),
+        new EchoWithNoWebsocket(wsOffBaseURL),
+        new EchoWithJSessionId(cookieBaseURL))
+      def withPrefix(prefix: String): Router = this
+      def documentation: Seq[(String, String, String)] = Seq.empty
+      def routes = routers.foldRight(PartialFunction.empty[RequestHeader, Handler])(_.routes.orElse(_))
+    })
+    .build
+
+  implicit class Verifier(val result: Future[Result]) {
+    def verify200 = status(result) mustEqual OK
+    def verify204 = status(result) mustEqual NO_CONTENT
+    def verify404 = status(result) mustEqual NOT_FOUND
+    def verify405 = {
+      status(result) mustEqual METHOD_NOT_ALLOWED
+      contentType(result) mustBe None
+      header(ALLOW, result) mustBe a [Some[_]]
+      contentAsBytes(result) mustBe empty
+    }
+    def verifyNoCookie = header(SET_COOKIE, result) mustBe None
+    def verifyCORS(origin: Option[String]) = origin match {
+      case Some(value) =>
+        header(ACCESS_CONTROL_ALLOW_ORIGIN, result) mustBe Some(value)
+        header(ACCESS_CONTROL_ALLOW_CREDENTIALS, result) mustBe Some("true")
+      case _ =>
+        header(ACCESS_CONTROL_ALLOW_ORIGIN, result) mustBe Some("*")
+        header(ACCESS_CONTROL_ALLOW_CREDENTIALS, result) mustBe None
+    }
+    def verifyNotCached = {
+      header(CACHE_CONTROL, result) mustBe Some("no-store, no-cache, must-revalidate, max-age=0")
+      header(EXPIRES, result) mustBe None
+      header(LAST_MODIFIED, result) mustBe None
+    }
+  }
+
+  def testIFrame(url: String)(implicit app: Application) = {
+    val Some(result) = route(app, FakeRequest(GET, url))
+    result.verify200
+    contentType(result) mustBe Some("text/html")
+    charset(result) mustBe Some("UTF-8")
+    header(CACHE_CONTROL, result).getOrElse("") must include("public")
+    header(CACHE_CONTROL, result).getOrElse("") must include regex "max-age=[1-9][0-9]{6}"
+    //header(EXPIRES, result) must beSome TODO
+    header(ETAG, result) mustBe a [Some[_]]
+    header(LAST_MODIFIED, result) mustBe None
+    //TODO: check body
+    result.verifyNoCookie
+  }
+
+  def testOptions(url: String, allowedMethods: String)(implicit app: Application) = {
+    for (origin <- List(None, Some("test"), Some("null"))) {
+      val req = origin.foldLeft(FakeRequest("OPTIONS", url)) { case (r, header) =>
+        r.withHeaders(ORIGIN -> header)
+      }
+      val Some(result) = route(app, req)
+      result.verify204
+      header(CACHE_CONTROL, result).getOrElse("") must include("public")
+      header(CACHE_CONTROL, result).getOrElse("") must include regex "max-age=[1-9][0-9]{6}"
+      //header(EXPIRES, result) must beSome TODO
+      header(ACCESS_CONTROL_MAX_AGE, result).map(_.toInt).getOrElse(0) must be > 1000000
+      contentAsString(result) mustBe empty
+      result.verifyCORS(origin)
+    }
+  }
+
+  /*
+  def FcontentAsString(of: Result): String = new String(FcontentAsBytes(of), charset(of).getOrElse("utf-8"))
+
+  def FcontentAsBytes(of: Result): Array[Byte] = of match {
+    case r @ SimpleResult(_, bodyEnumerator) => {
+      var readAsBytes = Enumeratee.map[r.BODY_CONTENT](r.writeable.transform(_)).transform(Iteratee.consume[Array[Byte]]())
+      bodyEnumerator(readAsBytes).flatMap(_.run).value1.get
+    }
+
+    case c @ ChunkedResult(code, chunks) =>
+      var buffer = Array.empty[Byte]
+      val reader = Iteratee.fold[Array[Byte], Unit](buffer) { (_, bytes) => buffer ++= bytes }
+      val promised = c.chunks(Enumeratee.map[c.BODY_CONTENT](c.writeable.transform(_)) &>> reader).asInstanceOf[Promise[Iteratee[Array[Byte], Unit]]]
+      promised.future.flatMap(_.run).value1.get
+      buffer
+
+    case AsyncResult(p) => FcontentAsBytes(p.await.get)
+  }
+  */
 }
