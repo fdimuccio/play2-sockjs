@@ -36,24 +36,41 @@ if defined var1 (
   )
 )
 
-if "%ACTIVATOR_HOME%"=="" (
-	set "ACTIVATOR_HOME=%~dp0"
-	@REM remove trailing "\" from path
-	set ACTIVATOR_HOME=!ACTIVATOR_HOME:~0,-1!
-)
+@REM determine ACTIVATOR_HOME environment variable
+set BIN_DIRECTORY=%~dp0
+set BIN_DIRECTORY=%BIN_DIRECTORY:~0,-1%
+for %%d in (%BIN_DIRECTORY%) do set ACTIVATOR_HOME=%%~dpd
+set ACTIVATOR_HOME=%ACTIVATOR_HOME:~0,-1%
+
+echo ACTIVATOR_HOME=%ACTIVATOR_HOME%
 
 set ERROR_CODE=0
-set APP_VERSION=1.3.7
+set APP_VERSION=1.3.10
 set ACTIVATOR_LAUNCH_JAR=activator-launch-%APP_VERSION%.jar
 
 rem Detect if we were double clicked, although theoretically A user could
 rem manually run cmd /c
 for %%x in (%cmdcmdline%) do if %%~x==/c set DOUBLECLICKED=1
 
+set SBT_HOME=%BIN_DIRECTORY
+
+rem Detect if we were double clicked, although theoretically A user could
+rem manually run cmd /c
+for %%x in (%cmdcmdline%) do if %%~x==/c set DOUBLECLICKED=1
+
+rem FIRST we load the config file of extra options.
+set FN=%SBT_HOME%\..\conf\sbtconfig.txt
+set CFG_OPTS=
+FOR /F "tokens=* eol=# usebackq delims=" %%i IN ("%FN%") DO (
+  set DO_NOT_REUSE_ME=%%i
+  rem ZOMG (Part #2) WE use !! here to delay the expansion of
+  rem CFG_OPTS, otherwise it remains "" for this loop.
+  set CFG_OPTS=!CFG_OPTS! !DO_NOT_REUSE_ME!
+)
+
 rem FIRST we load a config file of extra options (if there is one)
 set "CFG_FILE_HOME=%UserProfile%\.activator\activatorconfig.txt"
 set "CFG_FILE_VERSION=%UserProfile%\.activator\%APP_VERSION%\activatorconfig.txt"
-set CFG_OPTS=
 if exist %CFG_FILE_VERSION% (
   FOR /F "tokens=* eol=# usebackq delims=" %%i IN ("%CFG_FILE_VERSION%") DO (
     set DO_NOT_REUSE_ME=%%i
@@ -164,7 +181,7 @@ if not "%~1"=="" (
   rem This is done since batch considers "=" to be a delimiter so we need to circumvent this behavior with a small hack.
   set arg1=%~1
   if "!arg1:~0,2!"=="-D" (
-   	set "args=%args% "%~1"="%~2""
+     set "args=%args% "%~1"="%~2""
     shift
     shift
     goto argsloop
@@ -215,8 +232,8 @@ set JAVA_FRIENDLY_HOME=/!JAVA_FRIENDLY_HOME_1: =%%20!
 
 rem Checks if the command contains spaces to know if it should be wrapped in quotes or not
 set NON_SPACED_CMD=%_JAVACMD: =%
-if "%_JAVACMD%"=="%NON_SPACED_CMD%" %_JAVACMD% %DEBUG_OPTS% %MEM_OPTS% %ACTIVATOR_OPTS% %SBT_OPTS% %_JAVA_OPTS% "-Dactivator.home=%JAVA_FRIENDLY_HOME%" -jar "%ACTIVATOR_HOME%\%ACTIVATOR_LAUNCH_JAR%" %CMDS%
-if NOT "%_JAVACMD%"=="%NON_SPACED_CMD%" "%_JAVACMD%" %DEBUG_OPTS% %MEM_OPTS% %ACTIVATOR_OPTS% %SBT_OPTS% %_JAVA_OPTS% "-Dactivator.home=%JAVA_FRIENDLY_HOME%" -jar "%ACTIVATOR_HOME%\%ACTIVATOR_LAUNCH_JAR%" %CMDS%
+if "%_JAVACMD%"=="%NON_SPACED_CMD%" %_JAVACMD% %DEBUG_OPTS% %MEM_OPTS% %ACTIVATOR_OPTS% %SBT_OPTS% %_JAVA_OPTS% "-Dactivator.home=%JAVA_FRIENDLY_HOME%" -jar "%ACTIVATOR_HOME%\libexec\%ACTIVATOR_LAUNCH_JAR%" %CMDS%
+if NOT "%_JAVACMD%"=="%NON_SPACED_CMD%" "%_JAVACMD%" %DEBUG_OPTS% %MEM_OPTS% %ACTIVATOR_OPTS% %SBT_OPTS% %_JAVA_OPTS% "-Dactivator.home=%JAVA_FRIENDLY_HOME%" -jar "%ACTIVATOR_HOME%\libexec\%ACTIVATOR_LAUNCH_JAR%" %CMDS%
 
 if ERRORLEVEL 1 goto error
 goto end

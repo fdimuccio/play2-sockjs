@@ -6,7 +6,7 @@ scalaVersion := "2.11.8"
 
 enablePlugins(PlayScala)
 
-resolvers += Resolver.sonatypeRepo("snapshots")
+//resolvers += Resolver.sonatypeRepo("snapshots")
 
 libraryDependencies ++= Seq(
   "com.github.fdimuccio" %% "play2-sockjs" % "0.5.1-SNAPSHOT"

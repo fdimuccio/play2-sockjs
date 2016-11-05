@@ -43,11 +43,12 @@ class Utils(server: Server) extends HeaderNames with Results {
                        |  <p>This is a SockJS hidden iframe. It's used for cross domain magic.</p>
                        |</body>
                        |</html>""".stripMargin
-      val digest = MessageDigest.getInstance("MD5").digest(content.getBytes("UTF-8")).map(b => f"$b%02x").mkString
-      if (req.headers.get(IF_NONE_MATCH).contains(digest)) NotModified
+      val etag = MessageDigest.getInstance("MD5")
+        .digest(content.getBytes("UTF-8")).map(b => f"$b%02x").mkString("\"","","\"")
+      if (req.headers.get(IF_NONE_MATCH).contains(etag)) NotModified
       else Ok(content)
         .cached(31536000) // 31536000 seconds, that is one year, as sockjs 0.3.3 specs
-        .withHeaders(ETAG -> digest)
+        .withHeaders(ETAG -> etag)
         .as("text/html; charset=UTF-8")
     }
   }

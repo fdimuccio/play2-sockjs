@@ -8,14 +8,16 @@ object BuildSettings {
     organization := "com.github.fdimuccio",
     version := buildVersion,
     scalaVersion := "2.11.8",
-    crossScalaVersions := Seq("2.11.8", "2.12.0-M5"),
+    crossScalaVersions := Seq("2.11.8", "2.12.0"),
     crossVersion := CrossVersion.binary,
-    javaOptions in test ++= Seq("-Xmx512m", "-XX:MaxPermSize=512m"),
+    javaOptions in Test ++= Seq("-Xmx1g", "-XX:MaxPermSize=512m"),
     javacOptions ++= Seq("-source", "1.8", "-target", "1.8", "-encoding", "UTF-8", "-Xlint:-options"),
     javacOptions in doc := Seq("-source", "1.8"),
     scalacOptions ++= Seq("-unchecked", "-deprecation"),
     scalacOptions in Test ++= Seq("-Yrangepos"),
-    shellPrompt := ShellPrompt.buildShellPrompt
+    shellPrompt := ShellPrompt.buildShellPrompt,
+    parallelExecution in Test := false,
+    fork in Test := true
   ) ++ Publish.settings
 }
 
@@ -94,10 +96,10 @@ object Play2SockJSBuild extends Build {
       ),
       libraryDependencies ++= Seq(
         "com.typesafe.play" %% "play" % play2Version % "provided->default",
-        "com.typesafe.play" %% "play-specs2" % play2Version % "test",
-        "com.typesafe.play" %% "play-ws" % play2Version % "test",
-        "org.scalatestplus.play" %% "scalatestplus-play" % "1.5.1" % "test",
-        "junit" % "junit" % "4.8" % "test" cross CrossVersion.Disabled
+        "com.typesafe.akka" %% "akka-http" % "3.0.0-RC1" % Test,
+        "com.typesafe.akka" %% "akka-stream-testkit" % "2.4.12" % Test,
+        "org.scalatestplus.play" %% "scalatestplus-play" % "2.0.0-M1" % Test,
+        "junit" % "junit" % "4.8" % Test cross CrossVersion.Disabled
       )
     )
   )
