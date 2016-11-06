@@ -1,12 +1,12 @@
 package protocol
 
-import akka.http.scaladsl.Http
 import java.util.UUID
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.util.{Random, Try}
+import akka.util.Timeout
 import akka.stream.scaladsl._
-import akka.stream.testkit._
+import akka.http.scaladsl._
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.HttpMethods._
 import akka.http.scaladsl.model.headers._
@@ -14,9 +14,9 @@ import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.ws._
 import akka.http.scaladsl.settings.ConnectionPoolSettings
 import akka.stream.testkit.scaladsl.{TestSink, TestSource}
-import akka.util.{Timeout, ByteString}
 import org.apache.commons.lang3.StringEscapeUtils
 import play.api.libs.json._
+import play.api.libs.ws.WSClient
 import play.api.mvc._
 
 /**
@@ -233,7 +233,71 @@ class SockJSProtocolSpec extends utils.TestServer with utils.Helpers {
 
     //TODO websocket hixie
 
-    //TODO websocket hybi
+    "support WebSocket transport" which {
+
+      "implementation is compliant with specs" in {
+        val (_, (in, out)) = http.ws(baseURL + session() + "/websocket")
+        in.requestNext(TextMessage("o"))
+
+        // server must ignore empty messages
+        out.sendNext(TextMessage(""))
+        out.sendNext(TextMessage("[\"a\"]"))
+        in.requestNext(TextMessage("a[\"a\"]"))
+        out.sendComplete()
+      }
+
+      "sends a close frame when the session is over" in {
+        val (_, (in, out)) = http.ws(closeBaseURL + session() + "/websocket")
+        in.requestNext(TextMessage("o"))
+        in.requestNext(TextMessage("c[3000,\"Go away!\"]"))
+        in.expectComplete()
+      }
+
+      "is compatible with both Hybi-07 and Hybi-10" in {
+        val ws = app.injector.instanceOf[WSClient]
+
+        for (version <- List("7", "8", "13")) {
+          val headers = List(
+            "Upgrade"    -> "websocket",
+            "Connection" -> "Upgrade",
+            "Sec-WebSocket-Version" -> version,
+            "Sec-WebSocket-Origin"  -> "http://asd",
+            "Sec-WebSocket-Key"     -> "x3JJHMbDL1EzLkh9GBhXDw=="
+          )
+          val req = ws.url("http://localhost:" + port + baseURL + session() + "/websocket")
+            .withHeaders(headers:_*)
+            .get()
+          val r = Await.result(req, Duration.Inf)
+          r.status mustBe 101
+          r.header("Sec-WebSocket-Accept") mustBe Some("HSmrc0sMlYUkAGmm5OPpG2HaGWk=")
+          r.header("Connection") mustBe Some("Upgrade")
+          r.header("Content-Length") mustBe None
+        }
+      }
+      
+      "closes the connection abruptly if the client sends broken json" in {
+        val (_, (in, out)) = http.ws(baseURL + session() + "/websocket")
+        in.requestNext(TextMessage("o"))
+        out.sendNext(TextMessage("[\"a"))
+        in.expectComplete()
+      }
+
+      "works with Firefox 6.0.2 connection header" in {
+        val ws = app.injector.instanceOf[WSClient]
+
+        val headers = List(
+          "Upgrade"    -> "websocket",
+          "Connection" -> "Keep-Alive, Upgrade",
+          "Sec-WebSocket-Version" -> "7",
+          "Sec-WebSocket-Origin"  -> "http://asd",
+          "Sec-WebSocket-Key"     -> "x3JJHMbDL1EzLkh9GBhXDw=="
+        )
+        val req = ws.url("http://localhost:" + port + baseURL + session() + "/websocket")
+          .withHeaders(headers:_*)
+          .get()
+        Await.result(req, Duration.Inf).status mustBe 101
+      }
+    }
 
     "implement XHR polling" which {
 
@@ -756,16 +820,16 @@ class SockJSProtocolSpec extends utils.TestServer with utils.Helpers {
     "support raw WebSocket" which {
 
       "handles raw transport" in {
-        val (_, (w, r)) = http.ws(baseURL + "/websocket")
-        w.sendNext(TextMessage("Hello world!\uffff"))
-        r.requestNext(TextMessage("Hello world!\uffff"))
-        w.sendComplete()
-        r.expectComplete()
+        val (_, (in, out)) = http.ws(baseURL + "/websocket")
+        out.sendNext(TextMessage("Hello world!\uffff"))
+        in.requestNext(TextMessage("Hello world!\uffff"))
+        out.sendComplete()
+        in.expectComplete()
       }
 
       "handles closed connection properly" in {
-        val (_, (w, r)) = http.ws(closeBaseURL + "/websocket")
-        val error = r.expectSubscriptionAndError()
+        val (_, (in, out)) = http.ws(closeBaseURL + "/websocket")
+        val error = in.expectSubscriptionAndError()
         error mustBe a[PeerClosedConnectionException]
         error.asInstanceOf[PeerClosedConnectionException].closeReason mustEqual "Go away!"
       }
@@ -911,6 +975,8 @@ class SockJSProtocolSpec extends utils.TestServer with utils.Helpers {
         // getting the close frame.
         reader2.request(1)
         reader2.expectComplete()
+
+        reader1.cancel()
       }
 
       "a streaming request has been aborted" in {
