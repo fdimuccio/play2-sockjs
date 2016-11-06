@@ -1,6 +1,7 @@
 package protocol
 
 import java.util.UUID
+
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.util.{Random, Try}
@@ -18,13 +19,15 @@ import org.apache.commons.lang3.StringEscapeUtils
 import play.api.libs.json._
 import play.api.libs.ws.WSClient
 import play.api.mvc._
+import protocol.utils.{ActorFlowTestRouters, PlainFlowTestRouters, TestRouters}
 
 /**
   * SockJS protocol tests.
   *
   * https://github.com/sockjs/sockjs-protocol/blob/master/sockjs-protocol.py
   */
-class SockJSProtocolSpec extends utils.TestServer with utils.Helpers {
+abstract class SockJSProtocolSpec(testRoutersFactory: () => TestRouters)
+  extends utils.TestServer(testRoutersFactory) with utils.Helpers {
 
   implicit val timeout: Timeout = 10.seconds
 
@@ -1182,3 +1185,7 @@ class SockJSProtocolSpec extends utils.TestServer with utils.Helpers {
     }
   }
 }
+
+class PlainFlowSockJSProtocolTest extends SockJSProtocolSpec(() => new PlainFlowTestRouters)
+
+class ActorFlowSockJSProtocolTest extends SockJSProtocolSpec(() => new ActorFlowTestRouters)

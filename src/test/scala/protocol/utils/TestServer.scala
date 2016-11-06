@@ -23,7 +23,7 @@ import play.api.inject._
 import play.api.inject.guice._
 import play.api.routing.Router
 
-trait TestServer extends PlaySpec with GuiceOneServerPerTest {
+abstract class TestServer(testRoutersFactory: () => TestRouters) extends PlaySpec with GuiceOneServerPerTest {
 
   val baseURL = "/echo"
   val closeBaseURL = "/close"
@@ -33,15 +33,17 @@ trait TestServer extends PlaySpec with GuiceOneServerPerTest {
   implicit override def newAppForTest(testData: TestData): Application =
     new GuiceApplicationBuilder()
       .router(new Router {
+        val testRouters = testRoutersFactory()
         val routers = List(
-          new TestRouter.Echo(baseURL),
-          new TestRouter.Closed(closeBaseURL),
-          new TestRouter.EchoWithNoWebsocket(wsOffBaseURL),
-          new TestRouter.EchoWithJSessionId(cookieBaseURL))
+          new testRouters.Echo(baseURL),
+          new testRouters.Closed(closeBaseURL),
+          new testRouters.EchoWithNoWebsocket(wsOffBaseURL),
+          new testRouters.EchoWithJSessionId(cookieBaseURL))
         def withPrefix(prefix: String): Router = this
         def documentation: Seq[(String, String, String)] = Seq.empty
         def routes = routers.foldRight(PartialFunction.empty[RequestHeader, Handler])(_.routes.orElse(_))
       })
+      .configure("akka.stream.materializer.debug.fuzzing-mode" -> "on")
       .bindings(bind[HttpClient].to(new Provider[HttpClient] {
         @Inject var actorSystem: ActorSystem = _
         lazy val get: HttpClient = new HttpClient(actorSystem)

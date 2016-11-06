@@ -29,7 +29,6 @@ object ActorFlow {
     * @param overflowStrategy The strategy for how to handle a buffer overflow.
     */
   def actorRef[In, Out](props: ActorRef => Props, bufferSize: Int = 16, overflowStrategy: OverflowStrategy = OverflowStrategy.dropNew)(implicit factory: ActorRefFactory): Flow[In, Out, _] = {
-    require(bufferSize >= 0, "bufferSize must be greater than or equal to 0")
     require(overflowStrategy != OverflowStrategy.backpressure, "Backpressure overflowStrategy not supported")
 
     val stage = new GraphStage[FlowShape[In, Out]] {
@@ -42,9 +41,12 @@ object ActorFlow {
 
         override def preStart(): Unit = {
           val stageActor = getStageActor({
-            case (_, Terminated(_)) => complete(out)
+            case (_, Terminated(_)) => completeStage()
             // TODO: use a class tag to type check element?
-            case (_, element) => push(out, element.asInstanceOf[Out])
+            case (_, element) =>
+              // It's safe to push without further checks because we are
+              // protected by the buffer (that doesn't backpressure)
+              push(out, element.asInstanceOf[Out])
           })
           flowRef = factory.actorOf(props(stageActor.ref))
           stageActor.watch(flowRef)
@@ -56,10 +58,13 @@ object ActorFlow {
             flowRef ! grab(in)
             pull(in)
           }
+
+          override def onUpstreamFinish(): Unit = flowRef ! PoisonPill
         })
 
         setHandler(out, new OutHandler {
-          // There is nothing to pull, our upstream is the flowRef
+          // On downstream demand we must not pull here because our upstream
+          // is the flowRef
           def onPull(): Unit = ()
         })
 
