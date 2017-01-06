@@ -45,7 +45,7 @@ object JavaSockJS extends JavaHelpers {
       Right(
         if (javaSockJS.isActor) {
           MessageFlowTransformer.stringFrameFlowTransformer
-            .transform(ActorFlow.actorRef(javaSockJS.actorProps))
+            .transform(ActorFlow.actorRef(javaSockJS.actorProps, 256, OverflowStrategy.dropNew))
         } else {
 
           val socketIn = new play.sockjs.SockJS.In

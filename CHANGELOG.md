@@ -1,5 +1,14 @@
 # Change Log
 
+## [0.5.1](https://github.com/fdimuccio/play2-sockjs/tree/0.5.2)
+
+[Full Changelog](https://github.com/fdimuccio/play2-sockjs/compare/0.5.1...0.5.2)
+
+- Update to Play 2.5.10
+- Session flows are now pre-fused
+- When using Actor Java API the ActorFlow is built with a buffer of 256, the same
+  size as the JAVA callback based API
+
 ## [0.5.1](https://github.com/fdimuccio/play2-sockjs/tree/0.5.1)
 
 [Full Changelog](https://github.com/fdimuccio/play2-sockjs/compare/0.5.0...0.5.1)

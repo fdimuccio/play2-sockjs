@@ -2,7 +2,7 @@ import sbt._
 import sbt.Keys._
 
 object BuildSettings {
-  val buildVersion = "0.5.1"
+  val buildVersion = "0.5.2"
 
   val buildSettings = Defaults.defaultSettings ++ Seq(
     organization := "com.github.fdimuccio",
@@ -82,7 +82,7 @@ object ShellPrompt {
 object Play2SockJSBuild extends Build {
   import BuildSettings._
 
-  val play2Version = "2.5.9"
+  val play2Version = "2.5.10"
 
   lazy val play2SockJS = Project(
     "play2-sockjs",
@@ -96,8 +96,8 @@ object Play2SockJSBuild extends Build {
       ),
       libraryDependencies ++= Seq(
         "com.typesafe.play" %% "play" % play2Version % "provided->default",
-        "com.typesafe.akka" %% "akka-http" % "3.0.0-RC1" % Test,
-        "com.typesafe.akka" %% "akka-stream-testkit" % "2.4.12" % Test,
+        "com.typesafe.akka" %% "akka-http" % "10.0.1" % Test,
+        "com.typesafe.akka" %% "akka-stream-testkit" % "2.4.16" % Test,
         "org.scalatestplus.play" %% "scalatestplus-play" % "2.0.0-M1" % Test,
         "junit" % "junit" % "4.8" % Test cross CrossVersion.Disabled
       )

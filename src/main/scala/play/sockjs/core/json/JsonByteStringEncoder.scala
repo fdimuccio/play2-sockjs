@@ -11,12 +11,12 @@ private[sockjs] object JsonByteStringEncoder {
 
   private val jsonFactory = new JsonFactory(play.libs.Json.mapper())
 
-  def asJsonString(bytes: ByteString): ByteString = using { (out, gen) =>
+  def asJsonString(bytes: ByteString): ByteString = using { gen =>
     val arr = bytes.toArray
     gen.writeUTF8String(arr, 0, arr.length)
   }
 
-  def asJsonArray(frame: Text): ByteString = using { (out, gen) =>
+  def asJsonArray(frame: Text): ByteString = using { gen =>
     gen.enable(JsonGenerator.Feature.ESCAPE_NON_ASCII)
 
     val data = frame.data
@@ -30,17 +30,17 @@ private[sockjs] object JsonByteStringEncoder {
     gen.writeEndArray()
   }
 
-  def asJsonArray(frame: Close): ByteString = using { (out, gen) =>
+  def asJsonArray(frame: Close): ByteString = using { gen =>
     gen.writeStartArray(2)
     gen.writeNumber(frame.code)
     gen.writeString(frame.reason)
     gen.writeEndArray()
   }
 
-  private def using(f: (ByteStringBuilder, JsonGenerator) => Unit): ByteString = {
+  private def using(f: JsonGenerator => Unit): ByteString = {
     val out = new ByteStringBuilder
     val gen = jsonFactory.createGenerator(out.asOutputStream, JsonEncoding.UTF8)
-    f(out, gen)
+    f(gen)
     gen.flush()
     out.result()
   }

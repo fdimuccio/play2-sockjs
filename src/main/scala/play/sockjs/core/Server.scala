@@ -29,7 +29,7 @@ private[sockjs] final class Server(val settings: SockJSSettings, materializer: M
   private[this] val playInternalEC = play.core.Execution.internalContext
   private[this] val trampolineEC = play.api.libs.iteratee.Execution.trampoline
 
-  private[this] def fusedHttpPolling = Fusing.aggressive(SessionFlow(
+  private[this] val fusedHttpPolling = Fusing.aggressive(SessionFlow(
     settings.heartbeat,
     settings.sessionTimeout,
     1,
@@ -37,7 +37,7 @@ private[sockjs] final class Server(val settings: SockJSSettings, materializer: M
     settings.sessionBufferSize
   ))
 
-  private[this] def fusedHttpStreaming = Fusing.aggressive(SessionFlow(
+  private[this] val fusedHttpStreaming = Fusing.aggressive(SessionFlow(
     settings.heartbeat,
     settings.sessionTimeout,
     settings.streamingQuota,

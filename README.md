@@ -33,7 +33,7 @@ only users that uses WebSocket Hixie-76 protocol behind HAProxy.
         Play 2.2.x : 0.2.6
         Play 2.3.x : 0.3.1
         Play 2.4.x : 0.4.0
-        Play 2.5.x : 0.5.1
+        Play 2.5.x : 0.5.2
 
 ## What is SockJS?
 
