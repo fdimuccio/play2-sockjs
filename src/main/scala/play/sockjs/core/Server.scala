@@ -13,6 +13,8 @@ import akka.util.ByteString
 import play.core.parsers.FormUrlEncodedParser
 import play.api.mvc._
 import play.api.mvc.BodyParsers._
+import play.api.libs.iteratee.Execution.trampoline
+import play.core.Execution.internalContext
 import play.api.libs.json._
 import play.api.http.{HeaderNames, HttpChunk, HttpEntity}
 import play.sockjs.core.streams.SessionFlow
@@ -25,9 +27,6 @@ import play.sockjs.api.Frame._
 private[sockjs] final class Server(val settings: SockJSSettings, materializer: Materializer)
   extends HeaderNames with Results {
   import Server._
-
-  private[this] val playInternalEC = play.core.Execution.internalContext
-  private[this] val trampolineEC = play.api.libs.iteratee.Execution.trampoline
 
   private[this] val fusedHttpPolling = Fusing.aggressive(SessionFlow(
     settings.heartbeat,
@@ -50,45 +49,44 @@ private[sockjs] final class Server(val settings: SockJSSettings, materializer: M
   /**
     * Used by the `send` method of SockJS client (xhr_send and jsonp_send)
     */
-  def send(f: RequestHeader => Result): String => SockJSHandler =
-    sessionID => SockJSHandler { (_, sockjs) =>
-      Action.async(parse.raw(Int.MaxValue)) { implicit req =>
-        def tryParse(f: => JsValue) = {
-          (allCatch either f).left.map(_ => "Broken JSON encoding.")
-        }
-        def parseFormUrlEncoded(data: ByteString) = {
-          val query = FormUrlEncodedParser.parse(data.utf8String, "UTF-8")
-          for {
-            d <- query.get("d").flatMap(_.headOption.filter(!_.isEmpty)).toRight("Payload expected.").right
-            json <- tryParse(Json.parse(d)).right
-          } yield json
-        }
-        // Request body should be taken as raw and forced to be a UTF-8 string, otherwise
-        // if no charset header is specified Play will default to ISO-8859-1, messing up unicode encoding
-        ((req.contentType.getOrElse(""), req.body.asBytes().getOrElse(ByteString.empty)) match {
-          case ("application/x-www-form-urlencoded", data) => parseFormUrlEncoded(data)
-          case (_, data) if data.nonEmpty => tryParse(Json.parse(data.iterator.asInputStream))
-          case _ => Left("Payload expected.")
-        }).fold(
-          error => Future.successful(InternalServerError(error)),
-          json => json.validate[Vector[String]].fold(
-            invalid => Future.successful(InternalServerError("Payload expected.")),
-            payload => sessions.get(sessionID) match {
-              case session: streams.Session =>
-                val result =
-                  if (payload.nonEmpty) session.push(Text(payload))
-                  else Future.successful(QueueOfferResult.Enqueued)
-                result.map {
-                  case QueueOfferResult.Enqueued =>
-                    f(req).withCookies(settings.cookies.map(f => List(f(req))).getOrElse(Nil): _*)
-                  case _ =>
-                    NotFound //FIXME: proper error message
-                }(trampolineEC)
-
-              case _ => Future.successful(NotFound)
-            }))
+  def send(f: RequestHeader => Result): String => Handler =
+    sessionID => Action.async(parse.raw(Int.MaxValue)) { implicit req =>
+      def tryParse(f: => JsValue) = {
+        (allCatch either f).left.map(_ => "Broken JSON encoding.")
       }
+      def parseFormUrlEncoded(data: ByteString) = {
+        val query = FormUrlEncodedParser.parse(data.utf8String, "UTF-8")
+        for {
+          d <- query.get("d").flatMap(_.headOption.filter(!_.isEmpty)).toRight("Payload expected.").right
+          json <- tryParse(Json.parse(d)).right
+        } yield json
+      }
+      // Request body should be taken as raw and forced to be a UTF-8 string, otherwise
+      // if no charset header is specified Play will default to ISO-8859-1, messing up unicode encoding
+      ((req.contentType.getOrElse(""), req.body.asBytes().getOrElse(ByteString.empty)) match {
+        case ("application/x-www-form-urlencoded", data) => parseFormUrlEncoded(data)
+        case (_, data) if data.nonEmpty => tryParse(Json.parse(data.iterator.asInputStream))
+        case _ => Left("Payload expected.")
+      }).fold(
+        error => Future.successful(InternalServerError(error)),
+        json => json.validate[Vector[String]].fold(
+          invalid => Future.successful(InternalServerError("Payload expected.")),
+          payload => sessions.get(sessionID) match {
+            case session: streams.Session =>
+              val result =
+                if (payload.nonEmpty) session.push(Text(payload))
+                else Future.successful(QueueOfferResult.Enqueued)
+              result.map {
+                case QueueOfferResult.Enqueued =>
+                  f(req).withCookies(settings.cookies.map(f => List(f(req))).getOrElse(Nil): _*)
+                case _ =>
+                  NotFound //FIXME: proper error message
+              }(trampoline)
+
+            case _ => Future.successful(NotFound)
+          }))
     }
+
 
   /**
     * HTTP polling transport builder.
@@ -103,7 +101,7 @@ private[sockjs] final class Server(val settings: SockJSSettings, materializer: M
   /**
     * HTTP generic transport builder.
     */
-  private def http(streaming: Boolean)(f: SockJSRequest => Future[Result]): String => SockJSHandler =
+  private def http(streaming: Boolean)(f: SockJSRequest => Future[Result]): String => Handler =
     sessionID => SockJSHandler { (_, sockjs) =>
       Action.async { req =>
         f(new SockJSRequest(req) {
@@ -131,15 +129,15 @@ private[sockjs] final class Server(val settings: SockJSSettings, materializer: M
                   //TODO: log failure
                   binding.onComplete { _ =>
                     sessions.remove(sessionID)
-                  }(trampolineEC)
+                  }(trampoline)
                   session.source
-                })(playInternalEC).recover {
+                })(internalContext).recover {
 
                   case NonFatal(e) =>
                     //TODO: log failure
                     sessions.remove(sessionID)
                     Right(Source.single(Close.ConnectionInterrupted.encode))
-                }(trampolineEC)
+                }(trampoline)
 
               // There is already a session being initialized with the provided sessionID
               case Initializing =>
@@ -155,7 +153,7 @@ private[sockjs] final class Server(val settings: SockJSSettings, materializer: M
 
               case Left(result) => result
 
-            }(trampolineEC)
+            }(trampoline)
           }
         })
       }
@@ -164,7 +162,7 @@ private[sockjs] final class Server(val settings: SockJSSettings, materializer: M
   /**
     * WebSocket transport builder.
     */
-  def websocket(f: SockJS => Handler): SockJSHandler = SockJSHandler { (req, sockjs) =>
+  def websocket(f: SockJS => Handler): Handler = SockJSHandler { (req, sockjs) =>
     if (!settings.websocket)
       Action(NotFound)
     else if (req.method != "GET")

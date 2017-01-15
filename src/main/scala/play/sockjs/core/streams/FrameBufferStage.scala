@@ -70,6 +70,7 @@ private[sockjs] class FrameBufferStage(maxBufferSize: Int) extends GraphStage[Fl
 
     private def weight(frame: Frame) = frame match {
       case Text(data) => data.map(_.length).sum * java.lang.Byte.BYTES
+      case Heartbeat => 0
       case _ => 1
     }
   }
