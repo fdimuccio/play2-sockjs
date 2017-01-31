@@ -1,6 +1,16 @@
 # Change Log
 
-## [0.5.1](https://github.com/fdimuccio/play2-sockjs/tree/0.5.2)
+## [0.5.3](https://github.com/fdimuccio/play2-sockjs/tree/0.5.3)
+
+[Full Changelog](https://github.com/fdimuccio/play2-sockjs/compare/0.5.2...0.5.3)
+
+- Update to Play 2.5.12
+
+**Closed issues:**
+
+- Heartbeat frames shouldn't be taken in consideration when calculating framebuffer size [\#22](https://github.com/fdimuccio/play2-sockjs/issues/22) 
+
+## [0.5.2](https://github.com/fdimuccio/play2-sockjs/tree/0.5.2)
 
 [Full Changelog](https://github.com/fdimuccio/play2-sockjs/compare/0.5.1...0.5.2)
 
