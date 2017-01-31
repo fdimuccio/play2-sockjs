@@ -2,7 +2,7 @@ import sbt._
 import sbt.Keys._
 
 object BuildSettings {
-  val buildVersion = "0.5.2"
+  val buildVersion = "0.5.3-SNAPSHOT"
 
   val buildSettings = Defaults.defaultSettings ++ Seq(
     organization := "com.github.fdimuccio",
@@ -82,7 +82,7 @@ object ShellPrompt {
 object Play2SockJSBuild extends Build {
   import BuildSettings._
 
-  val play2Version = "2.5.10"
+  val play2Version = "2.5.12"
 
   lazy val play2SockJS = Project(
     "play2-sockjs",
