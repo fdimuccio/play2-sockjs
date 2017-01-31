@@ -18,8 +18,7 @@ import akka.stream.testkit.scaladsl.{TestSink, TestSource}
 import org.apache.commons.lang3.StringEscapeUtils
 import play.api.libs.json._
 import play.api.libs.ws.WSClient
-import play.api.mvc._
-import protocol.utils.{ActorFlowTestRouters, PlainFlowTestRouters, TestRouters}
+import protocol.routers._
 
 /**
   * SockJS protocol tests.
@@ -1186,6 +1185,10 @@ abstract class SockJSProtocolSpec(testRoutersFactory: () => TestRouters)
   }
 }
 
-class PlainFlowSockJSProtocolTest extends SockJSProtocolSpec(() => new PlainFlowTestRouters)
+class ScalaFlowSockJSProtocolTest extends SockJSProtocolSpec(() => new ScalaFlowTestRouters)
 
-class ActorFlowSockJSProtocolTest extends SockJSProtocolSpec(() => new ActorFlowTestRouters)
+class ScalaActorSockJSProtocolTest extends SockJSProtocolSpec(() => new ScalaActorTestRouters)
+
+class JavaCallbackSockJSProtocolTest extends SockJSProtocolSpec(() => new JavaCallbackTestRouters)
+
+class JavaActorSockJSProtocolTest extends SockJSProtocolSpec(() => new JavaActorTestRouters)

@@ -3,7 +3,6 @@ package protocol.utils
 import javax.inject.{Inject, Provider}
 
 import scala.concurrent.Await
-
 import akka.actor.ActorSystem
 import akka.http.scaladsl._
 import akka.http.scaladsl.model._
@@ -12,16 +11,15 @@ import akka.stream.scaladsl.{Flow, Keep}
 import akka.stream.testkit.{TestPublisher, TestSubscriber}
 import akka.stream.testkit.scaladsl.{TestSink, TestSource}
 import akka.util.Timeout
-
 import org.scalatest.TestData
 import org.scalatestplus.play._
 import org.scalatestplus.play.guice.GuiceOneServerPerTest
-
 import play.api.Application
 import play.api.mvc._
 import play.api.inject._
 import play.api.inject.guice._
 import play.api.routing.Router
+import protocol.routers.TestRouters
 
 abstract class TestServer(testRoutersFactory: () => TestRouters) extends PlaySpec with GuiceOneServerPerTest {
 
@@ -35,10 +33,10 @@ abstract class TestServer(testRoutersFactory: () => TestRouters) extends PlaySpe
       .router(new Router {
         val testRouters = testRoutersFactory()
         val routers = List(
-          new testRouters.Echo(baseURL),
-          new testRouters.Closed(closeBaseURL),
-          new testRouters.EchoWithNoWebsocket(wsOffBaseURL),
-          new testRouters.EchoWithJSessionId(cookieBaseURL))
+          testRouters.Echo(baseURL),
+          testRouters.Closed(closeBaseURL),
+          testRouters.EchoWithNoWebsocket(wsOffBaseURL),
+          testRouters.EchoWithJSessionId(cookieBaseURL))
         def withPrefix(prefix: String): Router = this
         def documentation: Seq[(String, String, String)] = Seq.empty
         def routes = routers.foldRight(PartialFunction.empty[RequestHeader, Handler])(_.routes.orElse(_))
