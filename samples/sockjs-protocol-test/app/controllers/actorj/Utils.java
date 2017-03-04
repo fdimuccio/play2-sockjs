@@ -36,7 +36,7 @@ class Utils {
             @Override
             public void onReceive(Object arg0) throws Exception {}
         }
-        public static SockJS echo = SockJS.withActor(out -> Props.create(Echo.class, out));
-        public static SockJS closed = SockJS.withActor(out -> Props.create(Closed.class, out));
+        public static SockJS echo() { throw new RuntimeException("NYI"); }//SockJS.withActor(out -> Props.create(Echo.class, out));
+        public static SockJS closed() { throw new RuntimeException("NYI"); }//SockJS.withActor(out -> Props.create(Closed.class, out));
     }
 }

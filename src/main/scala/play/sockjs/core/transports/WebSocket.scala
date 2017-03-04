@@ -1,12 +1,9 @@
 package play.sockjs.core
 package transports
 
-import akka.stream.{Attributes, FlowShape, Inlet, Outlet}
-
 import scala.collection.immutable.Seq
 import scala.util.control.Exception._
 import akka.stream.scaladsl._
-import akka.stream.stage.{GraphStage, GraphStageLogic, InHandler, OutHandler}
 import play.api.mvc._
 import play.api.mvc.{WebSocket => PlayWebSocket}
 import play.api.http._
@@ -19,8 +16,6 @@ import play.sockjs.api.Frame._
 
 private[sockjs] class WebSocket(server: Server) extends HeaderNames with Results {
   import server.settings
-
-  import play.api.libs.iteratee.Execution.Implicits.trampoline
 
   /**
    * websocket framed transport
@@ -39,7 +34,7 @@ private[sockjs] class WebSocket(server: Server) extends HeaderNames with Results
           .via(ProtocolFlow(settings.heartbeat))
           .via(new FrameBufferStage(settings.sessionBufferSize))
           .map(f => TextMessage(f.encode.utf8String))
-      })
+      })(play.core.Execution.trampoline)
     }
   }
 
@@ -58,7 +53,7 @@ private[sockjs] class WebSocket(server: Server) extends HeaderNames with Results
             case Frame.Close(code, reason) => Seq(CloseMessage(Some(code), reason))
             case _ => Seq.empty[Message]
           }
-      })
+      })(play.core.Execution.trampoline)
     }
   }
 }

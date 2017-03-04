@@ -49,5 +49,5 @@ private[streams] case class ConnectionPublisher(session: ActorRef) extends Publi
         }
         def cancel(): Unit = ()
       })
-  }(play.api.libs.iteratee.Execution.trampoline)
+  }(play.core.Execution.trampoline)
 }

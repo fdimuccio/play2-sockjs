@@ -37,7 +37,7 @@ private[core] object SessionFlow {
       }, binding.future.andThen {
         case Success(_) => publisher.complete()
         case Failure(th) => publisher.fail(th)
-      }(play.api.libs.iteratee.Execution.trampoline))
+      }(play.core.Execution.trampoline))
     }
   }
 }

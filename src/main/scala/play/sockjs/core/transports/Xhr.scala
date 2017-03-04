@@ -30,7 +30,7 @@ private[sockjs] class Xhr(server: Server) extends HeaderNames with Results {
   def polling = server.polling { req =>
     req.bind("application/javascript; charset=UTF-8") { source =>
       source.map(_ ++ newLine)
-    }.map(_.enableCORS(req))(play.api.libs.iteratee.Execution.trampoline)
+    }.map(_.enableCORS(req))(play.core.Execution.trampoline)
   }
 
   /**
@@ -39,7 +39,7 @@ private[sockjs] class Xhr(server: Server) extends HeaderNames with Results {
   def streaming = server.streaming { req =>
     req.bind("application/javascript; charset=UTF-8") { source =>
       Source.single(prelude).concat(source.map(_ ++ newLine))
-    }.map(_.enableCORS(req))(play.api.libs.iteratee.Execution.trampoline)
+    }.map(_.enableCORS(req))(play.core.Execution.trampoline)
   }
 }
 

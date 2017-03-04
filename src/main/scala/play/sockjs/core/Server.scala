@@ -13,8 +13,7 @@ import akka.util.ByteString
 import play.core.parsers.FormUrlEncodedParser
 import play.api.mvc._
 import play.api.mvc.BodyParsers._
-import play.api.libs.iteratee.Execution.trampoline
-import play.core.Execution.internalContext
+import play.api.libs.streams.Execution.trampoline
 import play.api.libs.json._
 import play.api.http.{HeaderNames, HttpChunk, HttpEntity}
 import play.sockjs.core.streams.SessionFlow
@@ -131,7 +130,7 @@ private[sockjs] final class Server(val settings: SockJSSettings, materializer: M
                     sessions.remove(sessionID)
                   }(trampoline)
                   session.source
-                })(internalContext).recover {
+                })(materializer.executionContext).recover {
 
                   case NonFatal(e) =>
                     //TODO: log failure

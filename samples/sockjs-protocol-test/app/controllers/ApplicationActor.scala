@@ -54,7 +54,7 @@ object ApplicationActor {
   /**
    * server immediately closes the session
    */
-  class Closed @Inject() (handler: ClosedHandler)  extends SockJSRouter {
+  class Closed @Inject() (handler: ClosedHandler) extends SockJSRouter {
     def sockjs = handler()
   }
 }

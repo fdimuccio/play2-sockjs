@@ -31,7 +31,7 @@ private[sockjs] class Jsonp(server: Server) extends HeaderNames with Results {
           source.map { frame =>
             prelude ++ JsonByteStringEncoder.asJsonString(frame) ++ crlf
           }
-        }.map(_.withHeaders("X-Content-Type-Options" -> "nosniff"))(play.api.libs.iteratee.Execution.trampoline)
+        }.map(_.withHeaders("X-Content-Type-Options" -> "nosniff"))(play.core.Execution.trampoline)
       else
         Future.successful(InternalServerError("invalid \"callback\" parameter"))
     }.getOrElse(Future.successful(InternalServerError("\"callback\" parameter required")))

@@ -12,7 +12,7 @@ package object core {
 
   // -- Results helpers
 
-  def OptionsResult(methods: String*)(implicit req: RequestHeader) = {
+  def OptionsResult(methods: String*)(implicit req: RequestHeader): Result = {
     val ttl = 31536000
     NoContent
       .enableCORS(req)

@@ -5,6 +5,6 @@ import play.sockjs.SockJSRouter;
 
 public class Closed extends SockJSRouter {
     public SockJS sockjs() {
-        return Utils.Handlers.closed;
+        return Utils.Handlers.closed();
     }
 }

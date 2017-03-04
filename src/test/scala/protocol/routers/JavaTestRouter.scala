@@ -1,8 +1,10 @@
 package protocol.routers
 
-import akka.actor.{Actor, ActorRef, Props}
-import play.sockjs.SockJS.{In, Out}
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.stream.javadsl._
+import play.mvc.Http.RequestHeader
 import play.sockjs._
+import play.sockjs.api.libs.streams.ActorFlow
 
 class JavaTestRouter(val sockjs: SockJS, prefix: String, cfg: SockJSSettings) extends SockJSRouter {
   withPrefix(prefix)
@@ -20,22 +22,22 @@ sealed trait JavaTestRouters extends TestRouters {
   /**
     * responds with identical data as received
     */
-  def Echo(prefix: String) = new JavaTestRouter(echo, prefix, Settings.base)
+  def Echo(prefix: String) = new JavaTestRouter(echo, prefix, Settings.base).asScala()
 
   /**
     * same as echo, but with websockets disabled
     */
-  def EchoWithNoWebsocket(prefix: String) = new JavaTestRouter(echo, prefix, Settings.noWebSocket)
+  def EchoWithNoWebsocket(prefix: String) = new JavaTestRouter(echo, prefix, Settings.noWebSocket).asScala()
 
   /**
     * same as echo, but with JSESSIONID cookies sent
     */
-  def EchoWithJSessionId(prefix: String) = new JavaTestRouter(echo, prefix, Settings.withJSessionid)
+  def EchoWithJSessionId(prefix: String) = new JavaTestRouter(echo, prefix, Settings.withJSessionid).asScala()
 
   /**
     * server immediately closes the session
     */
-  def Closed(prefix: String) = new JavaTestRouter(closed, prefix, Settings.base)
+  def Closed(prefix: String) = new JavaTestRouter(closed, prefix, Settings.base).asScala()
 
   def echo: SockJS
 
@@ -44,33 +46,25 @@ sealed trait JavaTestRouters extends TestRouters {
 
 final class JavaCallbackTestRouters extends JavaTestRouters {
 
-  def echo = SockJS.whenReady(new java.util.function.BiConsumer[SockJS.In, SockJS.Out] {
-    def accept(in: In, out: Out): Unit = in.onMessage(new java.util.function.Consumer[String] {
-      def accept(msg: String): Unit = out.write(msg)
-    })
-  })
+  def echo = SockJS.Text.accept((request: RequestHeader) => Flow.create[String])
 
-  def closed = SockJS.whenReady(new java.util.function.BiConsumer[SockJS.In, SockJS.Out] {
-    def accept(in: In, out: Out): Unit = out.close()
-  })
+  def closed = SockJS.Text.accept((request: RequestHeader) => Flow.fromSinkAndSource(Sink.ignore, Source.empty[String]))
 }
 
 final class JavaActorTestRouters extends JavaTestRouters {
+  implicit val as = ActorSystem("JavaActorFlowTestRouters")
 
-  def echo: SockJS = SockJS.withActor(new java.util.function.Function[ActorRef, Props] {
-    def apply(out: ActorRef): Props = Props(new Actor {
-      override def receive = {
-        case msg => out ! msg
-      }
-    })
-  })
+  def echo = SockJS.Text.accept((request: RequestHeader) => ActorFlow.actorRef[String, String]((out: ActorRef) => Props(new Actor {
+    override def receive = {
+      case msg => out ! msg
+    }
+  })).asInstanceOf[Flow[String, String, Any]])
 
-  def closed: SockJS = SockJS.withActor(new java.util.function.Function[ActorRef, Props] {
-    def apply(out: ActorRef): Props = Props(new Actor {
-      context.stop(self)
-      override def receive = {
-        case msg =>
-      }
-    })
-  })
+  def closed = SockJS.Text.accept((request: RequestHeader) => ActorFlow.actorRef[String, String]((out: ActorRef) => Props(new Actor {
+    context.stop(self)
+
+    override def receive = {
+      case msg =>
+    }
+  })).asInstanceOf[Flow[String, String, Any]])
 }

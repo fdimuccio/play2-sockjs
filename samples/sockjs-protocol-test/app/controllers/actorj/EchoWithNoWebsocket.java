@@ -12,6 +12,6 @@ public class EchoWithNoWebsocket extends SockJSRouter {
     }
 
     public SockJS sockjs() {
-        return Utils.Handlers.echo;
+        return Utils.Handlers.echo();
     }
 }

@@ -2,13 +2,13 @@ import sbt._
 import sbt.Keys._
 
 object BuildSettings {
-  val buildVersion = "0.5.3"
+  val buildVersion = "0.6.0-SNAPSHOT"
 
   val buildSettings = Defaults.defaultSettings ++ Seq(
     organization := "com.github.fdimuccio",
     version := buildVersion,
-    scalaVersion := "2.11.8",
-    crossScalaVersions := Seq("2.11.8", "2.12.0"),
+    scalaVersion := "2.12.1",
+    crossScalaVersions := Seq("2.11.8", "2.12.1"),
     crossVersion := CrossVersion.binary,
     javaOptions in Test ++= Seq("-Xmx1g", "-XX:MaxPermSize=512m"),
     javacOptions ++= Seq("-source", "1.8", "-target", "1.8", "-encoding", "UTF-8", "-Xlint:-options"),
@@ -82,7 +82,7 @@ object ShellPrompt {
 object Play2SockJSBuild extends Build {
   import BuildSettings._
 
-  val play2Version = "2.5.12"
+  val play2Version = "2.6.0-M1"
 
   lazy val play2SockJS = Project(
     "play2-sockjs",
@@ -96,10 +96,10 @@ object Play2SockJSBuild extends Build {
       ),
       libraryDependencies ++= Seq(
         "com.typesafe.play" %% "play" % play2Version % "provided->default",
-        "com.typesafe.akka" %% "akka-http" % "10.0.1" % Test,
-        "com.typesafe.akka" %% "akka-stream-testkit" % "2.4.16" % Test,
-        "org.scalatestplus.play" %% "scalatestplus-play" % "2.0.0-M1" % Test,
-        "junit" % "junit" % "4.8" % Test cross CrossVersion.Disabled
+        "com.typesafe.akka" %% "akka-http" % "10.0.4" % Test,
+        "com.typesafe.akka" %% "akka-stream-testkit" % "2.4.17" % Test,
+        "org.scalatestplus.play" %% "scalatestplus-play" % "2.0.0-M2" % Test,
+        "com.typesafe.play" %% "play-netty-server" % play2Version % Test
       )
     )
   )
