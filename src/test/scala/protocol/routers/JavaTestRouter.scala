@@ -22,29 +22,29 @@ sealed trait JavaTestRouters extends TestRouters {
   /**
     * responds with identical data as received
     */
-  def Echo(prefix: String) = new JavaTestRouter(echo, prefix, Settings.base).asScala()
+  def Echo(prefix: String) = new JavaTestRouter(echo, prefix, Settings.base)
 
   /**
     * same as echo, but with websockets disabled
     */
-  def EchoWithNoWebsocket(prefix: String) = new JavaTestRouter(echo, prefix, Settings.noWebSocket).asScala()
+  def EchoWithNoWebsocket(prefix: String) = new JavaTestRouter(echo, prefix, Settings.noWebSocket)
 
   /**
     * same as echo, but with JSESSIONID cookies sent
     */
-  def EchoWithJSessionId(prefix: String) = new JavaTestRouter(echo, prefix, Settings.withJSessionid).asScala()
+  def EchoWithJSessionId(prefix: String) = new JavaTestRouter(echo, prefix, Settings.withJSessionid)
 
   /**
     * server immediately closes the session
     */
-  def Closed(prefix: String) = new JavaTestRouter(closed, prefix, Settings.base).asScala()
+  def Closed(prefix: String) = new JavaTestRouter(closed, prefix, Settings.base)
 
   def echo: SockJS
 
   def closed: SockJS
 }
 
-final class JavaCallbackTestRouters extends JavaTestRouters {
+final class JavaFlowTestRouters extends JavaTestRouters {
 
   def echo = SockJS.Text.accept((request: RequestHeader) => Flow.create[String])
 

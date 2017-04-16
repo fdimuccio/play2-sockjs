@@ -28,15 +28,15 @@ private[core] object SessionFlow {
       Flow[Frame]
         .via(ProtocolFlow(heartbeat))
         .via(new FrameBufferStage(sessionBufferSize))
-        .toMat(Sink.fromGraph(new SessionSubscriber(timeout, quota)))(Keep.right)
+        .toMat(Sink.fromGraph(new SessionSink(timeout, quota)))(Keep.right)
 
-    Flow.fromSinkAndSourceMat(sink, source) { case ((binding, subscriber), publisher) =>
+    Flow.fromSinkAndSourceMat(sink, source) { case ((binding, out), in) =>
       (new Session {
-        def push(data: Frame): Future[QueueOfferResult] = publisher.offer(data)
-        def source: Source[ByteString, _] = subscriber
+        def push(data: Frame): Future[QueueOfferResult] = in.offer(data)
+        def source: Source[ByteString, _] = out
       }, binding.future.andThen {
-        case Success(_) => publisher.complete()
-        case Failure(th) => publisher.fail(th)
+        case Success(_) => in.complete()
+        case Failure(th) => in.fail(th)
       }(play.core.Execution.trampoline))
     }
   }

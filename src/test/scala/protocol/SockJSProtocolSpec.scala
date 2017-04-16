@@ -48,6 +48,7 @@ abstract class SockJSProtocolSpec(testRoutersFactory: () => TestRouters)
         for (suffix <- List("/a", "/a.html", "//", "///", "/a/a", "/a/a/", "/a", "/a/")) {
           val r = http(HttpRequest(GET, baseURL + suffix))
           r.verify404()
+          r.discardBody()
         }
       }
 
@@ -81,15 +82,17 @@ abstract class SockJSProtocolSpec(testRoutersFactory: () => TestRouters)
         for (url <- urls) {
           val r = http(HttpRequest(GET, baseURL + url))
           r.verify404()
+          r.discardBody()
         }
       }
 
       "is cacheable" in {
         val r1 = http(HttpRequest(GET, baseURL + "/iframe.html"))
         val r2 = http(HttpRequest(GET, baseURL + "/iframe.html"))
+        r1.discardBody()
         r1.header[ETag] mustBe a[Some[_]]
         r1.header[ETag] mustEqual r2.header[ETag]
-        
+
         val header = `If-None-Match`(r1.header[ETag].get.etag)
         val r = http(HttpRequest(GET, baseURL + "/iframe.html", List(header)))
         r.verify304()
@@ -160,7 +163,9 @@ abstract class SockJSProtocolSpec(testRoutersFactory: () => TestRouters)
           val r1 = http(HttpRequest(GET, baseURL + suffix + "/xhr"))
           val r2 = http(HttpRequest(POST, baseURL + suffix + "/xhr"))
           r1.verify404()
+          r1.discardBody()
           r2.verify404()
+          r2.discardBody()
         }
       }
 
@@ -272,11 +277,11 @@ abstract class SockJSProtocolSpec(testRoutersFactory: () => TestRouters)
           val r = Await.result(req, Duration.Inf)
           r.status mustBe 101
           r.header("Sec-WebSocket-Accept") mustBe Some("HSmrc0sMlYUkAGmm5OPpG2HaGWk=")
-          r.header("Connection") mustBe Some("Upgrade")
+          r.header("Connection") must (be(Some("Upgrade")) or be(Some("upgrade")))
           r.header("Content-Length") mustBe None
         }
       }
-      
+
       "closes the connection abruptly if the client sends broken json" in {
         val (_, (in, out)) = http.ws(baseURL + session() + "/websocket")
         in.requestNext(TextMessage("o"))
@@ -380,7 +385,7 @@ abstract class SockJSProtocolSpec(testRoutersFactory: () => TestRouters)
           val header = RawHeader("Content-Type", ct)
           val r = http(HttpRequest(POST, url + "/xhr_send", List(header), "[\"a\"]"))
           r.verify204()
-          r.body
+          r.body mustBe empty
         }
 
         val r2 = http(HttpRequest(POST, url + "/xhr"))
@@ -465,7 +470,7 @@ abstract class SockJSProtocolSpec(testRoutersFactory: () => TestRouters)
         reader.cancel()
       }
 
-      "closes a single streaming request after enough data has been deleivered" in {
+      "closes a single streaming request after enough data has been delivered" in {
         val url = baseURL + session()
         val r = http(HttpRequest(POST, url + "/xhr_streaming"))
         r.verify200()
@@ -634,7 +639,7 @@ abstract class SockJSProtocolSpec(testRoutersFactory: () => TestRouters)
         reader.expectComplete()
       }
     }
-    
+
     "implement json polling" which {
 
       "transport is compliant with specs" in {
@@ -787,6 +792,7 @@ abstract class SockJSProtocolSpec(testRoutersFactory: () => TestRouters)
         val r = http(HttpRequest(POST, url + "/xhr_streaming"))
         r.verify200()
         r.verifyCookie("dummy")
+        r.cancel()
       }
 
       "works properly in EventSource" in {
@@ -794,6 +800,7 @@ abstract class SockJSProtocolSpec(testRoutersFactory: () => TestRouters)
         val r = http(HttpRequest(GET, url + "/eventsource"))
         r.verify200()
         r.verifyCookie("dummy")
+        r.cancel()
       }
 
       "works properly in HtmlFile" in {
@@ -801,6 +808,7 @@ abstract class SockJSProtocolSpec(testRoutersFactory: () => TestRouters)
         val r = http(HttpRequest(GET, url + "/htmlfile?c=%63allback"))
         r.verify200()
         r.verifyCookie("dummy")
+        r.cancel()
       }
 
       "works properly in Jsonp" in {
@@ -1189,6 +1197,6 @@ class ScalaFlowSockJSProtocolTest extends SockJSProtocolSpec(() => new ScalaFlow
 
 class ScalaActorSockJSProtocolTest extends SockJSProtocolSpec(() => new ScalaActorTestRouters)
 
-class JavaCallbackSockJSProtocolTest extends SockJSProtocolSpec(() => new JavaCallbackTestRouters)
+class JavaFlowSockJSProtocolTest extends SockJSProtocolSpec(() => new JavaFlowTestRouters)
 
 class JavaActorSockJSProtocolTest extends SockJSProtocolSpec(() => new JavaActorTestRouters)

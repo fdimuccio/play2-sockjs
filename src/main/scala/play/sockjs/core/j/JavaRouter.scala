@@ -5,7 +5,6 @@ import akka.stream.Materializer
 import play.api.mvc._
 import play.api.routing.Router
 import play.core.j
-import play.mvc.Http.RequestHeader
 import play.sockjs.core.{Dispatcher, Server, SockJSHandler}
 
 abstract class JavaRouter extends play.mvc.Controller with Router {

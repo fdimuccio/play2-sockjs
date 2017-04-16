@@ -1,7 +1,5 @@
 package play.sockjs.core.streams
 
-import akka.stream.stage.GraphStageLogic.StageActor
-
 import scala.concurrent.Promise
 import scala.concurrent.duration._
 
@@ -16,16 +14,14 @@ import org.reactivestreams.{Publisher, Subscriber}
 
 import play.sockjs.api.Frame
 
-private[streams] object SessionSubscriber {
+private[streams] object SessionSink {
 
   // Sent by ConnectionPublisher to subscribe
   case class Subscribe(subscriber: Subscriber[_ >: ByteString])
   // Sent to ConnectionPublisher to notify a successful subscription
-  case object Subscribed
-  // Sent to ConnectionPublisher to notify a duplicate subscription
-  case object AlreadySubscribed
-  // Sent to ConnectionPublisher to notify a closing session
-  case object Closing
+  case object SubscriptionSuccessful
+  // Sent to ConnectionPublisher to notify a failed subscription
+  case class SubscriptionFailed(frame: Frame.Close)
 
   // Sent by ConnectionPublisher to request elements
   case class Request(n: Long)
@@ -35,7 +31,7 @@ private[streams] object SessionSubscriber {
   private val SessionTimeoutTimer = "SessionTimeoutTimer"
 }
 
-private[streams] class SessionSubscriber(timeout: FiniteDuration, quota: Long)
+private[streams] class SessionSink(timeout: FiniteDuration, quota: Long)
   extends GraphStageWithMaterializedValue[SinkShape[Frame], (Promise[Done], Source[ByteString, NotUsed])] {
   val in = Inlet[Frame]("SessionSubscriber.in")
   def shape: SinkShape[Frame] = SinkShape(in)
@@ -44,26 +40,29 @@ private[streams] class SessionSubscriber(timeout: FiniteDuration, quota: Long)
     val publisher = Promise[Publisher[ByteString]]()
     val binding = Promise[Done]()
 
-    val logic = new TimerGraphStageLogic(shape) {
-      import SessionSubscriber._
-      private[this] var stageActor: StageActor = _
+    val logic: GraphStageLogic = new TimerGraphStageLogic(shape) {
+      import SessionSink._
       private[this] var subscriber: Subscriber[ByteString] = _
       private[this] var demand = 0L
-      private[this] var remaining = 0L
+      private[this] var remaining = quota
 
       override def preStart(): Unit = {
         // This is needed in order to unlink the request
         setKeepGoing(true)
-        stageActor = getStageActor {
+        val stageActor = getStageActor {
+
+          case (sender, Subscribe(_)) if isClosed(in) =>
+            sender ! SubscriptionFailed(Frame.Close.GoAway)
+
           case (sender, Subscribe(connection)) =>
             if (subscriber == null) {
               cancelTimer(SessionTimeoutTimer)
               remaining = quota
               demand = 0
               subscriber = connection.asInstanceOf[Subscriber[ByteString]]
-              sender ! Subscribed
+              sender ! SubscriptionSuccessful
             } else {
-              sender ! AlreadySubscribed
+              sender ! SubscriptionFailed(Frame.Close.AnotherConnectionStillOpen)
             }
 
           case (_, Request(n)) =>
@@ -86,9 +85,6 @@ private[streams] class SessionSubscriber(timeout: FiniteDuration, quota: Long)
         }
 
         override def onUpstreamFinish(): Unit = {
-          stageActor.become({
-            case (sender, Subscribe(_)) => sender ! Closing
-          })
           if (subscriber != null)
             subscriber.onComplete()
           scheduleOnce(SessionTimeoutTimer, timeout)

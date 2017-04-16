@@ -42,7 +42,8 @@ abstract class TestServer(testRoutersFactory: () => TestRouters) extends PlaySpe
         def documentation: Seq[(String, String, String)] = Seq.empty
         def routes = routers.foldRight(PartialFunction.empty[RequestHeader, Handler])(_.routes.orElse(_))
       })
-      .configure("akka.stream.materializer.debug.fuzzing-mode" -> "on")
+      .configure(
+        "akka.stream.materializer.debug.fuzzing-mode" -> "on")
       .bindings(bind[HttpClient].to(new Provider[HttpClient] {
         @Inject var actorSystem: ActorSystem = _
         lazy val get: HttpClient = new HttpClient(actorSystem)
@@ -53,7 +54,7 @@ abstract class TestServer(testRoutersFactory: () => TestRouters) extends PlaySpe
     * The port used by the `TestServer`.  By default this will be set to the result returned from
     * `Helpers.testServerPort`. You can override this to provide a different port number.
     */
-  lazy val port: Int = Helpers.testServerPort
+  lazy val port: Int = Option(System.getProperty("testserver.port")).map(_.toInt).getOrElse(19001)
 
   /**
     * Invokes `start` on a new `TestServer` created with the `Application` provided by `app` and the
@@ -70,7 +71,6 @@ abstract class TestServer(testRoutersFactory: () => TestRouters) extends PlaySpe
   override def run(testName: Option[String], args: Args): Status = {
     val testServer = TestServer(port, app, serverProvider = Some(new play.core.server.NettyServerProvider))
     //val testServer = TestServer(port, app)
-    println("***************** START SERVER")
     testServer.start()
     try {
       val newConfigMap = args.configMap + ("org.scalatestplus.play.app" -> app) + ("org.scalatestplus.play.port" -> port)

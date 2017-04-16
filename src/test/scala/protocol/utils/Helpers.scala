@@ -101,6 +101,7 @@ trait Helpers { self: TestServer =>
       result.header[`Last-Modified`] mustBe None
       //TODO: check body
       verifyNoCookie()
+      discardBody()
     }
 
     def verifyOpenFrame() = {
@@ -115,12 +116,16 @@ trait Helpers { self: TestServer =>
       Await.result(bytes, 3.seconds).utf8String
     }
 
+    def discardBody(): Unit = Await.result(result.discardEntityBytes().future(), 3.seconds)
+
     def stream(delimiter: String)(implicit mat: Materializer): TestSubscriber.Probe[String] = {
       result.entity.dataBytes
         .via(Framing.delimiter(ByteString(delimiter), Int.MaxValue))
         .map(_.utf8String + delimiter)
         .runWith(TestSink.probe[String])
     }
+
+    def cancel(): Unit = stream("\n").cancel()
   }
 
   def verifyOptions(url: String, allowedMethods: String)(implicit timeout: Timeout) = {

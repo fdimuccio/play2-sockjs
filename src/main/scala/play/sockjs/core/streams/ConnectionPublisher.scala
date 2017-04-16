@@ -9,45 +9,43 @@ import akka.util.{Timeout, ByteString}
 
 import org.reactivestreams.{Subscription, Subscriber, Publisher}
 
+import play.sockjs.api.Frame
 import play.sockjs.api.Frame._
 
 private[streams] case class ConnectionPublisher(session: ActorRef) extends Publisher[ByteString] {
-  import SessionSubscriber._
+  import SessionSink._
+  import ConnectionPublisher._
   private[this] implicit val timeout = Timeout(5.seconds)
 
-  def subscribe(s: Subscriber[_ >: ByteString]) = (session ? Subscribe(s)).onComplete {
+  def subscribe(subscriber: Subscriber[_ >: ByteString]) = {
+    (session ? Subscribe(subscriber)).onComplete {
 
-    case Success(Subscribed) =>
-      s.onSubscribe(new Subscription {
-        def request(n: Long): Unit = session ! Request(n)
-        def cancel(): Unit = session ! Abort
-      })
+      case Success(SubscriptionSuccessful) =>
+        subscriber.onSubscribe(new Subscription {
+          def request(n: Long): Unit = session ! Request(n)
+          def cancel(): Unit = session ! Abort
+        })
 
-    case Success(AlreadySubscribed) =>
+      case Success(SubscriptionFailed(frame)) => subscriber.close(frame)
+
+      case _ => subscriber.close(Close.ConnectionInterrupted)
+
+    }(play.core.Execution.trampoline)
+  }
+}
+
+object ConnectionPublisher {
+
+  implicit class SubscriberEnricher(val s: Subscriber[_ >: ByteString]) extends AnyVal {
+
+    def close(frame: Frame): Unit = {
       s.onSubscribe(new Subscription {
         def request(l: Long): Unit = {
-          s.onNext(Close.AnotherConnectionStillOpen.encode)
+          s.onNext(frame.encode)
           s.onComplete()
         }
         def cancel(): Unit = ()
       })
-
-    case Success(Closing) =>
-      s.onSubscribe(new Subscription {
-        def request(l: Long): Unit = {
-          s.onNext(Close.GoAway.encode)
-          s.onComplete()
-        }
-        def cancel(): Unit = ()
-      })
-
-    case _ =>
-      s.onSubscribe(new Subscription {
-        def request(l: Long): Unit = {
-          s.onNext(Close.ConnectionInterrupted.encode)
-          s.onComplete()
-        }
-        def cancel(): Unit = ()
-      })
-  }(play.core.Execution.trampoline)
+    }
+  }
 }
