@@ -28,7 +28,7 @@ private[core] object SessionFlow {
       Flow[Frame]
         .via(ProtocolFlow(heartbeat))
         .via(new FrameBufferStage(sessionBufferSize))
-        .toMat(Sink.fromGraph(new SessionSink(timeout, quota)))(Keep.right)
+        .toMat(Sink.fromGraph(new SessionSubscriber(timeout, quota)))(Keep.right)
 
     Flow.fromSinkAndSourceMat(sink, source) { case ((binding, out), in) =>
       (new Session {

@@ -6,7 +6,7 @@ import play.api.mvc.Handler
 import play.sockjs.core.transports._
 
 /**
- * The dispatcher that will handle SockJS request.
+ * Dispatch SockJS request to the right protocol handler.
  */
 private[sockjs] final class Dispatcher(server: Server) extends HttpVerbs {
 

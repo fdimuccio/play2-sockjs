@@ -1,17 +1,18 @@
 package protocol.routers
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
-import akka.stream.javadsl._
+import scala.compat.java8.FunctionConverters._
+
+import akka.actor.ActorSystem
+
 import play.mvc.Http.RequestHeader
 import play.sockjs._
-import play.sockjs.api.libs.streams.ActorFlow
 
 class JavaTestRouter(val sockjs: SockJS, prefix: String, cfg: SockJSSettings) extends SockJSRouter {
   withPrefix(prefix)
   override protected def settings: SockJSSettings = cfg
 }
 
-sealed trait JavaTestRouters extends TestRouters {
+abstract class JavaTestRouters(echo: SockJS, closed: SockJS) extends TestRouters {
 
   object Settings {
     val base = new SockJSSettings().withStreamingQuota(4096)
@@ -38,33 +39,14 @@ sealed trait JavaTestRouters extends TestRouters {
     * server immediately closes the session
     */
   def Closed(prefix: String) = new JavaTestRouter(closed, prefix, Settings.base)
-
-  def echo: SockJS
-
-  def closed: SockJS
 }
 
-final class JavaFlowTestRouters extends JavaTestRouters {
+final class JavaFlowTestRouters extends JavaTestRouters(
+  echo = SockJS.Text.accept(asJavaFunction((_: RequestHeader) => Flows.echo[String].asJava)),
+  closed = SockJS.Text.accept(asJavaFunction((_: RequestHeader) => Flows.closed[String].asJava))
+)
 
-  def echo = SockJS.Text.accept((request: RequestHeader) => Flow.create[String])
-
-  def closed = SockJS.Text.accept((request: RequestHeader) => Flow.fromSinkAndSource(Sink.ignore, Source.empty[String]))
-}
-
-final class JavaActorTestRouters extends JavaTestRouters {
-  implicit val as = ActorSystem("JavaActorFlowTestRouters")
-
-  def echo = SockJS.Text.accept((request: RequestHeader) => ActorFlow.actorRef[String, String]((out: ActorRef) => Props(new Actor {
-    override def receive = {
-      case msg => out ! msg
-    }
-  })).asInstanceOf[Flow[String, String, Any]])
-
-  def closed = SockJS.Text.accept((request: RequestHeader) => ActorFlow.actorRef[String, String]((out: ActorRef) => Props(new Actor {
-    context.stop(self)
-
-    override def receive = {
-      case msg =>
-    }
-  })).asInstanceOf[Flow[String, String, Any]])
-}
+final class JavaActorTestRouters(implicit as: ActorSystem) extends JavaTestRouters(
+  echo = SockJS.Text.accept(asJavaFunction((_: RequestHeader) => ActorFlows.echo[String].asJava)),
+  closed = SockJS.Text.accept(asJavaFunction((_: RequestHeader) => ActorFlows.closed[String].asJava))
+)

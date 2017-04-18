@@ -1,16 +1,14 @@
 package protocol.routers
 
-import akka.actor.{Actor, ActorSystem, Props}
-import akka.stream.scaladsl._
+import akka.actor.ActorSystem
 import play.sockjs.api._
-import play.sockjs.api.libs.streams.ActorFlow
 
 class ScalaTestRouter(val sockjs: SockJS, prefix: String, cfg: SockJSSettings) extends SockJSRouter {
   withPrefix(prefix)
   override protected def settings = cfg
 }
 
-sealed trait ScalaTestRouters extends TestRouters {
+abstract class ScalaTestRouters(echo: SockJS, closed: SockJS) extends TestRouters {
 
   object Settings {
     val base = SockJSSettings(streamingQuota = 4096)
@@ -37,38 +35,14 @@ sealed trait ScalaTestRouters extends TestRouters {
     * server immediately closes the session
     */
   def Closed(prefix: String) = new ScalaTestRouter(closed, prefix, Settings.base)
-
-  def echo: SockJS
-
-  def closed: SockJS
 }
 
-final class ScalaFlowTestRouters extends ScalaTestRouters {
+final class ScalaFlowTestRouters extends ScalaTestRouters(
+  echo = SockJS.accept(_ => Flows.echo[Frame]),
+  closed = SockJS.accept(_ => Flows.closed[Frame])
+)
 
-  def echo = SockJS.accept[Frame, Frame](_ => Flow[Frame])
-
-  def closed = SockJS.accept[Frame, Frame] { _ =>
-    Flow.fromSinkAndSource(Sink.ignore, Source.empty[Frame])
-  }
-}
-
-final class ScalaActorTestRouters extends ScalaTestRouters {
-  implicit val as = ActorSystem("ActorFlowTestRouters")
-
-  def echo = SockJS.accept { _ =>
-    ActorFlow.actorRef[Frame, Frame](out => Props(new Actor {
-      override def receive = {
-        case msg => out ! msg
-      }
-    }))
-  }
-
-  def closed = SockJS.accept { _ =>
-    ActorFlow.actorRef[Frame, Frame](_ => Props(new Actor {
-      context.stop(self)
-      override def receive = {
-        case msg =>
-      }
-    }))
-  }
-}
+final class ScalaActorTestRouters(implicit val as: ActorSystem) extends ScalaTestRouters(
+  echo = SockJS.accept(_ => ActorFlows.echo[Frame]),
+  closed = SockJS.accept(_ => ActorFlows.closed[Frame])
+)

@@ -40,12 +40,12 @@ abstract class JavaRouter extends play.mvc.Controller with Router {
       streamingQuota = cfg.streamingQuota(),
       sendBufferSize = cfg.sendBufferSize(),
       sessionBufferSize = cfg.sessionBufferSize())
-  }, materializer))
+  }, materializer, Action, BodyParsers.parse))
 
   final def routes = {
     case rh if rh.path.startsWith(prefix) =>
       (rh.method, rh.path.drop(prefix.length)) match {
-        case dispatcher(handler: SockJSHandler) => JavaSockJS.run(rh, handler, sockjs)
+        case dispatcher(handler: SockJSHandler) => new JavaSockJS(rh, handler, sockjs)
         case dispatcher(handler) => handler
         case _ => Action(Results.NotFound)
       }

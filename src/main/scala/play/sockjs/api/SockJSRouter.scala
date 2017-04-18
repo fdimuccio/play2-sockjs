@@ -8,6 +8,9 @@ import play.api.mvc.Results._
 
 import play.sockjs.core._
 
+//TODO: this class should become an abstract class with two parameters:
+//      - SockJSComponents (this one injected)
+//      - SockJSSettings (this one optional, if not specified use default)
 trait SockJSRouter extends Router {
 
   private var prefix: String = ""
@@ -19,7 +22,8 @@ trait SockJSRouter extends Router {
 
   final def documentation: Seq[(String, String, String)] = Seq.empty
 
-  private lazy val dispatcher = new Dispatcher(new Server(settings, materializer))
+  private lazy val dispatcher = new Dispatcher(
+    new Server(settings, materializer, Action, BodyParsers.parse))
 
   final def routes = {
     case rh: RequestHeader if rh.path.startsWith(prefix) =>
@@ -31,7 +35,7 @@ trait SockJSRouter extends Router {
   }
 
   /**
-    * Override this method to use a different materializer
+    * Override this method to inject a different materializer
     */
   protected def materializer: Materializer = play.api.Play.privateMaybeApplication
     .getOrElse(sys.error("No application started")).materializer

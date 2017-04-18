@@ -8,7 +8,7 @@ object BuildSettings {
     organization := "com.github.fdimuccio",
     version := buildVersion,
     scalaVersion := "2.12.1",
-    crossScalaVersions := Seq("2.11.8", "2.12.1"),
+    crossScalaVersions := Seq("2.11.9", "2.12.1"),
     crossVersion := CrossVersion.binary,
     javaOptions in Test ++= Seq("-Xmx1g", "-XX:MaxPermSize=512m"),
     javacOptions ++= Seq("-source", "1.8", "-target", "1.8", "-encoding", "UTF-8", "-Xlint:-options"),
@@ -40,7 +40,7 @@ object Publish {
   }
   lazy val settings = Seq(
     publishMavenStyle := true,
-    publishTo <<= TargetRepository.sonatype,
+    publishTo := TargetRepository.sonatype.value,
     publishArtifact in Test := false,
     pomIncludeRepository := { _ => false },
     licenses := Seq("Apache 2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
@@ -82,7 +82,7 @@ object ShellPrompt {
 object Play2SockJSBuild extends Build {
   import BuildSettings._
 
-  val play2Version = "2.6.0-M2"
+  val play2Version = "2.6.0-M4"
 
   lazy val play2SockJS = Project(
     "play2-sockjs",
@@ -96,9 +96,9 @@ object Play2SockJSBuild extends Build {
       ),
       libraryDependencies ++= Seq(
         "com.typesafe.play" %% "play" % play2Version % "provided->default",
-        "com.typesafe.akka" %% "akka-http" % "10.0.4" % Test,
-        "com.typesafe.akka" %% "akka-stream-testkit" % "2.4.17" % Test,
-        "org.scalatestplus.play" %% "scalatestplus-play" % "3.0.0-M1" % Test,
+        "com.typesafe.akka" %% "akka-http" % "10.0.5" % Test,
+        "com.typesafe.akka" %% "akka-stream-testkit" % "2.5.0" % Test,
+        "org.scalatestplus.play" %% "scalatestplus-play" % "3.0.0-M3" % Test,
         "com.typesafe.play" %% "play-netty-server" % play2Version % Test
       )
     )

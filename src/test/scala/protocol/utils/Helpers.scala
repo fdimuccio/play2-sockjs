@@ -22,9 +22,9 @@ trait Helpers { self: TestServer =>
       ContentType(MediaTypes.`application/x-www-form-urlencoded`, HttpCharsets.`UTF-8`)
   }
 
-  def sleep(duration: FiniteDuration) = {
-    val scheduler  = app.actorSystem.scheduler
-    val dispatcher = app.actorSystem.dispatcher
+  def sleep(duration: FiniteDuration): Unit = {
+    val scheduler  = as.scheduler
+    val dispatcher = as.dispatcher
     val f = akka.pattern.after(duration, scheduler)(Future.successful(()))(dispatcher)
     Await.ready(f, Duration.Inf)
   }
@@ -113,10 +113,12 @@ trait Helpers { self: TestServer =>
 
     def body: String = {
       val bytes = result.entity.dataBytes.runFold(ByteString.empty)(_ ++ _)
-      Await.result(bytes, 3.seconds).utf8String
+      Await.result(bytes, 5.seconds).utf8String
     }
 
-    def discardBody(): Unit = Await.result(result.discardEntityBytes().future(), 3.seconds)
+    def discardBody(): Unit = {
+      Await.result(result.discardEntityBytes().future(), 5.seconds)
+    }
 
     def stream(delimiter: String)(implicit mat: Materializer): TestSubscriber.Probe[String] = {
       result.entity.dataBytes

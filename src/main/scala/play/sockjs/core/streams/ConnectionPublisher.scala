@@ -13,7 +13,7 @@ import play.sockjs.api.Frame
 import play.sockjs.api.Frame._
 
 private[streams] case class ConnectionPublisher(session: ActorRef) extends Publisher[ByteString] {
-  import SessionSink._
+  import SessionSubscriber._
   import ConnectionPublisher._
   private[this] implicit val timeout = Timeout(5.seconds)
 

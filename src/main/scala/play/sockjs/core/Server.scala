@@ -6,7 +6,7 @@ import scala.util.control.NonFatal
 import scala.util.control.Exception._
 import scala.concurrent.Future
 
-import akka.stream.{Fusing, Materializer, QueueOfferResult}
+import akka.stream.{Materializer, QueueOfferResult}
 import akka.stream.scaladsl.{Keep, Source}
 import akka.util.ByteString
 
@@ -23,25 +23,29 @@ import play.sockjs.api.Frame._
 /**
  * SockJS server
  */
-private[sockjs] final class Server(val settings: SockJSSettings, materializer: Materializer)
+private[sockjs] final class Server(
+    val settings: SockJSSettings,
+    materializer: Materializer,
+    val action: DefaultActionBuilder,
+    parse: PlayBodyParsers)
   extends HeaderNames with Results {
   import Server._
 
-  private[this] val fusedHttpPolling = Fusing.aggressive(SessionFlow(
+  private[this] val HttpPollingFlow = SessionFlow(
     settings.heartbeat,
     settings.sessionTimeout,
     1,
     settings.sendBufferSize,
     settings.sessionBufferSize
-  ))
+  )
 
-  private[this] val fusedHttpStreaming = Fusing.aggressive(SessionFlow(
+  private[this] val HttpStreamingFlow = SessionFlow(
     settings.heartbeat,
     settings.sessionTimeout,
     settings.streamingQuota,
     settings.sendBufferSize,
     settings.sessionBufferSize
-  ))
+  )
 
   private[this] val sessions = new ConcurrentHashMap[String, Any]()
 
@@ -49,7 +53,7 @@ private[sockjs] final class Server(val settings: SockJSSettings, materializer: M
     * Used by the `send` method of SockJS client (xhr_send and jsonp_send)
     */
   def send(f: RequestHeader => Result): String => Handler =
-    sessionID => Action.async(parse.raw(Int.MaxValue)) { implicit req =>
+    sessionID => action.async(parse.raw(Int.MaxValue)) { implicit req =>
       def tryParse(f: => JsValue) = {
         (allCatch either f).left.map(_ => "Broken JSON encoding.")
       }
@@ -102,7 +106,7 @@ private[sockjs] final class Server(val settings: SockJSSettings, materializer: M
     */
   private def http(streaming: Boolean)(f: SockJSRequest => Future[Result]): String => Handler =
     sessionID => SockJSHandler { (_, sockjs) =>
-      Action.async { req =>
+      action.async { req =>
         f(new SockJSRequest(req) {
           def bind(ctype: String)(f: Source[ByteString, _] => Source[ByteString, _]) = {
             (sessions.putIfAbsent(sessionID, Initializing) match {
@@ -122,7 +126,7 @@ private[sockjs] final class Server(val settings: SockJSSettings, materializer: M
                 handler.map(_.right.map { flow =>
                   val (session, binding) =
                     flow.joinMat(
-                      if (streaming) fusedHttpStreaming else fusedHttpPolling
+                      if (streaming) HttpStreamingFlow else HttpPollingFlow
                     )(Keep.right).run()(materializer)
                   sessions.put(sessionID, session)
                   //TODO: log failure
@@ -163,13 +167,13 @@ private[sockjs] final class Server(val settings: SockJSSettings, materializer: M
     */
   def websocket(f: SockJS => Handler): Handler = SockJSHandler { (req, sockjs) =>
     if (!settings.websocket)
-      Action(NotFound)
+      action(NotFound)
     else if (req.method != "GET")
-      Action(MethodNotAllowed.withHeaders(ALLOW -> "GET"))
+      action(MethodNotAllowed.withHeaders(ALLOW -> "GET"))
     else if (!req.headers.get(UPGRADE).exists(_.equalsIgnoreCase("websocket")))
-      Action(BadRequest("'Can \"Upgrade\" only to \"WebSocket\".'"))
+      action(BadRequest("'Can \"Upgrade\" only to \"WebSocket\".'"))
     else if (!req.headers.get(CONNECTION).exists(_.toLowerCase.contains("upgrade")))
-      Action(BadRequest("\"Connection\" must be \"Upgrade\"."))
+      action(BadRequest("\"Connection\" must be \"Upgrade\"."))
     else
       f(sockjs)
   }

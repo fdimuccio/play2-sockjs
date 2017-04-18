@@ -4,9 +4,8 @@ import scala.concurrent.Promise
 import scala.concurrent.duration._
 
 import akka.{Done, NotUsed}
-import akka.actor._
-import akka.stream.{Inlet, Attributes, SinkShape}
-import akka.stream.scaladsl.Source
+import akka.stream._
+import akka.stream.scaladsl._
 import akka.stream.stage.{TimerGraphStageLogic, InHandler, GraphStageLogic, GraphStageWithMaterializedValue}
 import akka.util.ByteString
 
@@ -14,7 +13,7 @@ import org.reactivestreams.{Publisher, Subscriber}
 
 import play.sockjs.api.Frame
 
-private[streams] object SessionSink {
+private[streams] object SessionSubscriber {
 
   // Sent by ConnectionPublisher to subscribe
   case class Subscribe(subscriber: Subscriber[_ >: ByteString])
@@ -31,7 +30,7 @@ private[streams] object SessionSink {
   private val SessionTimeoutTimer = "SessionTimeoutTimer"
 }
 
-private[streams] class SessionSink(timeout: FiniteDuration, quota: Long)
+private[streams] class SessionSubscriber(timeout: FiniteDuration, quota: Long)
   extends GraphStageWithMaterializedValue[SinkShape[Frame], (Promise[Done], Source[ByteString, NotUsed])] {
   val in = Inlet[Frame]("SessionSubscriber.in")
   def shape: SinkShape[Frame] = SinkShape(in)
@@ -41,7 +40,7 @@ private[streams] class SessionSink(timeout: FiniteDuration, quota: Long)
     val binding = Promise[Done]()
 
     val logic: GraphStageLogic = new TimerGraphStageLogic(shape) {
-      import SessionSink._
+      import SessionSubscriber._
       private[this] var subscriber: Subscriber[ByteString] = _
       private[this] var demand = 0L
       private[this] var remaining = quota

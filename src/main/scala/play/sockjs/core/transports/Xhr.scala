@@ -13,7 +13,7 @@ private[sockjs] class Xhr(server: Server) extends HeaderNames with Results {
   /**
    * handler for xhr options req
    */
-  def options = Action { implicit req =>
+  def options = server.action { implicit req: Request[AnyContent] =>
     OptionsResult("OPTIONS", "POST")
   }
 
