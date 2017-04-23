@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/fdimuccio/play2-sockjs.svg?branch=master)](https://travis-ci.org/fdimuccio/play2-sockjs) [![Maven](https://img.shields.io/maven-central/v/com.github.fdimuccio/play2-sockjs_2.11.svg)](http://mvnrepository.com/artifact/com.github.fdimuccio/play2-sockjs_2.11)
+[![Build Status](https://travis-ci.org/fdimuccio/play2-sockjs.svg?branch=upgrade_to_2.6)](https://travis-ci.org/fdimuccio/play2-sockjs) [![Maven](https://img.shields.io/maven-central/v/com.github.fdimuccio/play2-sockjs_2.11.svg)](http://mvnrepository.com/artifact/com.github.fdimuccio/play2-sockjs_2.11)
 
 ## play2-sockjs
 
