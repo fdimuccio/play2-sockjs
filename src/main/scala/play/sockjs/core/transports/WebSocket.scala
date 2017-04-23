@@ -3,7 +3,9 @@ package transports
 
 import scala.collection.immutable.Seq
 import scala.util.control.Exception._
+
 import akka.stream.scaladsl._
+
 import play.api.mvc._
 import play.api.mvc.{WebSocket => PlayWebSocket}
 import play.api.http._
@@ -30,7 +32,7 @@ private[sockjs] class WebSocket(server: Server) extends HeaderNames with Results
                 invalid => Right(CloseAbruptly),
                 valid => Left(Text(valid))
               )).getOrElse(Right(CloseAbruptly))
-          })(Flow[Frame].via(new CancellationSuppresser(flow)))
+          })(Flow.fromGraph(new CancellationSuppresser(flow)))
           .via(ProtocolFlow(settings.heartbeat))
           .via(new FrameBufferStage(settings.sessionBufferSize))
           .map(f => TextMessage(f.encode.utf8String))
@@ -46,7 +48,7 @@ private[sockjs] class WebSocket(server: Server) extends HeaderNames with Results
       sockjs(req).map(_.right.map { flow =>
         Flow[Message]
           .collect { case TextMessage(data) => Text(data) }
-          .via(Flow[Frame].via(new CancellationSuppresser(flow)))
+          .via(new CancellationSuppresser(flow))
           .via(ProtocolFlow.Stage)
           .mapConcat[Message] {
             case Frame.Text(data) => data.map(TextMessage.apply)

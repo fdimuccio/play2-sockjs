@@ -7,8 +7,8 @@ object BuildSettings {
   val buildSettings = Defaults.defaultSettings ++ Seq(
     organization := "com.github.fdimuccio",
     version := buildVersion,
-    scalaVersion := "2.12.1",
-    crossScalaVersions := Seq("2.11.9", "2.12.1"),
+    scalaVersion := "2.12.2",
+    crossScalaVersions := Seq("2.11.9", "2.12.2"),
     crossVersion := CrossVersion.binary,
     javaOptions in Test ++= Seq("-Xmx1g", "-XX:MaxPermSize=512m"),
     javacOptions ++= Seq("-source", "1.8", "-target", "1.8", "-encoding", "UTF-8", "-Xlint:-options"),

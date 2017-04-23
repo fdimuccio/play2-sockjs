@@ -1,8 +1,10 @@
 package protocol.utils
 
 import java.util.UUID
+
 import scala.concurrent.duration.{FiniteDuration, _}
-import scala.concurrent.{Future, Await}
+import scala.concurrent.{Await, Future}
+
 import akka.stream.Materializer
 import akka.stream.scaladsl._
 import akka.stream.testkit._
@@ -12,10 +14,13 @@ import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.headers._
 import akka.http.scaladsl.model.headers.CacheDirectives._
 import akka.http.scaladsl.model.HttpMethods._
-import akka.util.{Timeout, ByteString}
+import akka.util.{ByteString, Timeout}
+
+import org.scalatestplus.play.PlaySpec
+
 import play.api.libs.json._
 
-trait Helpers { self: TestServer =>
+trait TestHelpers extends PlaySpec { self: TestServer with TestClient =>
 
   object ContentTypesX {
     val `application/x-www-form-urlencoded` =

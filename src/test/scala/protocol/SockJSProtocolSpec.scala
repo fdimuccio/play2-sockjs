@@ -2,9 +2,9 @@ package protocol
 
 import java.util.UUID
 
-import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.util.{Random, Try}
+
 import akka.util.Timeout
 import akka.actor.ActorSystem
 import akka.stream.scaladsl._
@@ -16,9 +16,11 @@ import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.ws._
 import akka.http.scaladsl.settings.ConnectionPoolSettings
 import akka.stream.testkit.scaladsl.{TestSink, TestSource}
+
 import org.apache.commons.lang3.StringEscapeUtils
+
 import play.api.libs.json._
-import play.api.libs.ws.WSClient
+
 import protocol.routers._
 
 /**
@@ -26,8 +28,9 @@ import protocol.routers._
   *
   * https://github.com/sockjs/sockjs-protocol/blob/master/sockjs-protocol.py
   */
-abstract class SockJSProtocolSpec(testRoutersFactory: ActorSystem => TestRouters)
-  extends utils.TestServer(testRoutersFactory) with utils.Helpers {
+abstract class SockJSProtocolSpec(builder: ActorSystem => TestRouters)
+  extends utils.TestHelpers with utils.TestClient with utils.TestServer {
+  override def TestRoutersBuilder(as: ActorSystem): TestRouters = builder(as)
 
   implicit val timeout: Timeout = 10.seconds
 

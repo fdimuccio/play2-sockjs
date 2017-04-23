@@ -12,7 +12,9 @@ import scala.concurrent.duration.FiniteDuration
 private[core] object ProtocolFlow {
 
   def apply[T](heartbeat: FiniteDuration): Flow[Frame, Frame, _] = {
-    Flow[Frame].via(Stage).keepAlive(heartbeat, HeartbeatConstFunc)
+    Flow[Frame]
+      .via(Stage)
+      .keepAlive(heartbeat, HeartbeatConstFunc)
   }
 
   object Stage extends GraphStage[FlowShape[Frame, Frame]] {
@@ -22,7 +24,10 @@ private[core] object ProtocolFlow {
 
     def createLogic(inheritedAttributes: Attributes) = new GraphStageLogic(shape) {
 
+      override def preStart(): Unit = emit(out, Open)
+
       setHandler(in, new InHandler {
+
         def onPush() = {
           grab(in) match {
             case CloseAbruptly =>
@@ -42,12 +47,7 @@ private[core] object ProtocolFlow {
       })
 
       setHandler(out, new OutHandler {
-        def onPull() = {
-          push(out, Open)
-          setHandler(out, new OutHandler {
-            def onPull(): Unit = pull(in)
-          })
-        }
+        def onPull(): Unit = pull(in)
       })
     }
   }
