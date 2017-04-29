@@ -16,11 +16,11 @@ import akka.http.scaladsl.model.headers.CacheDirectives._
 import akka.http.scaladsl.model.HttpMethods._
 import akka.util.{ByteString, Timeout}
 
-import org.scalatestplus.play.PlaySpec
+import org.scalatest.{MustMatchers, OptionValues, WordSpec}
 
 import play.api.libs.json._
 
-trait TestHelpers extends PlaySpec { self: TestServer with TestClient =>
+trait TestHelpers extends WordSpec with MustMatchers with OptionValues { self: TestServer with TestClient =>
 
   object ContentTypesX {
     val `application/x-www-form-urlencoded` =
