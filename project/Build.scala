@@ -82,7 +82,7 @@ object ShellPrompt {
 object Play2SockJSBuild extends Build {
   import BuildSettings._
 
-  val play2Version = "2.6.0-M5"
+  val play2Version = "2.6.0-RC2"
 
   lazy val play2SockJS = Project(
     "play2-sockjs",
@@ -96,9 +96,9 @@ object Play2SockJSBuild extends Build {
       ),
       libraryDependencies ++= Seq(
         "com.typesafe.play" %% "play" % play2Version % "provided->default",
-        "com.typesafe.akka" %% "akka-http" % "10.0.5" % Test,
-        "com.typesafe.akka" %% "akka-stream-testkit" % "2.5.0" % Test,
-        "org.scalatest" %% "scalatest" % "3.0.1" % Test,
+        "com.typesafe.akka" %% "akka-http" % "10.0.7" % Test,
+        "com.typesafe.akka" %% "akka-stream-testkit" % "2.5.2" % Test,
+        "org.scalatest" %% "scalatest" % "3.0.3" % Test,
         "com.typesafe.play" %% "play-test" % play2Version % Test,
         "com.typesafe.play" %% "play-guice" % play2Version % Test,
         "com.typesafe.play" %% "play-netty-server" % play2Version % Test
