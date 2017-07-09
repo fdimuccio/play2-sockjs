@@ -4,12 +4,17 @@ import scala.compat.java8.FunctionConverters._
 
 import akka.actor.ActorSystem
 
+import play.api.mvc.{Action, BodyParsers}
+
 import play.mvc.Http.RequestHeader
+
 import play.sockjs._
+import play.sockjs.api.DefaultSockJSRouterComponents
 
 class JavaTestRouter(val sockjs: SockJS, prefix: String, cfg: SockJSSettings) extends SockJSRouter {
   withPrefix(prefix)
-  override protected def settings: SockJSSettings = cfg
+  override protected def components = DefaultSockJSRouterComponents(materializer, Action, BodyParsers.parse)
+  override protected def settings = cfg
 }
 
 abstract class JavaTestRouters(echo: SockJS, closed: SockJS) extends TestRouters {

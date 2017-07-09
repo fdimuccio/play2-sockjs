@@ -2,13 +2,13 @@ name := "sockjs-chat"
 
 version := "0.1"
 
-scalaVersion := "2.12.1"
+scalaVersion := "2.12.2"
 
 enablePlugins(PlayScala)
 
 resolvers += Resolver.sonatypeRepo("snapshots")
 
 libraryDependencies ++= Seq(
-  "com.softwaremill.macwire" %% "macros" % "2.3.0" % "provided",
-  "com.github.fdimuccio" %% "play2-sockjs" % "0.6.0-SNAPSHOT"
+  guice,
+  "com.github.fdimuccio" %% "play2-sockjs" % "0.6.0-M1"
 )

@@ -1,10 +1,21 @@
 package controllers.actorj;
 
+import javax.inject.Inject;
+
+import akka.actor.ActorSystem;
+
 import play.sockjs.SockJS;
 import play.sockjs.SockJSRouter;
 import play.sockjs.SockJSSettings;
 
 public class EchoWithNoWebsocket extends SockJSRouter {
+
+    final private ActorSystem actorSystem;
+
+    @Inject
+    public EchoWithNoWebsocket(ActorSystem actorSystem) {
+        this.actorSystem = actorSystem;
+    }
 
     @Override
     public SockJSSettings settings() {
@@ -12,6 +23,6 @@ public class EchoWithNoWebsocket extends SockJSRouter {
     }
 
     public SockJS sockjs() {
-        return Utils.Handlers.echo();
+        return Utils.Handlers.echo(actorSystem);
     }
 }

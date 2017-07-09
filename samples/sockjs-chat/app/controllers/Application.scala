@@ -1,17 +1,17 @@
 package controllers
 
+import javax.inject.Inject
+
 import scala.concurrent.Future
-import scala.concurrent.duration._
 
 import play.api.mvc._
-
 import play.api.libs.json._
 
 import play.sockjs.api._
 
 import models._
 
-class Application(chatRoom: ChatRoom) extends Controller with SockJSRouter {
+class Application @Inject() (chatRoom: ChatRoom) extends InjectedController with InjectedSockJSRouter {
 
   /**
    * Just display the home page.
@@ -36,7 +36,7 @@ class Application(chatRoom: ChatRoom) extends Controller with SockJSRouter {
   /**
     * Override this method to specify different settings
     */
-  override protected def settings = SockJSSettings(websocket = false, heartbeat = 55.seconds)
+  override protected def settings = SockJSSettings(websocket = false)
 
   /**
     * SockJS handler

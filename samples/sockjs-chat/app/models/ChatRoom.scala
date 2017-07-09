@@ -1,18 +1,18 @@
 package models
 
-import scala.concurrent.duration._
+import javax.inject.Inject
 
+import scala.concurrent.duration._
 import akka.actor._
 import akka.stream._
 import akka.stream.scaladsl._
-
 import play.api._
 import play.api.libs.json._
 
 /**
  * ChatRoom service
  */
-class ChatRoom(akka: ActorSystem, mat: Materializer) {
+class ChatRoom @Inject() (akka: ActorSystem, mat: Materializer) {
 
   private val room = {
     val roomActor = akka.actorOf(Props[ChatRoomActor])

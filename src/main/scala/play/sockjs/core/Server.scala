@@ -26,7 +26,7 @@ import play.sockjs.api.Frame._
 private[sockjs] final class Server(
     val settings: SockJSSettings,
     materializer: Materializer,
-    val action: DefaultActionBuilder,
+    val action: ActionBuilder[Request, AnyContent],
     parse: PlayBodyParsers)
   extends HeaderNames with Results {
   import Server._

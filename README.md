@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/fdimuccio/play2-sockjs.svg?branch=upgrade_to_2.6)](https://travis-ci.org/fdimuccio/play2-sockjs) [![Maven](https://img.shields.io/maven-central/v/com.github.fdimuccio/play2-sockjs_2.11.svg)](http://mvnrepository.com/artifact/com.github.fdimuccio/play2-sockjs_2.11)
+[![Build Status](https://travis-ci.org/fdimuccio/play2-sockjs.svg?branch=master)](https://travis-ci.org/fdimuccio/play2-sockjs) [![Maven](https://img.shields.io/maven-central/v/com.github.fdimuccio/play2-sockjs_2.12.svg)](http://mvnrepository.com/artifact/com.github.fdimuccio/play2-sockjs_2.12)
 
 ## play2-sockjs
 
@@ -36,7 +36,7 @@ only users that uses WebSocket Hixie-76 protocol behind HAProxy.
         Play 2.3.x : 0.3.1
         Play 2.4.x : 0.4.0
         Play 2.5.x : 0.5.3
-        Play 2.6.x : 0.6.0-SNAPSHOT
+        Play 2.6.x : 0.6.0-M1
 
 ## What is SockJS?
 
