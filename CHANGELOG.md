@@ -1,5 +1,12 @@
 # Change Log
 
+## [0.6.0](https://github.com/fdimuccio/play2-sockjs/tree/0.6.0)
+
+[Full Changelog](https://github.com/fdimuccio/play2-sockjs/compare/0.5.3...0.6.0)
+
+- Update to Play 2.6.19
+- Add API to inject SockJSRouter
+
 ## [0.5.3](https://github.com/fdimuccio/play2-sockjs/tree/0.5.3)
 
 [Full Changelog](https://github.com/fdimuccio/play2-sockjs/compare/0.5.2...0.5.3)
