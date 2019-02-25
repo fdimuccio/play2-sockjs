@@ -47,7 +47,7 @@ abstract class JavaRouter extends play.mvc.Controller with Router {
       streamingQuota = cfg.streamingQuota(),
       sendBufferSize = cfg.sendBufferSize(),
       sessionBufferSize = cfg.sessionBufferSize())
-  }, materializer, components.actionBuilder, components.parser))
+  }, components.materializer, components.actionBuilder, components.parser))
 
   final def routes = {
     case rh if rh.path.startsWith(prefix) =>
@@ -79,11 +79,6 @@ abstract class JavaRouter extends play.mvc.Controller with Router {
     throw new NoSuchElementException(
       "SockJSRouterComponents not set! Call setComponents or create the instance with dependency injection.")
   }
-
-  /**
-    * Override this method to use a different materializer
-    */
-  protected def materializer: Materializer = play.api.Play.privateMaybeApplication.get.materializer
 
   protected def settings: play.sockjs.SockJSSettings = new play.sockjs.SockJSSettings()
 

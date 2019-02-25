@@ -23,6 +23,10 @@ import play.api.libs.json._
 
 import protocol.routers._
 
+import play.api.Application
+import play.api.inject.guice.GuiceApplicationBuilder
+import play.sockjs.api.DefaultSockJSRouterComponents
+
 /**
   * SockJS protocol tests.
   *
@@ -1197,13 +1201,29 @@ abstract class SockJSProtocolSpec(builder: ActorSystem => TestRouters)
 }
 
 class ScalaFlowSockJSProtocolTest
-  extends SockJSProtocolSpec(_ => new ScalaFlowTestRouters)
+  extends SockJSProtocolSpec(_ => {
+    val app: Application = new GuiceApplicationBuilder().build
+    val components = app.injector.instanceOf(classOf[DefaultSockJSRouterComponents])
+      new ScalaFlowTestRouters(components)
+  })
 
 class ScalaActorSockJSProtocolTest
-  extends SockJSProtocolSpec(implicit as => new ScalaActorTestRouters)
+  extends SockJSProtocolSpec(implicit as => {
+    val app: Application = new GuiceApplicationBuilder().build
+    val components = app.injector.instanceOf(classOf[DefaultSockJSRouterComponents])
+      new ScalaActorTestRouters(components)
+  })
 
 class JavaFlowSockJSProtocolTest
-  extends SockJSProtocolSpec(_ => new JavaFlowTestRouters)
+  extends SockJSProtocolSpec(_ => {
+    val app: Application = new GuiceApplicationBuilder().build
+    val components = app.injector.instanceOf(classOf[DefaultSockJSRouterComponents])
+    new JavaFlowTestRouters(components)
+  })
 
 class JavaActorSockJSProtocolTest
-  extends SockJSProtocolSpec(implicit as => new JavaActorTestRouters)
+  extends SockJSProtocolSpec(implicit as => {
+    val app: Application = new GuiceApplicationBuilder().build
+    val components = app.injector.instanceOf(classOf[DefaultSockJSRouterComponents])
+    new JavaActorTestRouters(components)
+  })
