@@ -42,14 +42,15 @@ pomExtra :=
       </developer>
     </developers>
 
-val play2Version = "2.6.19"
+val play2Version = "2.7.0"
 
 libraryDependencies ++= Seq(
   "com.typesafe.play" %% "play" % play2Version % "provided->default",
-  "com.typesafe.akka" %% "akka-http" % "10.1.5" % Test,
-  "com.typesafe.akka" %% "akka-stream-testkit" % "2.5.16" % Test,
+  "com.typesafe.akka" %% "akka-http" % "10.1.7" % Test,
+  "com.typesafe.akka" %% "akka-stream-testkit" % "2.5.19" % Test,
   "org.scalatest" %% "scalatest" % "3.0.3" % Test,
   "com.typesafe.play" %% "play-test" % play2Version % Test,
   "com.typesafe.play" %% "play-guice" % play2Version % Test,
-  "com.typesafe.play" %% "play-netty-server" % play2Version % Test
+  "com.typesafe.play" %% "play-netty-server" % play2Version % Test,
+  "com.google.inject" % "guice" % "4.2.2" % "provided->default"
 )

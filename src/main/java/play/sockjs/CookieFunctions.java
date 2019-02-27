@@ -12,7 +12,7 @@ public class CookieFunctions {
     public static Function<Http.RequestHeader, Http.Cookie> jessionid = request -> {
         Http.Cookie jsessionid = request.cookie("JSESSIONID");
         String value = jsessionid != null ? jsessionid.value() : "dummy";
-        return new Http.Cookie("JSESSIONID", value, null, "/", null, false, false);
+        return new Http.Cookie("JSESSIONID", value, null, "/", null, false, false, Http.Cookie.SameSite.STRICT);
     };
 
 }

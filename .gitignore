@@ -7,3 +7,4 @@ target/
 /build
 lib_managed/
 /logs
+/bin/
