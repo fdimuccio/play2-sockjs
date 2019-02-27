@@ -1,5 +1,13 @@
 # Change Log
 
+## [0.7.0](https://github.com/fdimuccio/play2-sockjs/tree/0.7.0)
+
+[Full Changelog](https://github.com/fdimuccio/play2-sockjs/compare/0.6.0...0.7.0)
+
+**Closed issues:**
+
+- Play 2.7 released [\#27](https://github.com/fdimuccio/play2-sockjs/issues/27)
+
 ## [0.6.0](https://github.com/fdimuccio/play2-sockjs/tree/0.6.0)
 
 [Full Changelog](https://github.com/fdimuccio/play2-sockjs/compare/0.5.3...0.6.0)

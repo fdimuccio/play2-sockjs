@@ -10,5 +10,5 @@ resolvers += Resolver.sonatypeRepo("snapshots")
 
 libraryDependencies ++= Seq(
   guice,
-  "com.github.fdimuccio" %% "play2-sockjs" % "0.6.0"
+  "com.github.fdimuccio" %% "play2-sockjs" % "0.7.0"
 )

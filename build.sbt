@@ -1,10 +1,10 @@
-version := "0.6.0"
+version := "0.7.0"
 
 name := "play2-sockjs"
 organization := "com.github.fdimuccio"
 
-scalaVersion := "2.12.6"
-crossScalaVersions := Seq("2.11.12", "2.12.6")
+scalaVersion := "2.12.8"
+crossScalaVersions := Seq("2.11.12", "2.12.8")
 crossVersion := CrossVersion.binary
 
 javaOptions in Test ++= Seq("-Xmx1g", "-XX:MaxPermSize=512m")
