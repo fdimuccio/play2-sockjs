@@ -42,7 +42,7 @@ pomExtra :=
       </developer>
     </developers>
 
-val play2Version = "2.7.0"
+val play2Version = "2.7.2"
 
 libraryDependencies ++= Seq(
   "com.typesafe.play" %% "play" % play2Version % "provided->default",
