@@ -661,7 +661,7 @@ abstract class SockJSProtocolSpec(builder: ActorSystem => TestRouters)
 
         r1.body mustEqual "/**/callback(\"o\");\r\n"
 
-        val data = HttpEntity(ContentTypesX.`application/x-www-form-urlencoded`, "d=%5B%22x%22%5D")
+        val data = HttpEntity(ContentTypes.`application/x-www-form-urlencoded`, "d=%5B%22x%22%5D")
         val r2 = http(HttpRequest(POST, url + "/jsonp_send", entity = data))
         // Konqueror does weird things on 204. As a workaround we need
         // to respond with something - let it be the string `ok`.
@@ -696,19 +696,19 @@ abstract class SockJSProtocolSpec(builder: ActorSystem => TestRouters)
         val r1 = http(HttpRequest(GET, url + "/jsonp?c=x"))
         r1.body mustEqual "/**/x(\"o\");\r\n"
 
-        val data2 = HttpEntity(ContentTypesX.`application/x-www-form-urlencoded`, "d=%5B%22x")
+        val data2 = HttpEntity(ContentTypes.`application/x-www-form-urlencoded`, "d=%5B%22x")
         val r2 = http(HttpRequest(POST, url + "/jsonp_send", entity = data2))
         r2.verify500()
         r2.body mustEqual "Broken JSON encoding."
 
         for (payload <- List("", "d=", "p=p")) {
-          val data = HttpEntity(ContentTypesX.`application/x-www-form-urlencoded`, payload)
+          val data = HttpEntity(ContentTypes.`application/x-www-form-urlencoded`, payload)
           val r = http(HttpRequest(POST, url + "/jsonp_send", entity = data))
           r.verify500()
           r.body mustEqual "Payload expected."
         }
 
-        val data3 = HttpEntity(ContentTypesX.`application/x-www-form-urlencoded`, "d=%5B%22b%22%5D")
+        val data3 = HttpEntity(ContentTypes.`application/x-www-form-urlencoded`, "d=%5B%22b%22%5D")
         val r3 = http(HttpRequest(POST, url + "/jsonp_send", entity = data3))
         r3.body mustEqual "ok"
 
@@ -723,7 +723,7 @@ abstract class SockJSProtocolSpec(builder: ActorSystem => TestRouters)
         val r1 = http(HttpRequest(GET, url + "/jsonp?c=x"))
         r1.body mustEqual "/**/x(\"o\");\r\n"
 
-        val data2 = HttpEntity(ContentTypesX.`application/x-www-form-urlencoded`, "d=%5B%22abc%22%5D")
+        val data2 = HttpEntity(ContentTypes.`application/x-www-form-urlencoded`, "d=%5B%22abc%22%5D")
         val r2 = http(HttpRequest(POST, url + "/jsonp_send", entity = data2))
         r2.body mustEqual "ok"
 
@@ -754,11 +754,11 @@ abstract class SockJSProtocolSpec(builder: ActorSystem => TestRouters)
         val r1 = http(HttpRequest(GET, url + "/jsonp?c=x"))
         r1.body mustEqual "/**/x(\"o\");\r\n"
 
-        val data2 = HttpEntity(ContentTypesX.`application/x-www-form-urlencoded`, "d=%5B%5D")
+        val data2 = HttpEntity(ContentTypes.`application/x-www-form-urlencoded`, "d=%5B%5D")
         val r2 = http(HttpRequest(POST, url + "/jsonp_send", entity = data2))
         r2.body mustEqual "ok"
 
-        val data3 = HttpEntity(ContentTypesX.`application/x-www-form-urlencoded`, "d=%5B%22x%22%5D")
+        val data3 = HttpEntity(ContentTypes.`application/x-www-form-urlencoded`, "d=%5B%22x%22%5D")
         val r3 = http(HttpRequest(POST, url + "/jsonp_send", entity = data3))
         r3.body mustEqual "ok"
 
@@ -826,7 +826,7 @@ abstract class SockJSProtocolSpec(builder: ActorSystem => TestRouters)
 
         r1.body mustEqual "/**/callback(\"o\");\r\n"
 
-        val data2 = HttpEntity(ContentTypesX.`application/x-www-form-urlencoded`, "d=%5B%22x%22%5D")
+        val data2 = HttpEntity(ContentTypes.`application/x-www-form-urlencoded`, "d=%5B%22x%22%5D")
         val r2 = http(HttpRequest(POST, url + "/jsonp_send", entity = data2))
         r2.body mustEqual "ok"
         r2.verify200()

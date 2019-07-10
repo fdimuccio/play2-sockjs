@@ -22,11 +22,6 @@ import play.api.libs.json._
 
 trait TestHelpers extends WordSpec with MustMatchers with OptionValues { self: TestServer with TestClient =>
 
-  object ContentTypesX {
-    val `application/x-www-form-urlencoded` =
-      ContentType(MediaTypes.`application/x-www-form-urlencoded`, HttpCharsets.`UTF-8`)
-  }
-
   def sleep(duration: FiniteDuration): Unit = {
     val scheduler  = as.scheduler
     val dispatcher = as.dispatcher

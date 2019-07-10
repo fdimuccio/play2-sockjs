@@ -2,7 +2,7 @@ name := "sockjs-protocol-test"
 
 version := "0.1"
 
-scalaVersion := "2.12.6"
+scalaVersion := "2.12.8"
 
 enablePlugins(PlayJava, PlayNettyServer)
 disablePlugins(PlayAkkaHttpServer)
@@ -11,7 +11,7 @@ resolvers += Resolver.sonatypeRepo("snapshots")
 
 libraryDependencies ++= Seq(
   guice,
-  "com.github.fdimuccio" %% "play2-sockjs" % "0.7.0"
+  "com.github.fdimuccio" %% "play2-sockjs" % "0.7.1"
 )
 
 javaOptions += "-Xmx1G"

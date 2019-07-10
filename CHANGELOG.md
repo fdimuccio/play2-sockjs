@@ -1,5 +1,14 @@
 # Change Log
 
+## [0.7.1](https://github.com/fdimuccio/play2-sockjs/tree/0.7.1)
+
+[Full Changelog](https://github.com/fdimuccio/play2-sockjs/compare/0.7.0...0.7.1)
+
+**Closed issues:**
+
+- Added support for Scala 2.13 [\#31](https://github.com/fdimuccio/play2-sockjs/issues/31)
+- Update to Play 2.7.3 [\#30](https://github.com/fdimuccio/play2-sockjs/issues/30)
+
 ## [0.7.0](https://github.com/fdimuccio/play2-sockjs/tree/0.7.0)
 
 [Full Changelog](https://github.com/fdimuccio/play2-sockjs/compare/0.6.0...0.7.0)

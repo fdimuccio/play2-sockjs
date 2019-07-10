@@ -1,10 +1,10 @@
-version := "0.7.0"
+version := "0.7.1"
 
 name := "play2-sockjs"
 organization := "com.github.fdimuccio"
 
 scalaVersion := "2.12.8"
-crossScalaVersions := Seq("2.11.12", "2.12.8")
+crossScalaVersions := Seq("2.11.12", "2.12.8", "2.13.0")
 crossVersion := CrossVersion.binary
 
 javaOptions in Test ++= Seq("-Xmx1g", "-XX:MaxPermSize=512m")
@@ -42,13 +42,13 @@ pomExtra :=
       </developer>
     </developers>
 
-val play2Version = "2.7.2"
+val play2Version = "2.7.3"
 
 libraryDependencies ++= Seq(
   "com.typesafe.play" %% "play" % play2Version % "provided->default",
-  "com.typesafe.akka" %% "akka-http" % "10.1.7" % Test,
-  "com.typesafe.akka" %% "akka-stream-testkit" % "2.5.19" % Test,
-  "org.scalatest" %% "scalatest" % "3.0.3" % Test,
+  "com.typesafe.akka" %% "akka-http" % "10.1.8" % Test,
+  "com.typesafe.akka" %% "akka-stream-testkit" % "2.5.23" % Test,
+  "org.scalatest" %% "scalatest" % "3.0.8" % Test,
   "com.typesafe.play" %% "play-test" % play2Version % Test,
   "com.typesafe.play" %% "play-guice" % play2Version % Test,
   "com.typesafe.play" %% "play-netty-server" % play2Version % Test,
