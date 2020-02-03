@@ -1046,6 +1046,8 @@ abstract class SockJSProtocolSpec(builder: ActorSystem => TestRouters)
         r3.body mustEqual "c[2010,\"Another connection still open\"]\n"
 
         r2.stream("\n").cancel()
+        // FIXME: ugly but needed since canceling a stream is asynchronous
+        sleep(250.millis)
 
         // Polling request now, after we aborted previous one, should
         // trigger a connection closure. Implementations may close

@@ -37,7 +37,7 @@ class Robot(room: ActorRef) extends Actor {
     case json => Logger("robot").info(json.toString)
   }
 
-  context.system.scheduler.schedule(
+  context.system.scheduler.scheduleWithFixedDelay(
     30.seconds,
     30.seconds,
     room,
@@ -74,7 +74,7 @@ class ChatRoomMember(username: String, room: ActorRef, out: ActorRef) extends Ac
       context.stop(self)
   }
 
-  override def postStop() {
+  override def postStop(): Unit = {
     super.postStop()
 
     if (connected)
@@ -119,7 +119,7 @@ class ChatRoomActor extends Actor {
     
   }
   
-  def notifyAll(kind: String, user: String, text: String) {
+  def notifyAll(kind: String, user: String, text: String): Unit = {
     val msg = JsObject(
       Seq(
         "kind" -> JsString(kind),

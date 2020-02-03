@@ -1,13 +1,13 @@
-version := "0.7.1"
+version := "0.8.0"
 
 name := "play2-sockjs"
 organization := "com.github.fdimuccio"
 
-scalaVersion := "2.12.8"
-crossScalaVersions := Seq("2.11.12", "2.12.8", "2.13.0")
+scalaVersion := "2.13.1"
+crossScalaVersions := Seq("2.12.8", "2.13.1")
 crossVersion := CrossVersion.binary
 
-javaOptions in Test ++= Seq("-Xmx1g", "-XX:MaxPermSize=512m")
+javaOptions in Test ++= Seq("-Xmx1g")
 javacOptions ++= Seq("-source", "1.8", "-target", "1.8", "-encoding", "UTF-8", "-Xlint:-options")
 javacOptions in doc := Seq("-source", "1.8")
 
@@ -21,7 +21,7 @@ parallelExecution in Test := false
 fork in Test := true
 
 publishMavenStyle := true
-publishTo := sonatypePublishTo.value
+publishTo := sonatypePublishToBundle.value
 publishArtifact in Test := false
 pomIncludeRepository := { _ => false }
 
@@ -42,13 +42,13 @@ pomExtra :=
       </developer>
     </developers>
 
-val play2Version = "2.7.3"
+val play2Version = "2.8.0"
 
 libraryDependencies ++= Seq(
   "com.typesafe.play" %% "play" % play2Version % "provided->default",
-  "com.typesafe.akka" %% "akka-http" % "10.1.8" % Test,
-  "com.typesafe.akka" %% "akka-stream-testkit" % "2.5.23" % Test,
-  "org.scalatest" %% "scalatest" % "3.0.8" % Test,
+  "com.typesafe.akka" %% "akka-http" % "10.1.11" % Test,
+  "com.typesafe.akka" %% "akka-stream-testkit" % "2.6.1" % Test,
+  "org.scalatest" %% "scalatest" % "3.1.0" % Test,
   "com.typesafe.play" %% "play-test" % play2Version % Test,
   "com.typesafe.play" %% "play-guice" % play2Version % Test,
   "com.typesafe.play" %% "play-netty-server" % play2Version % Test,

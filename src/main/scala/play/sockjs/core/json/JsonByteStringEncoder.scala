@@ -1,11 +1,10 @@
 package play.sockjs.core.json
 
-import akka.util.{ByteStringBuilder, ByteString}
+import akka.util.{ByteString, ByteStringBuilder}
 
-import com.fasterxml.jackson.core.{JsonGenerator, JsonEncoding, JsonFactory}
+import com.fasterxml.jackson.core.{JsonEncoding, JsonFactory, JsonGenerator}
 
 import play.sockjs.api.Frame._
-import play.sockjs.api.Frame.Text._
 
 private[sockjs] object JsonByteStringEncoder {
 

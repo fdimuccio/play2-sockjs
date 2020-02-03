@@ -1,5 +1,19 @@
 # Change Log
 
+## [0.8.0](https://github.com/fdimuccio/play2-sockjs/tree/0.8.0)
+
+[Full Changelog](https://github.com/fdimuccio/play2-sockjs/compare/0.7.1...0.8.0)
+
+**Closed issues:**
+
+- Update to Play 2.8.0 [\#32](https://github.com/fdimuccio/play2-sockjs/issues/32)
+  
+**Migration Notes:**
+
+- Dropped support for Scala 2.11    
+- Removed deprecated trait SockJSRouter: your SockJS router should extend one of
+  BaseSockJSRouter, AbstractSockJSRouter or InjectedSockJSRouter. 
+
 ## [0.7.1](https://github.com/fdimuccio/play2-sockjs/tree/0.7.1)
 
 [Full Changelog](https://github.com/fdimuccio/play2-sockjs/compare/0.7.0...0.7.1)

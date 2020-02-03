@@ -5,8 +5,7 @@ import scala.compat.java8.FutureConverters
 import akka.stream.scaladsl._
 
 import play.api.mvc.{Handler, RequestHeader}
-import play.core.j.{JavaHandler, JavaHandlerComponents, JavaHelpers, RequestHeaderImpl => JRequestHeaderImpl}
-import play.mvc.Http.{Context => JContext}
+import play.core.j.{JavaHandler, JavaHandlerComponents, RequestHeaderImpl => JRequestHeaderImpl}
 
 import play.sockjs.api.{Frame, SockJS}
 import play.sockjs.core.SockJSHandler
@@ -16,16 +15,9 @@ class JavaSockJS(request: RequestHeader, handler: SockJSHandler, call: => JSockJ
 
   def withComponents(handlerComponents: JavaHandlerComponents): Handler = {
     val sockjs = SockJS { request =>
-      val javaContext = JavaHelpers.createJavaContext(request, handlerComponents.contextComponents)
+      val future = FutureConverters.toScala(call(new JRequestHeaderImpl(request)))
 
-      val callWithContext = try {
-        JContext.current.set(javaContext)
-        FutureConverters.toScala(call(new JRequestHeaderImpl(request)))
-      } finally {
-        JContext.current.remove()
-      }
-
-      callWithContext.map { resultOrFlow =>
+      future.map { resultOrFlow =>
         if (resultOrFlow.left.isPresent) {
           Left(resultOrFlow.left.get.asScala())
         } else {

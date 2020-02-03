@@ -39,7 +39,7 @@ private[streams] class SessionSubscriber(timeout: FiniteDuration, quota: Long)
     val publisher = Promise[Publisher[ByteString]]()
     val binding = Promise[Done]()
 
-    val logic: GraphStageLogic = new TimerGraphStageLogic(shape) {
+    val logic: GraphStageLogic = new TimerGraphStageLogic(shape) with InHandler {
       import SessionSubscriber._
       private[this] var subscriber: Subscriber[ByteString] = _
       private[this] var demand = 0L
@@ -77,25 +77,25 @@ private[streams] class SessionSubscriber(timeout: FiniteDuration, quota: Long)
         scheduleOnce(SessionTimeoutTimer, timeout)
       }
 
-      setHandler(in, new InHandler {
-        def onPush(): Unit = {
-          if (subscriber != null)
-            send()
-        }
+      // -- InHandler
+      def onPush(): Unit = {
+        if (subscriber != null)
+          send()
+      }
 
-        override def onUpstreamFinish(): Unit = {
-          if (subscriber != null)
-            subscriber.onComplete()
-          scheduleOnce(SessionTimeoutTimer, timeout)
-        }
+      override def onUpstreamFinish(): Unit = {
+        if (subscriber != null)
+          subscriber.onComplete()
+        scheduleOnce(SessionTimeoutTimer, timeout)
+      }
 
-        override def onUpstreamFailure(ex: Throwable): Unit = {
-          if (subscriber != null)
-            subscriber.onComplete()
-          binding.failure(ex)
-          failStage(ex)
-        }
-      })
+      override def onUpstreamFailure(ex: Throwable): Unit = {
+        if (subscriber != null)
+          subscriber.onComplete()
+        binding.failure(ex)
+        failStage(ex)
+      }
+      // --
 
       private def send(): Unit = {
         val encoded = grab(in).encode
@@ -112,8 +112,10 @@ private[streams] class SessionSubscriber(timeout: FiniteDuration, quota: Long)
       override protected def onTimer(timerKey: Any) = completeStage()
 
       override def postStop() = binding.trySuccess(Done)
+
+      setHandler(in, this)
     }
 
-    (logic, (binding, Source.fromFuture(publisher.future).flatMapConcat(Source.fromPublisher)))
+    (logic, (binding, Source.future(publisher.future).flatMapConcat(Source.fromPublisher)))
   }
 }

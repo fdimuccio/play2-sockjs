@@ -115,24 +115,3 @@ case class DefaultSockJSRouterComponents @Inject() (
   actionBuilder: DefaultActionBuilder,
   parser: PlayBodyParsers
 ) extends SockJSRouterComponents
-
-/**
-  * It is reccomended to use one of the classes or traits extending [[BaseSockJSRouter]] instead.
-  */
-@deprecated(
-  "Your SockJS router should extend BaseSockJSRouter, AbstractSockJSRouter, or InjectedSockJSRouter instead.",
-  "0.6.0")
-trait SockJSRouter extends BaseSockJSRouter {
-
-  /**
-    * Override this method to inject a different materializer
-    */
-  protected def materializer: Materializer = play.api.Play.privateMaybeApplication
-    .getOrElse(sys.error("No application started")).materializer
-
-  /**
-    * Provides the components needed by the underlying router and SockJS server
-    */
-  override protected def components: SockJSRouterComponents =
-    DefaultSockJSRouterComponents(materializer, Action, BodyParsers.parse)
-}

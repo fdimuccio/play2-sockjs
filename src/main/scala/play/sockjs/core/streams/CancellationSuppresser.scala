@@ -23,45 +23,49 @@ private[sockjs] class CancellationSuppresser[In, Out](flow: Flow[In, Out, _])
   val out = Outlet[Out]("CancellationSuppresser.out")
   val shape = FlowShape(in, out)
 
-  def createLogic(inheritedAttributes: Attributes) = new GraphStageLogic(shape) {
-    val subSource: SubSourceOutlet[In] = new SubSourceOutlet[In]("CancellationSuppresserSubSource")
-    val subSink  : SubSinkInlet[Out]   = new SubSinkInlet[Out]("CancellationSuppresserSubSink")
-    var downstreamCancelled: Boolean = false
+  def createLogic(inheritedAttributes: Attributes) = {
+    new GraphStageLogic(shape) with InHandler with OutHandler {
+      val subSource: SubSourceOutlet[In] = new SubSourceOutlet[In]("CancellationSuppresserSubSource")
+      val subSink  : SubSinkInlet[Out]   = new SubSinkInlet[Out]("CancellationSuppresserSubSink")
+      var downstreamCancelled: Boolean = false
 
-    subSource.setHandler(new OutHandler {
-      def onPull(): Unit = pull(in)
-      override def onDownstreamFinish(): Unit = {
-        // cancel must be propagated upstream only if downstream cancels
-        if (downstreamCancelled) cancel(in)
-        // otherwise swallow it
-        else if (!isClosed(out)) complete(out)
-      }
-    })
+      subSource.setHandler(new OutHandler {
+        def onPull(): Unit = pull(in)
+        override def onDownstreamFinish(cause: Throwable): Unit = {
+          // cancel must be propagated upstream only if downstream cancels
+          if (downstreamCancelled) cancel(in, cause)
+          // otherwise swallow it
+          else if (!isClosed(out)) complete(out)
+        }
+      })
 
-    subSink.setHandler(new InHandler {
-      def onPush(): Unit = push(out, subSink.grab())
-      override def onUpstreamFinish(): Unit = complete(out)
-      override def onUpstreamFailure(ex: Throwable): Unit = failStage(ex)
-    })
+      subSink.setHandler(new InHandler {
+        def onPush(): Unit = push(out, subSink.grab())
+        override def onUpstreamFinish(): Unit = complete(out)
+        override def onUpstreamFailure(ex: Throwable): Unit = failStage(ex)
+      })
 
-    setHandler(in, new InHandler {
+      // -- InHandler
       def onPush(): Unit = subSource.push(grab(in))
       override def onUpstreamFinish(): Unit = subSource.complete()
       override def onUpstreamFailure(ex: Throwable): Unit = subSource.fail(ex)
-    })
+      // --
 
-    setHandler(out, new OutHandler {
+      // -- OutHandler
       def onPull(): Unit = subSink.pull()
-      override def onDownstreamFinish(): Unit = {
+      override def onDownstreamFinish(cause: Throwable): Unit = {
         downstreamCancelled = true
-        subSink.cancel()
+        subSink.cancel(cause)
       }
-    })
+      // --
 
-    override def preStart(): Unit = {
-      Source.fromGraph(subSource.source)
-        .via(flow)
-        .runWith(subSink.sink)(subFusingMaterializer)
+      override def preStart(): Unit = {
+        Source.fromGraph(subSource.source)
+          .via(flow)
+          .runWith(subSink.sink)(subFusingMaterializer)
+      }
+
+      setHandlers(in, out, this)
     }
   }
 }
