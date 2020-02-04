@@ -6,13 +6,14 @@ import akka.stream.scaladsl.{Flow, Keep}
 import akka.stream.stage.{GraphStage, GraphStageLogic, InHandler, OutHandler}
 import akka.stream.testkit.scaladsl.{TestSink, TestSource}
 import akka.testkit.TestKit
+
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{MustMatchers, WordSpecLike}
+import org.scalatest.matchers.must.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
+
 import play.sockjs.core.streams.CancellationSuppresser
 
-class CancellationSuppressorSpec extends TestKit(ActorSystem()) with WordSpecLike with MustMatchers with ScalaFutures {
-
-  implicit val materializer = ActorMaterializer()
+class CancellationSuppressorSpec extends TestKit(ActorSystem()) with AnyWordSpecLike with Matchers with ScalaFutures {
 
   "CancellationSuppressor" must {
 

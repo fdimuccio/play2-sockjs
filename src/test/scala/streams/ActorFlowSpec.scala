@@ -1,23 +1,22 @@
 package streams
 
-import akka.Done
-import akka.actor._
-import akka.stream._
-import akka.stream.scaladsl._
-import akka.stream.testkit.scaladsl._
-import akka.testkit._
-import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{MustMatchers, WordSpecLike}
-import play.api.libs.streams.{ActorFlow => PlayActorFlow}
-import play.sockjs.api.libs.streams._
-
 import scala.concurrent.Promise
 import scala.concurrent.duration._
 import scala.util.Random
 
-class ActorFlowSpec extends TestKit(ActorSystem()) with WordSpecLike with MustMatchers with ScalaFutures {
+import akka.Done
+import akka.actor._
+import akka.stream.scaladsl._
+import akka.stream.testkit.scaladsl._
+import akka.testkit._
 
-  implicit val materializer = ActorMaterializer()
+import org.scalatest.matchers.must.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.concurrent.ScalaFutures
+
+import play.sockjs.api.libs.streams._
+
+class ActorFlowSpec extends TestKit(ActorSystem()) with AnyWordSpecLike with Matchers with ScalaFutures {
 
   def EchoActor(out: ActorRef, done: Promise[Done]) = Props(new Actor {
     def receive: Receive = {

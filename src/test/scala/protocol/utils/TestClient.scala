@@ -2,22 +2,21 @@ package protocol.utils
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
+import scala.util.control.NonFatal
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.http.scaladsl.model.ws.{Message, WebSocketRequest, WebSocketUpgradeResponse}
-import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Flow, Keep}
 import akka.stream.testkit.{TestPublisher, TestSubscriber}
 import akka.stream.testkit.scaladsl.{TestSink, TestSource}
-import akka.util.Timeout
 
+import org.scalatest.time._
+import org.scalatest.concurrent._
 import org.scalatest.{Args, Status, TestSuite}
 
-import scala.util.control.NonFatal
-
-trait TestClient extends org.scalatest.TestSuiteMixin { this: TestSuite with TestServer =>
+trait TestClient extends org.scalatest.TestSuiteMixin with ScalaFutures { this: TestSuite with TestServer =>
 
   abstract override def run(testName: Option[String], args: Args): Status = {
     try {
@@ -31,25 +30,28 @@ trait TestClient extends org.scalatest.TestSuiteMixin { this: TestSuite with Tes
     }
   }
 
+  implicit val patienceConfiguration = PatienceConfig(
+    timeout  = scaled(Span(10, Seconds)),
+    interval = scaled(Span(50, Millis)))
+
   implicit lazy val as  = ActorSystem("TestClient")
-  implicit lazy val mat = ActorMaterializer()
 
   lazy val http: HttpClient = new HttpClient
 
   class HttpClient {
     private val _http = Http(as)
 
-    def apply(request: HttpRequest)(implicit timeout: Timeout): HttpResponse = {
+    def apply(request: HttpRequest): HttpResponse = {
       val req = request
         .withEffectiveUri(securedConnection = false, akka.http.scaladsl.model.headers.Host("localhost", port))
-      Await.result(_http.singleRequest(req), timeout.duration)
+      _http.singleRequest(req).futureValue
     }
 
-    def ws[T](url: String)(implicit timeout: Timeout): (WebSocketUpgradeResponse, (TestSubscriber.Probe[Message], TestPublisher.Probe[Message])) = {
+    def ws[T](url: String): (WebSocketUpgradeResponse, (TestSubscriber.Probe[Message], TestPublisher.Probe[Message])) = {
       val flow = Flow.fromSinkAndSourceMat(TestSink.probe[Message], TestSource.probe[Message])(Keep.both)
       val req = WebSocketRequest(s"ws://localhost:$port" + url)
       val (res, t) = _http.singleWebSocketRequest(req, flow)
-      Await.result(res, timeout.duration) -> t
+      res.futureValue -> t
     }
 
     def close() = {

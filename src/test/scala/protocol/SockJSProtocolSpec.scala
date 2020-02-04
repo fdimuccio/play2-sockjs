@@ -5,7 +5,6 @@ import java.util.UUID
 import scala.concurrent.duration._
 import scala.util.{Random, Try}
 
-import akka.util.Timeout
 import akka.actor.ActorSystem
 import akka.stream.scaladsl._
 import akka.http.scaladsl._
@@ -17,7 +16,7 @@ import akka.http.scaladsl.model.ws._
 import akka.http.scaladsl.settings.ConnectionPoolSettings
 import akka.stream.testkit.scaladsl.{TestSink, TestSource}
 
-import org.apache.commons.lang3.StringEscapeUtils
+import org.apache.commons.text.StringEscapeUtils
 
 import play.api.libs.json._
 
@@ -35,8 +34,6 @@ import play.sockjs.api.DefaultSockJSRouterComponents
 abstract class SockJSProtocolSpec(builder: ActorSystem => TestRouters)
   extends utils.TestHelpers with utils.TestClient with utils.TestServer {
   override def TestRoutersBuilder(as: ActorSystem): TestRouters = builder(as)
-
-  implicit val timeout: Timeout = 10.seconds
 
   "play2-sockjs" must {
 
@@ -1039,7 +1036,8 @@ abstract class SockJSProtocolSpec(builder: ActorSystem => TestRouters)
         r1.body mustEqual "o\n"
 
         val r2 = http(HttpRequest(POST, url + "/xhr"))
-        sleep(250.millis)
+        // FIXME
+        sleep(500.millis)
 
         // Can't do second polling request now.
         val r3 = http(HttpRequest(POST, url + "/xhr"))
@@ -1047,7 +1045,7 @@ abstract class SockJSProtocolSpec(builder: ActorSystem => TestRouters)
 
         r2.stream("\n").cancel()
         // FIXME: ugly but needed since canceling a stream is asynchronous
-        sleep(250.millis)
+        sleep(500.millis)
 
         // Polling request now, after we aborted previous one, should
         // trigger a connection closure. Implementations may close

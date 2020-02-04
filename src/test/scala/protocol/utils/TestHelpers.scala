@@ -16,11 +16,13 @@ import akka.http.scaladsl.model.headers.CacheDirectives._
 import akka.http.scaladsl.model.HttpMethods._
 import akka.util.{ByteString, Timeout}
 
-import org.scalatest.{MustMatchers, OptionValues, WordSpec}
+import org.scalatest._
+import org.scalatest.matchers.must.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 import play.api.libs.json._
 
-trait TestHelpers extends WordSpec with MustMatchers with OptionValues { self: TestServer with TestClient =>
+trait TestHelpers extends AnyWordSpec with Matchers with OptionValues { self: TestServer with TestClient =>
 
   def sleep(duration: FiniteDuration): Unit = {
     val scheduler  = as.scheduler
@@ -130,7 +132,7 @@ trait TestHelpers extends WordSpec with MustMatchers with OptionValues { self: T
     def cancel(): Unit = stream("\n").cancel()
   }
 
-  def verifyOptions(url: String, allowedMethods: String)(implicit timeout: Timeout) = {
+  def verifyOptions(url: String, allowedMethods: String) = {
     for (origin <- List("test", "null")) {
       val r = http(HttpRequest(OPTIONS, uri = url, headers = List(RawHeader("Origin", origin))))
       r.status must (be(OK) or be(NoContent))

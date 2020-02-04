@@ -1,10 +1,10 @@
-version := "0.8.0"
+version := "0.8.1-SNAPSHOT"
 
 name := "play2-sockjs"
 organization := "com.github.fdimuccio"
 
 scalaVersion := "2.13.1"
-crossScalaVersions := Seq("2.12.8", "2.13.1")
+crossScalaVersions := Seq("2.12.10", "2.13.1")
 crossVersion := CrossVersion.binary
 
 javaOptions in Test ++= Seq("-Xmx1g")
