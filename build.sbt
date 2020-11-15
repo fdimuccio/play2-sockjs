@@ -1,10 +1,10 @@
-version := "0.8.1-SNAPSHOT"
+version := "0.8.1"
 
 name := "play2-sockjs"
 organization := "com.github.fdimuccio"
 
-scalaVersion := "2.13.1"
-crossScalaVersions := Seq("2.12.10", "2.13.1")
+scalaVersion := "2.13.3"
+crossScalaVersions := Seq("2.12.10", "2.13.3")
 crossVersion := CrossVersion.binary
 
 javaOptions in Test ++= Seq("-Xmx1g")
@@ -42,12 +42,12 @@ pomExtra :=
       </developer>
     </developers>
 
-val play2Version = "2.8.0"
+val play2Version = "2.8.5"
 
 libraryDependencies ++= Seq(
   "com.typesafe.play" %% "play" % play2Version % "provided->default",
   "com.typesafe.akka" %% "akka-http" % "10.1.11" % Test,
-  "com.typesafe.akka" %% "akka-stream-testkit" % "2.6.1" % Test,
+  "com.typesafe.akka" %% "akka-stream-testkit" % "2.6.8" % Test,
   "org.scalatest" %% "scalatest" % "3.1.0" % Test,
   "com.typesafe.play" %% "play-test" % play2Version % Test,
   "com.typesafe.play" %% "play-guice" % play2Version % Test,

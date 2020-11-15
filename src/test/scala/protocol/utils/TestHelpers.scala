@@ -4,7 +4,6 @@ import java.util.UUID
 
 import scala.concurrent.duration.{FiniteDuration, _}
 import scala.concurrent.{Await, Future}
-
 import akka.stream.Materializer
 import akka.stream.scaladsl._
 import akka.stream.testkit._
@@ -14,12 +13,11 @@ import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.headers._
 import akka.http.scaladsl.model.headers.CacheDirectives._
 import akka.http.scaladsl.model.HttpMethods._
-import akka.util.{ByteString, Timeout}
-
+import akka.util.ByteString
+import org.scalactic.source.Position
 import org.scalatest._
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-
 import play.api.libs.json._
 
 trait TestHelpers extends AnyWordSpec with Matchers with OptionValues { self: TestServer with TestClient =>
@@ -35,48 +33,48 @@ trait TestHelpers extends AnyWordSpec with Matchers with OptionValues { self: Te
 
   implicit class Verifiers(val result: HttpResponse) {
 
-    def verify200() = result.status mustEqual OK
+    def verify200()(implicit pos: Position) = result.status mustEqual OK
 
-    def verify204() = result.status mustEqual NoContent
+    def verify204()(implicit pos: Position) = result.status mustEqual NoContent
 
-    def verify304() = result.status mustEqual NotModified
+    def verify304()(implicit pos: Position) = result.status mustEqual NotModified
 
-    def verify404() = result.status mustEqual NotFound
+    def verify404()(implicit pos: Position) = result.status mustEqual NotFound
 
-    def verify405() = {
+    def verify405()(implicit pos: Position) = {
       result.status mustEqual MethodNotAllowed
       result.header[`Content-Type`] mustBe None
       result.header[Allow] mustBe a[Some[_]]
       body mustBe empty
     }
 
-    def verify500() = result.status mustEqual InternalServerError
+    def verify500()(implicit pos: Position) = result.status mustEqual InternalServerError
 
-    def verifyTextPlain() = verifyMediaType(MediaTypes.`text/plain`)
+    def verifyTextPlain()(implicit pos: Position) = verifyMediaType(MediaTypes.`text/plain`)
 
-    def verifyTextHtml() = verifyMediaType(MediaTypes.`text/html`)
+    def verifyTextHtml()(implicit pos: Position) = verifyMediaType(MediaTypes.`text/html`)
 
-    def verifyApplicationJavascript() = verifyMediaType(MediaTypes.`application/javascript`)
+    def verifyApplicationJavascript()(implicit pos: Position) = verifyMediaType(MediaTypes.`application/javascript`)
 
-    def verifyMediaType(mtype: MediaType) = {
+    def verifyMediaType(mtype: MediaType)(implicit pos: Position) = {
       result.entity.contentType.mediaType mustBe mtype
       result.entity.contentType.charsetOption mustBe Some(HttpCharsets.`UTF-8`)
     }
 
-    def verifyNoContentType() = {
+    def verifyNoContentType()(implicit pos: Position) = {
       result.entity.contentType mustBe ContentTypes.NoContentType
     }
 
-    def verifyNoCookie() = result.header[`Set-Cookie`] mustBe None
+    def verifyNoCookie()(implicit pos: Position) = result.header[`Set-Cookie`] mustBe None
 
-    def verifyCookie(value: String) = {
+    def verifyCookie(value: String)(implicit pos: Position) = {
       val Some(cookie) = result.header[`Set-Cookie`].map(_.cookie)
       cookie.name mustEqual "JSESSIONID"
       cookie.value mustEqual value
       cookie.path mustEqual Some("/")
     }
 
-    def verifyCORS(origin: Option[String]) = origin match {
+    def verifyCORS(origin: Option[String])(implicit pos: Position) = origin match {
       case Some(value) =>
         // I have to look for the header manually because origin could be an invalid
         // value and akka-http will fail to parse it
@@ -87,13 +85,13 @@ trait TestHelpers extends AnyWordSpec with Matchers with OptionValues { self: Te
         result.header[`Access-Control-Allow-Credentials`] mustBe None
     }
 
-    def verifyNotCached() = {
+    def verifyNotCached()(implicit pos: Position) = {
       result.header[`Cache-Control`] mustBe Some(`Cache-Control`(`no-store`, `no-cache`, `no-transform`, `must-revalidate`, `max-age`(0)))
       result.header[Expires] mustBe None
       result.header[`Last-Modified`] mustBe None
     }
 
-    def verifyIFrame() = {
+    def verifyIFrame()(implicit pos: Position) = {
       verify200()
       verifyTextHtml()
       result.header[`Cache-Control`].map(_.value).orNull must include("public")
@@ -106,7 +104,7 @@ trait TestHelpers extends AnyWordSpec with Matchers with OptionValues { self: Te
       discardBody()
     }
 
-    def verifyOpenFrame() = {
+    def verifyOpenFrame()(implicit pos: Position) = {
       verify200()
       body mustBe "o\n"
     }
@@ -132,7 +130,7 @@ trait TestHelpers extends AnyWordSpec with Matchers with OptionValues { self: Te
     def cancel(): Unit = stream("\n").cancel()
   }
 
-  def verifyOptions(url: String, allowedMethods: String) = {
+  def verifyOptions(url: String, allowedMethods: String)(implicit pos: Position)  = {
     for (origin <- List("test", "null")) {
       val r = http(HttpRequest(OPTIONS, uri = url, headers = List(RawHeader("Origin", origin))))
       r.status must (be(OK) or be(NoContent))
