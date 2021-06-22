@@ -2,6 +2,7 @@ package play.sockjs.core.json
 
 import akka.util.{ByteString, ByteStringBuilder}
 
+import com.fasterxml.jackson.core.json.JsonWriteFeature
 import com.fasterxml.jackson.core.{JsonEncoding, JsonFactory, JsonGenerator}
 
 import play.sockjs.api.Frame._
@@ -16,7 +17,7 @@ private[sockjs] object JsonByteStringEncoder {
   }
 
   def asJsonArray(frame: Text): ByteString = using { gen =>
-    gen.enable(JsonGenerator.Feature.ESCAPE_NON_ASCII)
+    gen.enable(JsonWriteFeature.ESCAPE_NON_ASCII.mappedFeature())
 
     val data = frame.data
     val size = data.size

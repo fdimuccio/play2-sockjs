@@ -880,7 +880,7 @@ abstract class SockJSProtocolSpec(builder: ActorSystem => TestRouters)
         val serverKillerString =
           (255 until 65536)
             .map(_.toChar)
-            .filter(ch => escapableByServer.findFirstIn(Array(ch)).isDefined)
+            .filter(ch => escapableByServer.findFirstIn(String.valueOf(ch)).isDefined)
             .mkString
 
         val serverKillerStringEsc =
@@ -910,7 +910,7 @@ abstract class SockJSProtocolSpec(builder: ActorSystem => TestRouters)
         val clientKillerString =
           (0 until 65536)
             .map(_.toChar)
-            .filter(ch => escapableByClient.findFirstIn(Array(ch)).isDefined)
+            .filter(ch => escapableByClient.findFirstIn(String.valueOf(ch)).isDefined)
             .mkString
 
         val clientKillerStringEsc =
@@ -1198,28 +1198,28 @@ abstract class SockJSProtocolSpec(builder: ActorSystem => TestRouters)
 
 class ScalaFlowSockJSProtocolTest
   extends SockJSProtocolSpec(_ => {
-    val app: Application = new GuiceApplicationBuilder().build
+    val app: Application = new GuiceApplicationBuilder().build()
     val components = app.injector.instanceOf(classOf[DefaultSockJSRouterComponents])
       new ScalaFlowTestRouters(components)
   })
 
 class ScalaActorSockJSProtocolTest
   extends SockJSProtocolSpec(implicit as => {
-    val app: Application = new GuiceApplicationBuilder().build
+    val app: Application = new GuiceApplicationBuilder().build()
     val components = app.injector.instanceOf(classOf[DefaultSockJSRouterComponents])
       new ScalaActorTestRouters(components)
   })
 
 class JavaFlowSockJSProtocolTest
   extends SockJSProtocolSpec(_ => {
-    val app: Application = new GuiceApplicationBuilder().build
+    val app: Application = new GuiceApplicationBuilder().build()
     val components = app.injector.instanceOf(classOf[DefaultSockJSRouterComponents])
     new JavaFlowTestRouters(components)
   })
 
 class JavaActorSockJSProtocolTest
   extends SockJSProtocolSpec(implicit as => {
-    val app: Application = new GuiceApplicationBuilder().build
+    val app: Application = new GuiceApplicationBuilder().build()
     val components = app.injector.instanceOf(classOf[DefaultSockJSRouterComponents])
     new JavaActorTestRouters(components)
   })
