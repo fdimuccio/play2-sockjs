@@ -1,4 +1,4 @@
-version := "0.8.2-SNAPSHOT"
+version := "0.8.2"
 
 name := "play2-sockjs"
 organization := "com.github.fdimuccio"
