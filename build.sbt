@@ -1,15 +1,15 @@
-version := "0.8.2"
+version := "0.9.0"
 
 name := "play2-sockjs"
 organization := "com.github.fdimuccio"
 
-scalaVersion := "2.13.5"
-crossScalaVersions := Seq("2.12.10", "2.13.5")
+scalaVersion := "2.13.12"
+crossScalaVersions := Seq("2.13.12")
 crossVersion := CrossVersion.binary
 
 Test / javaOptions ++= Seq("-Xmx1g")
-javacOptions ++= Seq("-source", "1.8", "-target", "1.8", "-encoding", "UTF-8", "-Xlint:-options")
-doc / javacOptions := Seq("-source", "1.8")
+javacOptions ++= Seq("--release", "11", "-encoding", "UTF-8", "-Xlint:-options")
+doc / javacOptions := Seq("-source", "11")
 
 scalacOptions ++= Seq("-unchecked", "-deprecation")
 Test / scalacOptions ++= Seq("-Yrangepos")
@@ -42,10 +42,10 @@ pomExtra :=
       </developer>
     </developers>
 
-val play2Version = "2.8.8"
-val akkaVersion = "2.6.14"
-val akkaHttpVersion = "10.2.4"
-val scalaTestVersion = "3.2.9"
+val play2Version = "2.9.0"
+val akkaVersion = "2.6.21"
+val akkaHttpVersion = "10.2.10"
+val scalaTestVersion = "3.2.17"
 
 libraryDependencies ++= Seq(
   "com.typesafe.play" %% "play" % play2Version % "provided->default",
@@ -55,5 +55,5 @@ libraryDependencies ++= Seq(
   "com.typesafe.play" %% "play-test" % play2Version % Test,
   "com.typesafe.play" %% "play-guice" % play2Version % Test,
   "com.typesafe.play" %% "play-netty-server" % play2Version % Test,
-  "com.google.inject" % "guice" % "4.2.2" % "provided->default"
+  "com.google.inject" % "guice" % "6.0.0" % "provided->default"
 )

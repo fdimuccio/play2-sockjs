@@ -15,7 +15,7 @@ import play.sockjs.api.Frame._
 private[streams] case class ConnectionPublisher(session: ActorRef) extends Publisher[ByteString] {
   import SessionSubscriber._
   import ConnectionPublisher._
-  private[this] implicit val timeout = Timeout(5.seconds)
+  private[this] implicit val timeout: Timeout = Timeout(5.seconds)
 
   def subscribe(subscriber: Subscriber[_ >: ByteString]) = {
     (session ? Subscribe(subscriber)).onComplete {

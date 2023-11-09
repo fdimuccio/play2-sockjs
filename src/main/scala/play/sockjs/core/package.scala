@@ -1,8 +1,8 @@
 package play.sockjs
 
+import java.time.{ ZoneId, ZonedDateTime }
+import java.time.format.DateTimeFormatter
 import java.util.Locale
-
-import org.joda.time.{DateTimeZone, DateTime}
 
 import play.api.mvc._
 import play.api.mvc.Results._
@@ -39,10 +39,10 @@ package object core {
     def notcached = result.withHeaders(CACHE_CONTROL -> "no-store, no-cache, no-transform, must-revalidate, max-age=0")
 
     def cached(ttl: Int) = {
-      val expires = DateTime.now.plusSeconds(ttl).withZone(DateTimeZone.UTC)
+      val expires = ZonedDateTime.now(ZoneId.of("UTC")).plusSeconds(ttl)
       result.withHeaders(
         CACHE_CONTROL -> s"public, max-age=$ttl",
-        EXPIRES -> expires.toString("EEE, dd MMM yyyy HH:mm:ss 'GMT'", Locale.ENGLISH))
+        EXPIRES -> expires.format(DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss 'GMT'", Locale.ENGLISH)))
     }
 
   }
