@@ -1055,7 +1055,7 @@ abstract class SockJSProtocolSpec(builder: ActorSystem => TestRouters)
     "implement correctly Http 1.0" when {
 
       "calling simple urls" in {
-        val connection = Http().newHostConnectionPool[Int]("localhost", port,
+        val connection = Http().newHostConnectionPool[Int]("localhost", runningHttpPort,
           ConnectionPoolSettings(as).withMaxConnections(1))
 
         val (client, responses) =
@@ -1133,7 +1133,7 @@ abstract class SockJSProtocolSpec(builder: ActorSystem => TestRouters)
     "implement correctly Http 1.1" when {
 
       "calling simple urls" in {
-        val connection = Http().newHostConnectionPool[Int]("localhost", port,
+        val connection = Http().newHostConnectionPool[Int]("localhost", runningHttpPort,
           ConnectionPoolSettings(as).withMaxConnections(1))
 
         val (client, responses) =

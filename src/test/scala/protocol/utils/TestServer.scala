@@ -8,6 +8,7 @@ import play.api.Application
 import play.api.mvc._
 import play.api.inject.guice._
 import play.api.routing.Router
+import play.api.test.{Helpers, TestServer => PlayTestServer}
 
 import protocol.routers.TestRouters
 
@@ -39,11 +40,14 @@ trait TestServer extends org.scalatest.TestSuiteMixin { this: TestSuite =>
       )
       .build()
 
-  /**
-    * The port used by the `TestServer`.  By default this will be set to the result returned from
-    * `Helpers.testServerPort`. You can override this to provide a different port number.
-    */
-  lazy val port: Int = play.api.test.Helpers.testServerPort
+  private var testServer: PlayTestServer = _
+
+  def runningHttpPort: Int = {
+    if (testServer == null)
+      throw new IllegalStateException("Test server not running")
+    testServer.runningHttpPort
+      .getOrElse(throw new IllegalStateException("Can't retrieve http port from test server"))
+  }
 
   /**
     * Invokes `start` on a new `TestServer` created with the `Application` provided by `app` and the
@@ -58,19 +62,25 @@ trait TestServer extends org.scalatest.TestSuiteMixin { this: TestSuite =>
     * @return a `Status` object that indicates when all tests and nested suites started by this method have completed, and whether or not a failure occurred.
     */
   abstract override def run(testName: Option[String], args: Args): Status = {
-    val testServer = play.api.test.TestServer(port, app, serverProvider = Some(new play.core.server.NettyServerProvider))
-    //val testServer = play.api.test.TestServer(port, app)
+    testServer = PlayTestServer(Helpers.testServerPort, app, serverProvider = Some(new play.core.server.NettyServerProvider))
     testServer.start()
     try {
-      val newConfigMap = args.configMap + ("org.scalatestplus.play.app" -> app) + ("org.scalatestplus.play.port" -> port)
+      val newConfigMap =
+        args.configMap +
+        ("org.scalatestplus.play.app" -> app) +
+        ("org.scalatestplus.play.port" -> testServer.runningHttpPort.getOrElse(0))
       val newArgs = args.copy(configMap = newConfigMap)
       val status = super.run(testName, newArgs)
-      status.whenCompleted { _ => testServer.stop() }
+      status.whenCompleted { _ =>
+        testServer.stop()
+        testServer = null
+      }
       status
     }
     catch { // In case the suite aborts, ensure the server is stopped
       case ex: Throwable =>
         testServer.stop()
+        testServer = null
         throw ex
     }
   }

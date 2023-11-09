@@ -30,11 +30,11 @@ trait TestClient extends org.scalatest.TestSuiteMixin with ScalaFutures with Mat
     }
   }
 
-  implicit val patienceConfiguration = PatienceConfig(
+  implicit val patienceConfiguration: PatienceConfig = PatienceConfig(
     timeout  = scaled(Span(10, Seconds)),
     interval = scaled(Span(50, Millis)))
 
-  implicit lazy val as  = ActorSystem("TestClient")
+  implicit lazy val as: ActorSystem = ActorSystem("TestClient")
 
   lazy val http: HttpClient = new HttpClient
 
@@ -44,13 +44,13 @@ trait TestClient extends org.scalatest.TestSuiteMixin with ScalaFutures with Mat
     def apply(request: HttpRequest)(implicit pos: Position): HttpResponse = {
       val req = request.withEffectiveUri(
         securedConnection = false,
-        akka.http.scaladsl.model.headers.Host("localhost", port))
+        akka.http.scaladsl.model.headers.Host("localhost", runningHttpPort))
       _http.singleRequest(req).futureValue
     }
 
     def ws[T](url: String)(implicit pos: Position): (WebSocketUpgradeResponse, (TestSubscriber.Probe[Message], TestPublisher.Probe[Message])) = {
       val flow = Flow.fromSinkAndSourceMat(TestSink.probe[Message], TestSource.probe[Message])(Keep.both)
-      val req = WebSocketRequest(s"ws://localhost:$port" + url)
+      val req = WebSocketRequest(s"ws://localhost:$runningHttpPort" + url)
       val (res, t) = _http.singleWebSocketRequest(req, flow)
       res.futureValue -> t
     }
