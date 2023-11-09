@@ -60,8 +60,8 @@ private[sockjs] final class Server(
       def parseFormUrlEncoded(data: ByteString) = {
         val query = FormUrlEncodedParser.parse(data.utf8String, "UTF-8")
         for {
-          d <- query.get("d").flatMap(_.headOption.filter(!_.isEmpty)).toRight("Payload expected.").right
-          json <- tryParse(Json.parse(d)).right
+          d <- query.get("d").flatMap(_.headOption.filter(_.nonEmpty)).toRight("Payload expected.")
+          json <- tryParse(Json.parse(d))
         } yield json
       }
       // Request body should be taken as raw and forced to be a UTF-8 string, otherwise
@@ -123,7 +123,7 @@ private[sockjs] final class Server(
                     case NonFatal(e) => Future.failed(e)
                   }
 
-                handler.map(_.right.map { flow =>
+                handler.map(_.map { flow =>
                   val (session, binding) =
                     flow.joinMat(
                       if (streaming) HttpStreamingFlow else HttpPollingFlow

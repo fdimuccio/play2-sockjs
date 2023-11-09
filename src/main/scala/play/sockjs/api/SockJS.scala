@@ -146,7 +146,7 @@ object SockJS {
     */
   def acceptOrResult[In, Out](f: RequestHeader => Future[Either[Result, Flow[In, Out, _]]])(implicit transformer: MessageFlowTransformer[In, Out]): SockJS = {
     SockJS(request =>
-      f(request).map(_.right.map(transformer.transform))(play.core.Execution.trampoline)
+      f(request).map(_.map(transformer.transform))(play.core.Execution.trampoline)
     )
   }
 

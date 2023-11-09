@@ -24,7 +24,7 @@ private[sockjs] class WebSocket(server: Server) extends HeaderNames with Results
    */
   def framed = server.websocket { sockjs =>
     PlayWebSocket.acceptOrResult { req =>
-      sockjs(req).map(_.right.map { flow =>
+      sockjs(req).map(_.map { flow =>
         AkkaStreams.bypassWith[Message, Frame, Frame](
           Flow[Message].collect {
             case TextMessage(data) if data.nonEmpty =>
@@ -45,7 +45,7 @@ private[sockjs] class WebSocket(server: Server) extends HeaderNames with Results
    */
   def unframed = server.websocket { sockjs =>
     PlayWebSocket.acceptOrResult { req =>
-      sockjs(req).map(_.right.map { flow =>
+      sockjs(req).map(_.map { flow =>
         Flow[Message]
           .collect { case TextMessage(data) => Text(data) }
           .via(new CancellationSuppresser(flow))
