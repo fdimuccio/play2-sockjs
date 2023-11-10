@@ -1,7 +1,5 @@
 package protocol.routers
 
-import scala.compat.java8.FunctionConverters._
-
 import org.apache.pekko.actor.ActorSystem
 
 import play.api.mvc.{Action, BodyParsers}
@@ -46,13 +44,13 @@ abstract class JavaTestRouters(echo: SockJS, closed: SockJS, components: SockJSR
 }
 
 final class JavaFlowTestRouters(components: SockJSRouterComponents) extends JavaTestRouters(
-  echo = SockJS.Text.accept(asJavaFunction((_: RequestHeader) => Flows.echo[String].asJava)),
-  closed = SockJS.Text.accept(asJavaFunction((_: RequestHeader) => Flows.closed[String].asJava)),
+  echo = SockJS.Text.accept((_: RequestHeader) => Flows.echo[String].asJava),
+  closed = SockJS.Text.accept((_: RequestHeader) => Flows.closed[String].asJava),
   components
 )
 
 final class JavaActorTestRouters(components: SockJSRouterComponents)(implicit as: ActorSystem) extends JavaTestRouters(
-  echo = SockJS.Text.accept(asJavaFunction((_: RequestHeader) => ActorFlows.echo[String].asJava)),
-  closed = SockJS.Text.accept(asJavaFunction((_: RequestHeader) => ActorFlows.closed[String].asJava)),
+  echo = SockJS.Text.accept((_: RequestHeader) => ActorFlows.echo[String].asJava),
+  closed = SockJS.Text.accept((_: RequestHeader) => ActorFlows.closed[String].asJava),
   components
 )

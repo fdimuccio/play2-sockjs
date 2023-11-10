@@ -1,6 +1,6 @@
 package play.sockjs.core.j
 
-import scala.compat.java8.FutureConverters
+import scala.jdk.FutureConverters._
 
 import org.apache.pekko.stream.scaladsl._
 
@@ -15,7 +15,7 @@ class JavaSockJS(request: RequestHeader, handler: SockJSHandler, call: => JSockJ
 
   def withComponents(handlerComponents: JavaHandlerComponents): Handler = {
     val sockjs = SockJS { request =>
-      val future = FutureConverters.toScala(call(new JRequestHeaderImpl(request)))
+      val future = call(new JRequestHeaderImpl(request)).asScala
 
       future.map { resultOrFlow =>
         if (resultOrFlow.left.isPresent) {
