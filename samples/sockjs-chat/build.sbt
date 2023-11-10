@@ -8,5 +8,5 @@ enablePlugins(PlayScala)
 
 libraryDependencies ++= Seq(
   guice,
-  "com.github.fdimuccio" %% "play2-sockjs" % "0.9.0"
+  "com.github.fdimuccio" %% "play2-sockjs" % "0.10.0"
 )

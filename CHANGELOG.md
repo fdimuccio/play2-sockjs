@@ -1,5 +1,9 @@
 # Change Log
 
+## [0.10.0](https://github.com/fdimuccio/play2-sockjs/tree/0.10.0)
+
+- Update to Play 3.0.0
+
 ## [0.9.0](https://github.com/fdimuccio/play2-sockjs/tree/0.9.0)
 
 - Update to Play 2.9.0
