@@ -4,16 +4,16 @@ import java.util.UUID
 
 import scala.concurrent.duration.{FiniteDuration, _}
 import scala.concurrent.{Await, Future}
-import akka.stream.Materializer
-import akka.stream.scaladsl._
-import akka.stream.testkit._
-import akka.stream.testkit.scaladsl._
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.StatusCodes._
-import akka.http.scaladsl.model.headers._
-import akka.http.scaladsl.model.headers.CacheDirectives._
-import akka.http.scaladsl.model.HttpMethods._
-import akka.util.ByteString
+import org.apache.pekko.stream.Materializer
+import org.apache.pekko.stream.scaladsl._
+import org.apache.pekko.stream.testkit._
+import org.apache.pekko.stream.testkit.scaladsl._
+import org.apache.pekko.http.scaladsl.model._
+import org.apache.pekko.http.scaladsl.model.StatusCodes._
+import org.apache.pekko.http.scaladsl.model.headers._
+import org.apache.pekko.http.scaladsl.model.headers.CacheDirectives._
+import org.apache.pekko.http.scaladsl.model.HttpMethods._
+import org.apache.pekko.util.ByteString
 import org.scalactic.source.Position
 import org.scalatest._
 import org.scalatest.matchers.must.Matchers
@@ -25,7 +25,7 @@ trait TestHelpers extends AnyWordSpec with Matchers with OptionValues { self: Te
   def sleep(duration: FiniteDuration): Unit = {
     val scheduler  = as.scheduler
     val dispatcher = as.dispatcher
-    val f = akka.pattern.after(duration, scheduler)(Future.successful(()))(dispatcher)
+    val f = org.apache.pekko.pattern.after(duration, scheduler)(Future.successful(()))(dispatcher)
     Await.ready(f, Duration.Inf)
   }
 
@@ -77,7 +77,7 @@ trait TestHelpers extends AnyWordSpec with Matchers with OptionValues { self: Te
     def verifyCORS(origin: Option[String])(implicit pos: Position) = origin match {
       case Some(value) =>
         // I have to look for the header manually because origin could be an invalid
-        // value and akka-http will fail to parse it
+        // value and pekko-http will fail to parse it
         result.headers.find(_.is("access-control-allow-origin")).map(_.value) mustBe Some(value)
         result.header[`Access-Control-Allow-Credentials`] mustBe Some(`Access-Control-Allow-Credentials`(true))
       case _ =>

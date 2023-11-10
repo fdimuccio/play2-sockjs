@@ -5,7 +5,7 @@ version := "0.1"
 scalaVersion := "2.13.12"
 
 enablePlugins(PlayJava, PlayNettyServer)
-disablePlugins(PlayAkkaHttpServer)
+disablePlugins(PlayPekkoHttpServer)
 
 resolvers += Resolver.sonatypeRepo("snapshots")
 

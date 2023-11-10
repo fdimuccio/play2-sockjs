@@ -1,6 +1,6 @@
 package play.sockjs.api
 
-import akka.util.ByteString
+import org.apache.pekko.util.ByteString
 
 import play.api.http.websocket.CloseCodes
 

@@ -2,7 +2,7 @@ package protocol.routers
 
 import scala.compat.java8.FunctionConverters._
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 
 import play.api.mvc.{Action, BodyParsers}
 

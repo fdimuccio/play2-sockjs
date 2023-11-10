@@ -4,7 +4,7 @@ import javax.inject.Inject
 
 import scala.compat.java8.OptionConverters._
 
-import akka.stream.Materializer
+import org.apache.pekko.stream.Materializer
 
 import play.api.mvc._
 import play.api.routing.Router

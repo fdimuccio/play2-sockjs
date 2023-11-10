@@ -2,8 +2,8 @@ package play.sockjs.core
 
 import scala.concurrent.Future
 
-import akka.stream.scaladsl._
-import akka.util.ByteString
+import org.apache.pekko.stream.scaladsl._
+import org.apache.pekko.util.ByteString
 
 import play.api.mvc._
 

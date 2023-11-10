@@ -3,9 +3,9 @@ package play.sockjs.core.streams
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
-import akka.actor._
-import akka.pattern.ask
-import akka.util.{Timeout, ByteString}
+import org.apache.pekko.actor._
+import org.apache.pekko.pattern.ask
+import org.apache.pekko.util.{Timeout, ByteString}
 
 import org.reactivestreams.{Subscription, Subscriber, Publisher}
 

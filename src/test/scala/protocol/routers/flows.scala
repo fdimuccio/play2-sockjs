@@ -1,7 +1,7 @@
 package protocol.routers
 
-import akka.actor.{Actor, ActorSystem, Props}
-import akka.stream.scaladsl.{Flow, Sink, Source}
+import org.apache.pekko.actor.{Actor, ActorSystem, Props}
+import org.apache.pekko.stream.scaladsl.{Flow, Sink, Source}
 import play.sockjs.api.libs.streams.ActorFlow
 
 object Flows {

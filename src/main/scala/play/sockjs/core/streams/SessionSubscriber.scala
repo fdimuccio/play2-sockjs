@@ -3,11 +3,11 @@ package play.sockjs.core.streams
 import scala.concurrent.Promise
 import scala.concurrent.duration._
 
-import akka.{Done, NotUsed}
-import akka.stream._
-import akka.stream.scaladsl._
-import akka.stream.stage.{TimerGraphStageLogic, InHandler, GraphStageLogic, GraphStageWithMaterializedValue}
-import akka.util.ByteString
+import org.apache.pekko.{Done, NotUsed}
+import org.apache.pekko.stream._
+import org.apache.pekko.stream.scaladsl._
+import org.apache.pekko.stream.stage.{TimerGraphStageLogic, InHandler, GraphStageLogic, GraphStageWithMaterializedValue}
+import org.apache.pekko.util.ByteString
 
 import org.reactivestreams.{Publisher, Subscriber}
 

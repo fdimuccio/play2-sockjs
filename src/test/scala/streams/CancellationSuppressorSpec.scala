@@ -1,11 +1,11 @@
 package play.sockjs.streams
 
-import akka.actor.ActorSystem
-import akka.stream._
-import akka.stream.scaladsl.{Flow, Keep}
-import akka.stream.stage.{GraphStage, GraphStageLogic, InHandler, OutHandler}
-import akka.stream.testkit.scaladsl.{TestSink, TestSource}
-import akka.testkit.TestKit
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.stream._
+import org.apache.pekko.stream.scaladsl.{Flow, Keep}
+import org.apache.pekko.stream.stage.{GraphStage, GraphStageLogic, InHandler, OutHandler}
+import org.apache.pekko.stream.testkit.scaladsl.{TestSink, TestSource}
+import org.apache.pekko.testkit.TestKit
 
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.must.Matchers

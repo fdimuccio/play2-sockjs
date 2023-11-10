@@ -2,7 +2,7 @@ package play.sockjs.core.j
 
 import scala.compat.java8.FutureConverters
 
-import akka.stream.scaladsl._
+import org.apache.pekko.stream.scaladsl._
 
 import play.api.mvc.{Handler, RequestHeader}
 import play.core.j.{JavaHandler, JavaHandlerComponents, RequestHeaderImpl => JRequestHeaderImpl}

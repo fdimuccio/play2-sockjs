@@ -3,8 +3,8 @@ package transports
 
 import scala.concurrent.Future
 
-import akka.stream.scaladsl._
-import akka.util.{ByteStringBuilder, ByteString}
+import org.apache.pekko.stream.scaladsl._
+import org.apache.pekko.util.{ByteStringBuilder, ByteString}
 
 import play.api.mvc._
 import play.api.http._

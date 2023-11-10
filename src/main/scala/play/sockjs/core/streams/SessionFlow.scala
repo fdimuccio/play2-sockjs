@@ -4,10 +4,10 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
-import akka.Done
-import akka.util.ByteString
-import akka.stream._
-import akka.stream.scaladsl._
+import org.apache.pekko.Done
+import org.apache.pekko.util.ByteString
+import org.apache.pekko.stream._
+import org.apache.pekko.stream.scaladsl._
 
 import play.sockjs.api.Frame
 

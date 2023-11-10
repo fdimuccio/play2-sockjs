@@ -1,8 +1,8 @@
 package play.sockjs.core.streams
 
-import akka.stream.{Attributes, FlowShape, Inlet, Outlet}
-import akka.stream.scaladsl.{Flow, Source}
-import akka.stream.stage.{GraphStage, GraphStageLogic, InHandler, OutHandler}
+import org.apache.pekko.stream.{Attributes, FlowShape, Inlet, Outlet}
+import org.apache.pekko.stream.scaladsl.{Flow, Source}
+import org.apache.pekko.stream.stage.{GraphStage, GraphStageLogic, InHandler, OutHandler}
 
 /**
   * This stage suppress the Cancel signal emitted by the wrapped flow and

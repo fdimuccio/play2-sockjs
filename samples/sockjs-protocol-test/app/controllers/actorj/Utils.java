@@ -1,8 +1,8 @@
 package controllers.actorj;
 
-import akka.actor.*;
+import org.apache.pekko.actor.*;
 
-import akka.stream.OverflowStrategy;
+import org.apache.pekko.stream.OverflowStrategy;
 
 import play.sockjs.CookieFunctions;
 import play.sockjs.SockJS;

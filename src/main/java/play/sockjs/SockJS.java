@@ -4,13 +4,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
-import akka.stream.javadsl.Flow;
+import org.apache.pekko.stream.javadsl.Flow;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import play.api.http.websocket.CloseCodes;
 import play.libs.F;
 import play.libs.Scala;
-import play.libs.streams.AkkaStreams;
+import play.libs.streams.PekkoStreams;
 import play.mvc.*;
 import scala.PartialFunction;
 
@@ -135,9 +135,9 @@ public abstract class SockJS {
                     if (resultOrFlow.left.isPresent()) {
                         return F.Either.Left(resultOrFlow.left.get());
                     } else {
-                        Flow<Frame, Frame, ?> flow = AkkaStreams.bypassWith(
+                        Flow<Frame, Frame, ?> flow = PekkoStreams.bypassWith(
                                 Flow.<Frame>create().collect(inMapper),
-                                play.api.libs.streams.AkkaStreams.onlyFirstCanFinishMerge(2),
+                                play.api.libs.streams.PekkoStreams.onlyFirstCanFinishMerge(2),
                                 resultOrFlow.right.get().map(outMapper::apply)
                         );
                         return F.Either.Right(flow);

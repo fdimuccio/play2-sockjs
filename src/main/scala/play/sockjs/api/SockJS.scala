@@ -3,8 +3,8 @@ package play.sockjs.api
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
-import akka.actor.{ActorRef, Props}
-import akka.stream.scaladsl._
+import org.apache.pekko.actor.{ActorRef, Props}
+import org.apache.pekko.stream.scaladsl._
 
 import play.api.http.websocket.CloseCodes
 import play.api.libs.streams._
@@ -93,7 +93,7 @@ object SockJS {
     implicit val stringFrameFlowTransformer: MessageFlowTransformer[String, String] = {
       new MessageFlowTransformer[String, String] {
         def transform(flow: Flow[String, String, _]) = {
-          AkkaStreams.bypassWith[Frame, Vector[String], Frame](Flow[Frame] collect {
+          PekkoStreams.bypassWith[Frame, Vector[String], Frame](Flow[Frame] collect {
             case Text(data) => Left(data)
           })(Flow[Vector[String]].mapConcat[String](identity) via flow map Text.apply)
         }
@@ -112,7 +112,7 @@ object SockJS {
 
       new MessageFlowTransformer[JsValue, JsValue] {
         def transform(flow: Flow[JsValue, JsValue, _]) = {
-          AkkaStreams.bypassWith[Frame, Vector[JsValue], Frame](Flow[Frame] collect {
+          PekkoStreams.bypassWith[Frame, Vector[JsValue], Frame](Flow[Frame] collect {
             case Text(data) => closeOnException(data.map(Json.parse))
           })(Flow[Vector[JsValue]].mapConcat[JsValue](identity) via flow map (json => Text(Json.stringify(json))))
         }

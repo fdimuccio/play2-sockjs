@@ -3,13 +3,13 @@ package protocol.utils
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import scala.util.control.NonFatal
-import akka.actor.ActorSystem
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.{HttpRequest, HttpResponse, StatusCode, StatusCodes}
-import akka.http.scaladsl.model.ws.{Message, WebSocketRequest, WebSocketUpgradeResponse}
-import akka.stream.scaladsl.{Flow, Keep}
-import akka.stream.testkit.{TestPublisher, TestSubscriber}
-import akka.stream.testkit.scaladsl.{TestSink, TestSource}
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.http.scaladsl.Http
+import org.apache.pekko.http.scaladsl.model.{HttpRequest, HttpResponse, StatusCode, StatusCodes}
+import org.apache.pekko.http.scaladsl.model.ws.{Message, WebSocketRequest, WebSocketUpgradeResponse}
+import org.apache.pekko.stream.scaladsl.{Flow, Keep}
+import org.apache.pekko.stream.testkit.{TestPublisher, TestSubscriber}
+import org.apache.pekko.stream.testkit.scaladsl.{TestSink, TestSource}
 import org.scalactic.source.Position
 import org.scalatest.time._
 import org.scalatest.concurrent._
@@ -44,7 +44,7 @@ trait TestClient extends org.scalatest.TestSuiteMixin with ScalaFutures with Mat
     def apply(request: HttpRequest)(implicit pos: Position): HttpResponse = {
       val req = request.withEffectiveUri(
         securedConnection = false,
-        akka.http.scaladsl.model.headers.Host("localhost", runningHttpPort))
+        org.apache.pekko.http.scaladsl.model.headers.Host("localhost", runningHttpPort))
       _http.singleRequest(req).futureValue
     }
 
