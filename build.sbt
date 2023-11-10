@@ -4,7 +4,7 @@ name := "play2-sockjs"
 organization := "com.github.fdimuccio"
 
 scalaVersion := "2.13.12"
-crossScalaVersions := Seq("2.13.12")
+crossScalaVersions := Seq("2.13.12", "3.3.1")
 crossVersion := CrossVersion.binary
 
 Test / javaOptions ++= Seq("-Xmx1g")
