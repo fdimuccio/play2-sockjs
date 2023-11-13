@@ -4,14 +4,14 @@ package transports
 import scala.collection.immutable.Seq
 import scala.util.control.Exception._
 
-import akka.stream.scaladsl._
+import org.apache.pekko.stream.scaladsl._
 
 import play.api.mvc._
 import play.api.mvc.{WebSocket => PlayWebSocket}
 import play.api.http._
 import play.api.http.websocket._
 import play.api.libs.json._
-import play.api.libs.streams.AkkaStreams
+import play.api.libs.streams.PekkoStreams
 import play.sockjs.core.streams._
 import play.sockjs.api.Frame
 import play.sockjs.api.Frame._
@@ -25,7 +25,7 @@ private[sockjs] class WebSocket(server: Server) extends HeaderNames with Results
   def framed = server.websocket { sockjs =>
     PlayWebSocket.acceptOrResult { req =>
       sockjs(req).map(_.map { flow =>
-        AkkaStreams.bypassWith[Message, Frame, Frame](
+        PekkoStreams.bypassWith[Message, Frame, Frame](
           Flow[Message].collect {
             case TextMessage(data) if data.nonEmpty =>
               (allCatch opt Json.parse(data)).map(_.validate[Vector[String]].fold(

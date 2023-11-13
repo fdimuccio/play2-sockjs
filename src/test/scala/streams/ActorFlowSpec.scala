@@ -4,11 +4,11 @@ import scala.concurrent.Promise
 import scala.concurrent.duration._
 import scala.util.Random
 
-import akka.Done
-import akka.actor._
-import akka.stream.scaladsl._
-import akka.stream.testkit.scaladsl._
-import akka.testkit._
+import org.apache.pekko.Done
+import org.apache.pekko.actor._
+import org.apache.pekko.stream.scaladsl._
+import org.apache.pekko.stream.testkit.scaladsl._
+import org.apache.pekko.testkit._
 
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike

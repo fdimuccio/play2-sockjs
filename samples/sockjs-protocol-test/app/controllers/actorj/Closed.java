@@ -1,6 +1,6 @@
 package controllers.actorj;
 
-import akka.actor.ActorSystem;
+import org.apache.pekko.actor.ActorSystem;
 import play.sockjs.SockJS;
 import play.sockjs.SockJSRouter;
 

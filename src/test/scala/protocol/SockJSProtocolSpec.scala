@@ -4,16 +4,16 @@ import java.util.UUID
 
 import scala.concurrent.duration._
 import scala.util.{Random, Try}
-import akka.actor.ActorSystem
-import akka.stream.scaladsl._
-import akka.http.scaladsl._
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.HttpMethods._
-import akka.http.scaladsl.model.headers._
-import akka.http.scaladsl.model.StatusCodes._
-import akka.http.scaladsl.model.ws._
-import akka.http.scaladsl.settings.ConnectionPoolSettings
-import akka.stream.testkit.scaladsl.{TestSink, TestSource}
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.stream.scaladsl._
+import org.apache.pekko.http.scaladsl._
+import org.apache.pekko.http.scaladsl.model._
+import org.apache.pekko.http.scaladsl.model.HttpMethods._
+import org.apache.pekko.http.scaladsl.model.headers._
+import org.apache.pekko.http.scaladsl.model.StatusCodes._
+import org.apache.pekko.http.scaladsl.model.ws._
+import org.apache.pekko.http.scaladsl.settings.ConnectionPoolSettings
+import org.apache.pekko.stream.testkit.scaladsl.{TestSink, TestSource}
 import org.apache.commons.text.StringEscapeUtils
 import play.api.libs.json._
 import protocol.routers._

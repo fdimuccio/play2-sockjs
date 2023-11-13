@@ -1,6 +1,6 @@
 package play.sockjs.core.json
 
-import akka.util.{ByteString, ByteStringBuilder}
+import org.apache.pekko.util.{ByteString, ByteStringBuilder}
 
 import com.fasterxml.jackson.core.json.JsonWriteFeature
 import com.fasterxml.jackson.core.{JsonEncoding, JsonFactory, JsonGenerator}

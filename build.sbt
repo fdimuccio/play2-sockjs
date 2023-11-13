@@ -1,10 +1,10 @@
-version := "0.9.0"
+version := "0.10.0"
 
 name := "play2-sockjs"
 organization := "com.github.fdimuccio"
 
 scalaVersion := "2.13.12"
-crossScalaVersions := Seq("2.13.12")
+crossScalaVersions := Seq("2.13.12", "3.3.1")
 crossVersion := CrossVersion.binary
 
 Test / javaOptions ++= Seq("-Xmx1g")
@@ -42,18 +42,18 @@ pomExtra :=
       </developer>
     </developers>
 
-val play2Version = "2.9.0"
-val akkaVersion = "2.6.21"
-val akkaHttpVersion = "10.2.10"
+val play3Version = "3.0.0"
+val pekkoVersion = "1.0.1"
+val pekkoHttpVersion = "1.0.0"
 val scalaTestVersion = "3.2.17"
 
 libraryDependencies ++= Seq(
-  "com.typesafe.play" %% "play" % play2Version % "provided->default",
-  "com.typesafe.akka" %% "akka-http" % akkaHttpVersion % Test,
-  "com.typesafe.akka" %% "akka-stream-testkit" % akkaVersion % Test,
+  "org.playframework" %% "play" % play3Version % "provided->default",
+  "org.apache.pekko" %% "pekko-http" % pekkoHttpVersion % Test,
+  "org.apache.pekko" %% "pekko-stream-testkit" % pekkoVersion % Test,
   "org.scalatest" %% "scalatest" % scalaTestVersion % Test,
-  "com.typesafe.play" %% "play-test" % play2Version % Test,
-  "com.typesafe.play" %% "play-guice" % play2Version % Test,
-  "com.typesafe.play" %% "play-netty-server" % play2Version % Test,
+  "org.playframework" %% "play-test" % play3Version % Test,
+  "org.playframework" %% "play-guice" % play3Version % Test,
+  "org.playframework" %% "play-netty-server" % play3Version % Test,
   "com.google.inject" % "guice" % "6.0.0" % "provided->default"
 )

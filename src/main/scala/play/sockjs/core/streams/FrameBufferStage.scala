@@ -1,8 +1,8 @@
 package play.sockjs.core.streams
 
-import akka.stream._
-import akka.stream.stage._
-import akka.stream.scaladsl._
+import org.apache.pekko.stream._
+import org.apache.pekko.stream.stage._
+import org.apache.pekko.stream.scaladsl._
 
 import play.sockjs.api.Frame
 import play.sockjs.api.Frame._

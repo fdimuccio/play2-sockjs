@@ -1,6 +1,6 @@
 package streams
 
-import akka.stream.scaladsl._
+import org.apache.pekko.stream.scaladsl._
 
 import play.sockjs.api.Frame
 

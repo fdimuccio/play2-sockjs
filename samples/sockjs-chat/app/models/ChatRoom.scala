@@ -3,25 +3,25 @@ package models
 import javax.inject.Inject
 
 import scala.concurrent.duration._
-import akka.actor._
-import akka.stream._
-import akka.stream.scaladsl._
+import org.apache.pekko.actor._
+import org.apache.pekko.stream._
+import org.apache.pekko.stream.scaladsl._
 import play.api._
 import play.api.libs.json._
 
 /**
  * ChatRoom service
  */
-class ChatRoom @Inject() (akka: ActorSystem, mat: Materializer) {
+class ChatRoom @Inject() (pekko: ActorSystem, mat: Materializer) {
 
   private val room = {
-    val roomActor = akka.actorOf(Props[ChatRoomActor])
-    akka.actorOf(Props(new Robot(roomActor)))
+    val roomActor = pekko.actorOf(Props[ChatRoomActor])
+    pekko.actorOf(Props(new Robot(roomActor)))
     roomActor
   }
 
   def join(username: String): Flow[JsValue, JsValue, _] =
-    play.api.libs.streams.ActorFlow.actorRef(out => Props(new ChatRoomMember(username, room, out)), 256)(akka, mat)
+    play.api.libs.streams.ActorFlow.actorRef(out => Props(new ChatRoomMember(username, room, out)), 256)(pekko, mat)
 }
 
 /**
@@ -70,7 +70,7 @@ class ChatRoomMember(username: String, room: ActorRef, out: ActorRef) extends Ac
     case json: JsValue if connected =>
       room ! Talk(username, (json \ "text").as[String])
 
-    case akka.actor.Terminated(`out`) =>
+    case org.apache.pekko.actor.Terminated(`out`) =>
       context.stop(self)
   }
 

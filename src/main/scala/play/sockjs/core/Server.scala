@@ -6,9 +6,9 @@ import scala.util.control.NonFatal
 import scala.util.control.Exception._
 import scala.concurrent.Future
 
-import akka.stream.{Materializer, QueueOfferResult}
-import akka.stream.scaladsl.{Keep, Source}
-import akka.util.ByteString
+import org.apache.pekko.stream.{Materializer, QueueOfferResult}
+import org.apache.pekko.stream.scaladsl.{Keep, Source}
+import org.apache.pekko.util.ByteString
 
 import play.core.parsers.FormUrlEncodedParser
 import play.api.mvc._

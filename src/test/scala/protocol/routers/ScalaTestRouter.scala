@@ -1,6 +1,6 @@
 package protocol.routers
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import play.sockjs.api._
 
 class ScalaTestRouter(val sockjs: SockJS, prefix: String, cfg: SockJSSettings, val components: SockJSRouterComponents) extends BaseSockJSRouter {

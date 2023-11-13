@@ -1,8 +1,8 @@
 package play.sockjs.core
 package transports
 
-import akka.stream.scaladsl._
-import akka.util.ByteString
+import org.apache.pekko.stream.scaladsl._
+import org.apache.pekko.util.ByteString
 
 import play.api.http._
 import play.api.mvc._

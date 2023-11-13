@@ -2,7 +2,7 @@ package play.sockjs.api
 
 import javax.inject.Inject
 
-import akka.stream.Materializer
+import org.apache.pekko.stream.Materializer
 
 import play.api.routing.Router
 import play.api.mvc._

@@ -2,9 +2,9 @@ package play.sockjs.core.j
 
 import javax.inject.Inject
 
-import scala.compat.java8.OptionConverters._
+import scala.jdk.OptionConverters._
 
-import akka.stream.Materializer
+import org.apache.pekko.stream.Materializer
 
 import play.api.mvc._
 import play.api.routing.Router
@@ -29,7 +29,7 @@ abstract class JavaRouter extends play.mvc.Controller with Router {
     val cfg = JavaRouter.this.settings
     play.sockjs.api.SockJSSettings(
       scriptSRC = req => cfg.scriptSRC()(new j.RequestHeaderImpl(req)),
-      cookies = cfg.cookies().asScala.map { f =>
+      cookies = cfg.cookies().toScala.map { f =>
         req =>
           val jcookie = f(new j.RequestHeaderImpl(req))
           Cookie(

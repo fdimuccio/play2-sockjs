@@ -25,7 +25,7 @@ class Utils(server: Server) extends HeaderNames with Results {
   /**
    * iframe page (needed by iframe transports)
    */
-  def iframe = server.action { req: Request[AnyContent] =>
+  def iframe = server.action { (req: Request[AnyContent]) =>
     val content = """|<!DOCTYPE html>
                      |<html>
                      |<head>

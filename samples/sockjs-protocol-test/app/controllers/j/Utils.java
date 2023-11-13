@@ -1,6 +1,6 @@
 package controllers.j;
 
-import akka.stream.javadsl.*;
+import org.apache.pekko.stream.javadsl.*;
 import play.sockjs.*;
 
 class Utils {

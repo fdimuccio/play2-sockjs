@@ -1,9 +1,9 @@
 package play.sockjs.api.libs.streams
 
-import akka.actor._
-import akka.stream._
-import akka.stream.stage._
-import akka.stream.scaladsl._
+import org.apache.pekko.actor._
+import org.apache.pekko.stream._
+import org.apache.pekko.stream.stage._
+import org.apache.pekko.stream.scaladsl._
 
 /**
   * Provides a flow that is handled by an actor.
@@ -17,10 +17,10 @@ object ActorFlow {
     * Create a flow that is handled by an actor.
     *
     * Messages can be sent downstream by sending them to the actor passed into the props function.  This actor meets
-    * the contract of the actor returned by [[akka.stream.scaladsl.Source.actorRef]].
+    * the contract of the actor returned by [[org.apache.pekko.stream.scaladsl.Source.actorRef]].
     *
     * The props function should return the props for an actor to handle the flow. This actor will be created using the
-    * passed in [[akka.actor.ActorRefFactory]]. Each message received will be sent to the actor - there is no back pressure,
+    * passed in [[org.apache.pekko.actor.ActorRefFactory]]. Each message received will be sent to the actor - there is no back pressure,
     * if the actor is unable to process the messages, they will queue up in the actors mailbox. The upstream can be
     * cancelled by the actor terminating itself.
     *

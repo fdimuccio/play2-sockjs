@@ -1,6 +1,6 @@
 package protocol.utils
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 
 import org.scalatest._
 
@@ -35,7 +35,7 @@ trait TestServer extends org.scalatest.TestSuiteMixin { this: TestSuite =>
         def routes = routers.foldRight(PartialFunction.empty[RequestHeader, Handler])(_.routes.orElse(_))
       })
       .configure(
-        "akka.stream.materializer.debug.fuzzing-mode" -> "on",
+        "org.apache.pekko.stream.materializer.debug.fuzzing-mode" -> "on",
         "play.http.filters" -> "play.api.http.NoHttpFilters"
       )
       .build()
