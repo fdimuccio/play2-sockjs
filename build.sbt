@@ -25,22 +25,26 @@ publishTo := sonatypePublishToBundle.value
 Test / publishArtifact := false
 pomIncludeRepository := { _ => false }
 
+Global / useGpgPinentry := true
+
 licenses := Seq("Apache 2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0"))
 
 homepage := Some(url("https://github.com/fdimuccio/play2-sockjs"))
 
-pomExtra :=
-  <scm>
-    <url>git@github.com:fdimuccio/play2-sockjs</url>
-    <connection>scm:git:git@github.com:/play2-sockjs.git</connection>
-  </scm>
-    <developers>
-      <developer>
-        <id>fdimuccio</id>
-        <name>Francesco Di Muccio</name>
-        <url>https://github.com/fdimuccio</url>
-      </developer>
-    </developers>
+scmInfo := Some(
+  ScmInfo(
+    url("https://github.com/fdimuccio/play2-sockjs"),
+    "scm:git:git@github.com:/play2-sockjs.git"
+  )
+)
+
+developers := List(
+  Developer(
+    id="fdimuccio",
+    name="Francesco Di Muccio",
+    email="francesco.dimuccio@gmail.com",
+    url=url("https://github.com/fdimuccio"))
+)
 
 val play3Version = "3.0.0"
 val pekkoVersion = "1.0.1"

@@ -151,7 +151,7 @@ private[sockjs] final class Server(
               case Right(source) =>
                 Ok.sendEntity(
                   if (req.version.contains("1.0")) HttpEntity.Streamed(f(source), None, Some(ctype))
-                  else HttpEntity.Chunked(f(source).map(HttpChunk.Chunk), Some(ctype))
+                  else HttpEntity.Chunked(f(source).map(HttpChunk.Chunk.apply), Some(ctype))
                 ).notcached.withCookies(settings.cookies.map(f => List(f(req))).getOrElse(Nil):_*)
 
               case Left(result) => result
